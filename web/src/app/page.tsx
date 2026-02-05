@@ -44,7 +44,7 @@ export default function HomePage() {
     isListening,
     isPaused,
     transcript,
-    transcriptSegments,
+    // transcriptSegments, // Reserved for future use with detailed speaker view
     interimTranscript,
     error: speechError,
     startListening,

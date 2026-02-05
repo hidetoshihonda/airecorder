@@ -43,7 +43,6 @@ export function useSpeechRecognition(
   const [error, setError] = useState<string | null>(null);
 
   const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null);
-  const speechConfigRef = useRef<SpeechSDK.SpeechConfig | null>(null);
   const pausedTranscriptRef = useRef<string>("");
   const startTimeRef = useRef<number>(0);
   const currentSpeakerRef = useRef<string>("話者1");
@@ -158,7 +157,7 @@ export function useSpeechRecognition(
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`初期化エラー: ${message}`);
     }
-  }, [subscriptionKey, region, language]);
+  }, [subscriptionKey, region, language, enableSpeakerDiarization]);
 
   const stopListening = useCallback(() => {
     if (recognizerRef.current) {
