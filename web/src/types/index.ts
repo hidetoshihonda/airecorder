@@ -5,13 +5,14 @@ export interface Recording {
   createdAt: string;
   updatedAt: string;
   duration: number; // seconds
-  audioUrl: string;
+  audioUrl?: string;
   sourceLanguage: string;
   transcript?: Transcript;
   translations?: Record<string, Translation>;
   summary?: Summary;
   tags?: string[];
   folderId?: string;
+  status?: "recording" | "processing" | "completed" | "error";
 }
 
 export interface Transcript {

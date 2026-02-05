@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/config";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTranslation } from "@/hooks/useTranslation";
+import { recordingsApi } from "@/services";
 import { cn } from "@/lib/utils";
 
 export default function HomePage() {
@@ -23,6 +24,8 @@ export default function HomePage() {
   const [targetLanguage, setTargetLanguage] = useState("en-US");
   const [translatedText, setTranslatedText] = useState("");
   const [copied, setCopied] = useState<"transcript" | "translation" | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Speech Recognition
   const {
@@ -83,6 +86,7 @@ export default function HomePage() {
   const handleStartRecording = () => {
     setDuration(0);
     setTranslatedText("");
+    setSaveSuccess(false);
     resetTranscript();
     startListening();
   };
@@ -96,6 +100,50 @@ export default function HomePage() {
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   }, []);
+
+  const handleSave = async () => {
+    if (!transcript) return;
+
+    setIsSaving(true);
+    setSaveSuccess(false);
+
+    const now = new Date();
+    const title = `録音 ${now.toLocaleDateString("ja-JP")} ${now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`;
+
+    const response = await recordingsApi.createRecording({
+      title,
+      sourceLanguage,
+      duration,
+      transcript: {
+        segments: [{
+          id: "1",
+          text: transcript,
+          startTime: 0,
+          endTime: duration,
+        }],
+        fullText: transcript,
+      },
+      translations: translatedText ? {
+        [targetLanguage]: {
+          languageCode: targetLanguage,
+          segments: [{
+            originalSegmentId: "1",
+            text: translatedText,
+          }],
+          fullText: translatedText,
+        },
+      } : undefined,
+    });
+
+    setIsSaving(false);
+
+    if (response.error) {
+      alert(`保存に失敗しました: ${response.error}`);
+    } else {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+  };
 
   const error = speechError || translationError;
   const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
@@ -250,21 +298,41 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">文字起こし結果</CardTitle>
-              {transcript && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCopy(transcript, "transcript")}
-                  className="gap-2"
-                >
-                  {copied === "transcript" ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                  コピー
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {transcript && !isListening && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="gap-2"
+                  >
+                    {isSaving ? (
+                      <Spinner size="sm" />
+                    ) : saveSuccess ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {saveSuccess ? "保存完了" : "保存"}
+                  </Button>
+                )}
+                {transcript && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(transcript, "transcript")}
+                    className="gap-2"
+                  >
+                    {copied === "transcript" ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    コピー
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isListening ? (
