@@ -16,6 +16,9 @@ import {
   Sparkles,
   AlertCircle,
   FileDown,
+  Play,
+  Pause,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Recording } from "@/types";
-import { recordingsApi, summaryApi } from "@/services";
+import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
 import {
   downloadAsText,
@@ -69,6 +72,10 @@ function RecordingDetailContent() {
   const [copied, setCopied] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,12 +94,50 @@ function RecordingDetailContent() {
         setError(response.error);
       } else if (response.data) {
         setRecording(response.data);
+        
+        // Load audio URL if available
+        if (response.data.audioUrl) {
+          setIsLoadingAudio(true);
+          const playableUrl = await blobApi.getPlayableUrl(response.data.audioUrl);
+          if (playableUrl) {
+            setAudioUrl(playableUrl);
+          }
+          setIsLoadingAudio(false);
+        }
       }
 
       setIsLoading(false);
     };
     fetchData();
   }, [id]);
+
+  // Audio playback handlers
+  const handlePlayPause = () => {
+    if (!audioElement && audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.onended = () => setIsPlaying(false);
+      audio.onpause = () => setIsPlaying(false);
+      audio.onplay = () => setIsPlaying(true);
+      setAudioElement(audio);
+      audio.play();
+    } else if (audioElement) {
+      if (isPlaying) {
+        audioElement.pause();
+      } else {
+        audioElement.play();
+      }
+    }
+  };
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = "";
+      }
+    };
+  }, [audioElement]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -233,6 +278,37 @@ function RecordingDetailContent() {
             {langName || recording.sourceLanguage}
           </span>
         </div>
+        
+        {/* Audio Player */}
+        {recording.audioUrl && (
+          <div className="mt-4 flex items-center gap-4 rounded-lg bg-gray-50 p-4">
+            <button
+              onClick={handlePlayPause}
+              disabled={isLoadingAudio || !audioUrl}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoadingAudio ? (
+                <Spinner size="sm" className="text-white" />
+              ) : isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5 ml-0.5" />
+              )}
+            </button>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Volume2 className="h-4 w-4" />
+              <span>
+                {isLoadingAudio
+                  ? "音声を読み込み中..."
+                  : audioUrl
+                  ? isPlaying
+                    ? "再生中"
+                    : "再生可能"
+                  : "音声ファイルを読み込めませんでした"}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Audio Player */}
