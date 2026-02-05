@@ -28,9 +28,10 @@ export const speechConfig = {
 };
 
 // Azure Translator Configuration
+// Note: Translator resource is deployed globally, so region must be "global"
 export const translatorConfig = {
   subscriptionKey: process.env.NEXT_PUBLIC_AZURE_TRANSLATOR_KEY || "",
-  region: process.env.NEXT_PUBLIC_AZURE_TRANSLATOR_REGION || "japaneast",
+  region: process.env.NEXT_PUBLIC_AZURE_TRANSLATOR_REGION || "global",
   endpoint: "https://api.cognitive.microsofttranslator.com",
 };
 
