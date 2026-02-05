@@ -65,6 +65,10 @@ jobs:
           app_location: "/web"
           output_location: "out"
           app_build_command: "npm run build"
+        env:
+          NEXT_PUBLIC_AZURE_SPEECH_KEY: ${{ secrets.NEXT_PUBLIC_AZURE_SPEECH_KEY }}
+          NEXT_PUBLIC_AZURE_SPEECH_REGION: ${{ secrets.NEXT_PUBLIC_AZURE_SPEECH_REGION }}
+          NEXT_PUBLIC_AZURE_TRANSLATOR_KEY: ${{ secrets.NEXT_PUBLIC_AZURE_TRANSLATOR_KEY }}
 
   # ===================================
   # Close Pull Request (Cleanup Preview)

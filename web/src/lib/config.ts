@@ -29,8 +29,8 @@ export const speechConfig = {
 
 // Azure Translator Configuration
 export const translatorConfig = {
-  subscriptionKey: process.env.AZURE_TRANSLATOR_KEY || "",
-  region: process.env.AZURE_TRANSLATOR_REGION || "japaneast",
+  subscriptionKey: process.env.NEXT_PUBLIC_AZURE_TRANSLATOR_KEY || "",
+  region: process.env.NEXT_PUBLIC_AZURE_TRANSLATOR_REGION || "japaneast",
   endpoint: "https://api.cognitive.microsofttranslator.com",
 };
 
