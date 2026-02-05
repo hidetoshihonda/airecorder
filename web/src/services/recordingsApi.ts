@@ -2,6 +2,7 @@ import {
   Recording,
   Transcript,
   Translation,
+  Summary,
   ApiResponse,
   PaginatedResponse,
 } from "@/types";
@@ -26,6 +27,7 @@ export interface UpdateRecordingInput {
   title?: string;
   transcript?: Transcript;
   translations?: Record<string, Translation>;
+  summary?: Summary;
   tags?: string[];
   status?: Recording["status"];
 }

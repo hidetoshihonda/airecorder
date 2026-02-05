@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,7 +16,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/config";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTranslation } from "@/hooks/useTranslation";
-import { recordingsApi } from "@/services";
+import { recordingsApi, summaryApi } from "@/services";
+import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
 
 export default function HomePage() {
@@ -26,6 +27,9 @@ export default function HomePage() {
   const [copied, setCopied] = useState<"transcript" | "translation" | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Speech Recognition
   const {
@@ -87,12 +91,34 @@ export default function HomePage() {
     setDuration(0);
     setTranslatedText("");
     setSaveSuccess(false);
+    setSummary(null);
+    setSummaryError(null);
     resetTranscript();
     startListening();
   };
 
   const handleStopRecording = () => {
     stopListening();
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!transcript) return;
+
+    setIsGeneratingSummary(true);
+    setSummaryError(null);
+
+    const response = await summaryApi.generateSummary({
+      transcript,
+      language: sourceLanguage,
+    });
+
+    setIsGeneratingSummary(false);
+
+    if (response.error) {
+      setSummaryError(response.error);
+    } else if (response.data) {
+      setSummary(response.data);
+    }
   };
 
   const handleCopy = useCallback(async (text: string, type: "transcript" | "translation") => {
@@ -419,13 +445,117 @@ export default function HomePage() {
 
         <TabsContent value="minutes">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">議事録</CardTitle>
+              {transcript && !isListening && !summary && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateSummary}
+                  disabled={isGeneratingSummary}
+                  className="gap-2"
+                >
+                  {isGeneratingSummary ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {isGeneratingSummary ? "生成中..." : "AIで議事録を生成"}
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="py-8 text-center text-gray-500">
-                録音完了後、AIが議事録を自動生成します（Coming Soon）
-              </div>
+              {summaryError && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <p>{summaryError}</p>
+                </div>
+              )}
+
+              {isGeneratingSummary ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Spinner size="lg" />
+                  <p className="mt-4 text-gray-600">AIが議事録を生成しています...</p>
+                  <p className="text-sm text-gray-500">数秒から数十秒かかる場合があります</p>
+                </div>
+              ) : summary ? (
+                <div className="space-y-6">
+                  {/* Overview */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">📋 概要</h3>
+                    <div className="rounded-md bg-gray-50 p-4 text-gray-800">
+                      {summary.overview}
+                    </div>
+                  </div>
+
+                  {/* Key Points */}
+                  {summary.keyPoints && summary.keyPoints.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">🔑 重要ポイント</h3>
+                      <ul className="space-y-2">
+                        {summary.keyPoints.map((point, index) => (
+                          <li
+                            key={index}
+                            className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800"
+                          >
+                            <span className="text-blue-600 font-medium">{index + 1}.</span>
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Action Items */}
+                  {summary.actionItems && summary.actionItems.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">✅ アクションアイテム</h3>
+                      <ul className="space-y-2">
+                        {summary.actionItems.map((item) => (
+                          <li
+                            key={item.id}
+                            className="rounded-md border border-green-200 bg-green-50 p-3"
+                          >
+                            <p className="text-gray-800">{item.description}</p>
+                            <div className="mt-2 flex gap-4 text-sm text-gray-600">
+                              {item.assignee && (
+                                <span>👤 担当: {item.assignee}</span>
+                              )}
+                              {item.dueDate && (
+                                <span>📅 期限: {item.dueDate}</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Regenerate Button */}
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateSummary}
+                      disabled={isGeneratingSummary}
+                      className="gap-2"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      再生成
+                    </Button>
+                  </div>
+                </div>
+              ) : transcript && !isListening ? (
+                <div className="py-8 text-center text-gray-500">
+                  <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p>「AIで議事録を生成」ボタンをクリックして</p>
+                  <p>文字起こしから議事録を自動生成できます</p>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-gray-500">
+                  録音完了後、AIが議事録を自動生成します
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

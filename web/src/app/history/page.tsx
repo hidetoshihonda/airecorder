@@ -171,7 +171,7 @@ export default function HistoryPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <Link
-                        href={`/recording/${recording.id}`}
+                        href={`/recording?id=${recording.id}`}
                         className="text-lg font-medium text-gray-900 hover:text-blue-600"
                       >
                         {recording.title}
