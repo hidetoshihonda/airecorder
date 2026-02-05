@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,11 +39,14 @@ export default function HomePage() {
   // Speech Recognition
   const {
     isListening,
+    isPaused,
     transcript,
     interimTranscript,
     error: speechError,
     startListening,
     stopListening,
+    pauseListening,
+    resumeListening,
     resetTranscript,
   } = useSpeechRecognition({
     subscriptionKey: speechConfig.subscriptionKey,
@@ -61,17 +64,17 @@ export default function HomePage() {
     region: translatorConfig.region,
   });
 
-  // Duration counter
+  // Duration counter (pauses when isPaused)
   const [duration, setDuration] = useState(0);
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isListening) {
+    if (isListening && !isPaused) {
       interval = setInterval(() => {
         setDuration((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isListening]);
+  }, [isListening, isPaused]);
 
   // Auto-translate when transcript changes (real-time translation)
   useEffect(() => {
@@ -247,41 +250,81 @@ export default function HomePage() {
       <Card className="mb-6">
         <CardContent className="py-8">
           <div className="flex flex-col items-center gap-6">
-            {/* Recording Button */}
-            <div className="relative">
-              <button
-                onClick={isListening ? handleStopRecording : handleStartRecording}
-                disabled={!hasApiKeys}
-                className={cn(
-                  "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
-                  isListening
-                    ? "bg-red-500 hover:bg-red-600 animate-pulse"
-                    : hasApiKeys
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-400 cursor-not-allowed"
-                )}
-              >
-                {isListening ? (
-                  <Square className="h-10 w-10 text-white" />
-                ) : (
-                  <Mic className="h-10 w-10 text-white" />
-                )}
-              </button>
+            {/* Recording Buttons */}
+            <div className="flex items-center gap-4">
+              {/* Pause/Resume Button (visible during recording) */}
               {isListening && (
-                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700">
-                  {formatDuration(duration)}
-                </span>
+                <button
+                  onClick={isPaused ? resumeListening : pauseListening}
+                  className={cn(
+                    "flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200",
+                    isPaused
+                      ? "bg-green-500 hover:bg-green-600"
+                      : "bg-yellow-500 hover:bg-yellow-600"
+                  )}
+                  title={isPaused ? "再開" : "一時停止"}
+                >
+                  {isPaused ? (
+                    <Play className="h-6 w-6 text-white" />
+                  ) : (
+                    <Pause className="h-6 w-6 text-white" />
+                  )}
+                </button>
               )}
+
+              {/* Main Recording Button */}
+              <div className="relative">
+                <button
+                  onClick={isListening ? handleStopRecording : handleStartRecording}
+                  disabled={!hasApiKeys}
+                  className={cn(
+                    "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
+                    isListening
+                      ? isPaused 
+                        ? "bg-orange-500 hover:bg-orange-600"
+                        : "bg-red-500 hover:bg-red-600 animate-pulse"
+                      : hasApiKeys
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  {isListening ? (
+                    <Square className="h-10 w-10 text-white" />
+                  ) : (
+                    <Mic className="h-10 w-10 text-white" />
+                  )}
+                </button>
+                {isListening && (
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700">
+                    {formatDuration(duration)}
+                  </span>
+                )}
+              </div>
+
+              {/* Spacer for symmetry when recording */}
+              {isListening && <div className="w-14" />}
             </div>
 
             {/* Status */}
             {isListening && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                リアルタイム文字起こし中...
+              <div className={cn(
+                "flex items-center gap-2 text-sm",
+                isPaused ? "text-yellow-600" : "text-green-600"
+              )}>
+                {isPaused ? (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    一時停止中...
+                  </>
+                ) : (
+                  <>
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    リアルタイム文字起こし中...
+                  </>
+                )}
               </div>
             )}
 

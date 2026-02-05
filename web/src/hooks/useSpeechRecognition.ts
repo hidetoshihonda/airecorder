@@ -11,11 +11,14 @@ interface UseSpeechRecognitionOptions {
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean;
+  isPaused: boolean;
   transcript: string;
   interimTranscript: string;
   error: string | null;
   startListening: () => void;
   stopListening: () => void;
+  pauseListening: () => void;
+  resumeListening: () => void;
   resetTranscript: () => void;
 }
 
@@ -25,11 +28,14 @@ export function useSpeechRecognition(
   const { subscriptionKey, region, language = "ja-JP" } = options;
 
   const [isListening, setIsListening] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null);
+  const speechConfigRef = useRef<SpeechSDK.SpeechConfig | null>(null);
+  const pausedTranscriptRef = useRef<string>("");
 
   const startListening = useCallback(() => {
     if (!subscriptionKey || !region) {
@@ -111,8 +117,10 @@ export function useSpeechRecognition(
       recognizerRef.current.stopContinuousRecognitionAsync(
         () => {
           setIsListening(false);
+          setIsPaused(false);
           recognizerRef.current?.close();
           recognizerRef.current = null;
+          pausedTranscriptRef.current = "";
         },
         (err) => {
           setError(`停止エラー: ${err}`);
@@ -121,18 +129,51 @@ export function useSpeechRecognition(
     }
   }, []);
 
+  const pauseListening = useCallback(() => {
+    if (recognizerRef.current && isListening && !isPaused) {
+      // 現在のtranscriptを保存
+      pausedTranscriptRef.current = transcript;
+      recognizerRef.current.stopContinuousRecognitionAsync(
+        () => {
+          setIsPaused(true);
+          setInterimTranscript("");
+        },
+        (err) => {
+          setError(`一時停止エラー: ${err}`);
+        }
+      );
+    }
+  }, [isListening, isPaused, transcript]);
+
+  const resumeListening = useCallback(() => {
+    if (recognizerRef.current && isListening && isPaused) {
+      recognizerRef.current.startContinuousRecognitionAsync(
+        () => {
+          setIsPaused(false);
+        },
+        (err) => {
+          setError(`再開エラー: ${err}`);
+        }
+      );
+    }
+  }, [isListening, isPaused]);
+
   const resetTranscript = useCallback(() => {
     setTranscript("");
     setInterimTranscript("");
+    pausedTranscriptRef.current = "";
   }, []);
 
   return {
     isListening,
+    isPaused,
     transcript,
     interimTranscript,
     error,
     startListening,
     stopListening,
+    pauseListening,
+    resumeListening,
     resetTranscript,
   };
 }
