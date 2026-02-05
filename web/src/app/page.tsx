@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,11 @@ export default function HomePage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
+  
+  // Ref to track last translated text to avoid redundant translations
+  const lastTranslatedTextRef = useRef<string>("");
+  const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Speech Recognition
   const {
@@ -68,18 +73,48 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [isListening]);
 
-  // Auto-translate when transcript changes
+  // Auto-translate when transcript changes (real-time translation)
   useEffect(() => {
-    const translateText = async () => {
-      if (transcript && !isListening) {
-        const result = await translate(transcript, sourceLanguage, targetLanguage);
+    const textToTranslate = transcript || interimTranscript;
+    
+    // Skip if no text or same as last translated
+    if (!textToTranslate || textToTranslate === lastTranslatedTextRef.current) {
+      return;
+    }
+
+    // Clear previous timeout
+    if (translationTimeoutRef.current) {
+      clearTimeout(translationTimeoutRef.current);
+    }
+
+    // If recording stopped, translate immediately
+    if (!isListening && transcript) {
+      lastTranslatedTextRef.current = transcript;
+      translate(transcript, sourceLanguage, targetLanguage).then((result) => {
         if (result) {
           setTranslatedText(result);
         }
+      });
+      return;
+    }
+
+    // Real-time translation with debounce (500ms delay to avoid too many API calls)
+    if (isListening && isRealtimeTranslation && textToTranslate) {
+      translationTimeoutRef.current = setTimeout(async () => {
+        lastTranslatedTextRef.current = textToTranslate;
+        const result = await translate(textToTranslate, sourceLanguage, targetLanguage);
+        if (result) {
+          setTranslatedText(result);
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (translationTimeoutRef.current) {
+        clearTimeout(translationTimeoutRef.current);
       }
     };
-    translateText();
-  }, [transcript, isListening, sourceLanguage, targetLanguage, translate]);
+  }, [transcript, interimTranscript, isListening, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -93,6 +128,7 @@ export default function HomePage() {
     setSaveSuccess(false);
     setSummary(null);
     setSummaryError(null);
+    lastTranslatedTextRef.current = "";
     resetTranscript();
     startListening();
   };
@@ -298,6 +334,28 @@ export default function HomePage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Real-time Translation Toggle */}
+            <div className="flex items-center gap-3 mt-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isRealtimeTranslation}
+                  onChange={(e) => setIsRealtimeTranslation(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span className="ml-3 text-sm font-medium text-gray-700">
+                  リアルタイム翻訳
+                </span>
+              </label>
+              {isRealtimeTranslation && isListening && isTranslating && (
+                <span className="text-xs text-blue-600 flex items-center gap-1">
+                  <Spinner className="h-3 w-3" />
+                  翻訳中...
+                </span>
+              )}
             </div>
           </div>
         </CardContent>
