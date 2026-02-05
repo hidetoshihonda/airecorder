@@ -7,12 +7,20 @@ interface UseSpeechRecognitionOptions {
   subscriptionKey: string;
   region: string;
   language?: string;
+  enableSpeakerDiarization?: boolean;
+}
+
+interface TranscriptSegment {
+  speaker: string;
+  text: string;
+  timestamp: number;
 }
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean;
   isPaused: boolean;
   transcript: string;
+  transcriptSegments: TranscriptSegment[];
   interimTranscript: string;
   error: string | null;
   startListening: () => void;
@@ -25,17 +33,22 @@ interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions
 ): UseSpeechRecognitionReturn {
-  const { subscriptionKey, region, language = "ja-JP" } = options;
+  const { subscriptionKey, region, language = "ja-JP", enableSpeakerDiarization = false } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null);
   const speechConfigRef = useRef<SpeechSDK.SpeechConfig | null>(null);
   const pausedTranscriptRef = useRef<string>("");
+  const startTimeRef = useRef<number>(0);
+  const currentSpeakerRef = useRef<string>("話者1");
+  const lastSpeechEndRef = useRef<number>(0);
+  const SPEAKER_CHANGE_THRESHOLD = 2000; // 2秒以上の沈黙で話者切り替えの可能性
 
   const startListening = useCallback(() => {
     if (!subscriptionKey || !region) {
@@ -46,7 +59,11 @@ export function useSpeechRecognition(
     try {
       setError(null);
       setTranscript("");
+      setTranscriptSegments([]);
       setInterimTranscript("");
+      startTimeRef.current = Date.now();
+      currentSpeakerRef.current = "話者1";
+      lastSpeechEndRef.current = Date.now();
 
       const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
         subscriptionKey,
@@ -70,12 +87,43 @@ export function useSpeechRecognition(
       // 認識完了（確定結果）
       recognizer.recognized = (_sender, event) => {
         if (event.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-          setTranscript((prev) => {
-            const newText = event.result.text;
-            if (prev) {
-              return prev + " " + newText;
+          const newText = event.result.text;
+          const now = Date.now();
+          
+          // 話者識別が有効な場合、沈黙時間で話者切り替えを検出
+          if (enableSpeakerDiarization) {
+            const silenceDuration = now - lastSpeechEndRef.current;
+            if (silenceDuration > SPEAKER_CHANGE_THRESHOLD) {
+              // 話者を切り替え（最大4人まで）
+              const currentNum = parseInt(currentSpeakerRef.current.replace("話者", ""));
+              const nextNum = currentNum >= 4 ? 1 : currentNum + 1;
+              currentSpeakerRef.current = `話者${nextNum}`;
             }
-            return newText;
+            lastSpeechEndRef.current = now;
+            
+            // セグメントを追加
+            const segment: TranscriptSegment = {
+              speaker: currentSpeakerRef.current,
+              text: newText,
+              timestamp: now - startTimeRef.current,
+            };
+            setTranscriptSegments((prev) => [...prev, segment]);
+          }
+          
+          setTranscript((prev) => {
+            if (enableSpeakerDiarization) {
+              // 話者ラベル付きのテキスト
+              const label = `[${currentSpeakerRef.current}] `;
+              if (prev) {
+                return prev + "\n" + label + newText;
+              }
+              return label + newText;
+            } else {
+              if (prev) {
+                return prev + " " + newText;
+              }
+              return newText;
+            }
           });
           setInterimTranscript("");
         } else if (event.result.reason === SpeechSDK.ResultReason.NoMatch) {
@@ -160,14 +208,17 @@ export function useSpeechRecognition(
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
+    setTranscriptSegments([]);
     setInterimTranscript("");
     pausedTranscriptRef.current = "";
+    currentSpeakerRef.current = "話者1";
   }, []);
 
   return {
     isListening,
     isPaused,
     transcript,
+    transcriptSegments,
     interimTranscript,
     error,
     startListening,

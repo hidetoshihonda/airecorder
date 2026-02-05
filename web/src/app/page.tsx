@@ -33,6 +33,7 @@ export default function HomePage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
+  const [enableSpeakerDiarization, setEnableSpeakerDiarization] = useState(false);
   
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
@@ -43,6 +44,7 @@ export default function HomePage() {
     isListening,
     isPaused,
     transcript,
+    transcriptSegments,
     interimTranscript,
     error: speechError,
     startListening,
@@ -54,6 +56,7 @@ export default function HomePage() {
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
     language: sourceLanguage,
+    enableSpeakerDiarization,
   });
 
   // Audio Recording (for saving audio files)
@@ -454,6 +457,28 @@ export default function HomePage() {
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
                   翻訳中...
+                </span>
+              )}
+            </div>
+            
+            {/* Speaker Diarization Toggle */}
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableSpeakerDiarization}
+                  onChange={(e) => setEnableSpeakerDiarization(e.target.checked)}
+                  disabled={isListening}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                <span className="ml-3 text-sm font-medium text-gray-700">
+                  話者識別
+                </span>
+              </label>
+              {enableSpeakerDiarization && (
+                <span className="text-xs text-gray-500">
+                  (沈黙で話者を切替)
                 </span>
               )}
             </div>
