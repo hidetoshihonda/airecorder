@@ -6,3 +6,5 @@ export type {
 
 export { summaryApi } from "./summaryApi";
 export type { GenerateSummaryInput } from "./summaryApi";
+
+export { blobApi } from "./blobApi";

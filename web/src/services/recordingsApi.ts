@@ -19,6 +19,7 @@ export interface CreateRecordingInput {
   title: string;
   sourceLanguage: string;
   duration: number;
+  audioUrl?: string;
   transcript?: Transcript;
   translations?: Record<string, Translation>;
 }

@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/config";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTranslation } from "@/hooks/useTranslation";
-import { recordingsApi, summaryApi } from "@/services";
+import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,16 @@ export default function HomePage() {
     region: speechConfig.region,
     language: sourceLanguage,
   });
+
+  // Audio Recording (for saving audio files)
+  const {
+    audioBlob,
+    startRecording: startAudioRecording,
+    stopRecording: stopAudioRecording,
+    pauseRecording: pauseAudioRecording,
+    resumeRecording: resumeAudioRecording,
+    resetRecording: resetAudioRecording,
+  } = useAudioRecorder();
 
   // Translation
   const {
@@ -125,7 +136,7 @@ export default function HomePage() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleStartRecording = () => {
+  const handleStartRecording = async () => {
     setDuration(0);
     setTranslatedText("");
     setSaveSuccess(false);
@@ -133,11 +144,26 @@ export default function HomePage() {
     setSummaryError(null);
     lastTranslatedTextRef.current = "";
     resetTranscript();
+    resetAudioRecording();
+    
+    // Start both speech recognition and audio recording
     startListening();
+    await startAudioRecording();
   };
 
   const handleStopRecording = () => {
     stopListening();
+    stopAudioRecording();
+  };
+
+  const handlePauseRecording = () => {
+    pauseListening();
+    pauseAudioRecording();
+  };
+
+  const handleResumeRecording = () => {
+    resumeListening();
+    resumeAudioRecording();
   };
 
   const handleGenerateSummary = async () => {
@@ -175,10 +201,21 @@ export default function HomePage() {
     const now = new Date();
     const title = `録音 ${now.toLocaleDateString("ja-JP")} ${now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`;
 
+    // Upload audio file to Blob Storage if available
+    let audioUrl: string | undefined;
+    if (audioBlob) {
+      const fileName = `recording-${now.getTime()}.webm`;
+      const uploadResponse = await blobApi.uploadAudio(audioBlob, fileName);
+      if (uploadResponse.success && uploadResponse.data) {
+        audioUrl = uploadResponse.data.blobUrl;
+      }
+    }
+
     const response = await recordingsApi.createRecording({
       title,
       sourceLanguage,
       duration,
+      audioUrl, // Include audio URL
       transcript: {
         segments: [{
           id: "1",
@@ -255,7 +292,7 @@ export default function HomePage() {
               {/* Pause/Resume Button (visible during recording) */}
               {isListening && (
                 <button
-                  onClick={isPaused ? resumeListening : pauseListening}
+                  onClick={isPaused ? handleResumeRecording : handlePauseRecording}
                   className={cn(
                     "flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200",
                     isPaused
