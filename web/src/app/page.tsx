@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,6 +17,7 @@ import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/confi
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,17 @@ export default function HomePage() {
   } = useTranslation({
     subscriptionKey: translatorConfig.subscriptionKey,
     region: translatorConfig.region,
+  });
+
+  // Text-to-Speech
+  const {
+    isSpeaking,
+    error: ttsError,
+    speak,
+    stop: stopSpeaking,
+  } = useTextToSpeech({
+    subscriptionKey: speechConfig.subscriptionKey,
+    region: speechConfig.region,
   });
 
   // Duration counter (pauses when isPaused)
@@ -247,7 +259,15 @@ export default function HomePage() {
     }
   };
 
-  const error = speechError || translationError;
+  const handleSpeak = (text: string, language: string) => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      speak(text, language);
+    }
+  };
+
+  const error = speechError || translationError || ttsError;
   const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
 
   return (
@@ -560,13 +580,43 @@ export default function HomePage() {
               ) : translatedText ? (
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSpeak(transcript, sourceLanguage)}
+                        className="gap-1 h-7 px-2"
+                        title={isSpeaking ? "停止" : "読み上げ"}
+                      >
+                        {isSpeaking ? (
+                          <VolumeX className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                       {transcript}
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm text-gray-500">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSpeak(translatedText, targetLanguage)}
+                        className="gap-1 h-7 px-2"
+                        title={isSpeaking ? "停止" : "読み上げ"}
+                      >
+                        {isSpeaking ? (
+                          <VolumeX className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
                       {translatedText}
                     </div>
