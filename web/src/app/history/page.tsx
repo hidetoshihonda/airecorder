@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Search, Play, Trash2, Download, Calendar, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "録音履歴",

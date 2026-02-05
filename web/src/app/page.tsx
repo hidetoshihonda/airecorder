@@ -21,8 +21,8 @@ export default function HomePage() {
   const { isRecording, isPaused, duration, audioBlob, startRecording, stopRecording, pauseRecording, resumeRecording } = useRecorder();
   const [sourceLanguage, setSourceLanguage] = useState("ja-JP");
   const [targetLanguage, setTargetLanguage] = useState("en-US");
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [isTranscribing, _setIsTranscribing] = useState(false);
+  const [transcript, _setTranscript] = useState("");
 
   // Handle audio blob when recording stops
   useEffect(() => {

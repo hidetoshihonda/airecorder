@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, Globe, Mic, Bell, Palette } from "lucide-react";
+import { Save, Globe, Mic, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
 import { useAuth } from "@/contexts/AuthContext";
 
