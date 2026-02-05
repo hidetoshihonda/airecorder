@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -70,30 +70,29 @@ function RecordingDetailContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const fetchRecording = useCallback(async () => {
-    if (!id) {
-      setError("録音IDが指定されていません");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const response = await recordingsApi.getRecording(id);
-
-    if (response.error) {
-      setError(response.error);
-    } else if (response.data) {
-      setRecording(response.data);
-    }
-
-    setIsLoading(false);
-  }, [id]);
-
   useEffect(() => {
-    fetchRecording();
-  }, [fetchRecording]);
+    const fetchData = async () => {
+      if (!id) {
+        setError("録音IDが指定されていません");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      const response = await recordingsApi.getRecording(id);
+
+      if (response.error) {
+        setError(response.error);
+      } else if (response.data) {
+        setRecording(response.data);
+      }
+
+      setIsLoading(false);
+    };
+    fetchData();
+  }, [id]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);

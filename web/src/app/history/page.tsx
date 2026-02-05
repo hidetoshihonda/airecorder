@@ -48,6 +48,32 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await recordingsApi.listRecordings(
+        1,
+        50,
+        searchQuery || undefined
+      );
+
+      if (response.error) {
+        setError(response.error);
+        setRecordings([]);
+      } else if (response.data) {
+        const items = Array.isArray(response.data)
+          ? response.data
+          : response.data.data || [];
+        setRecordings(items);
+      }
+
+      setIsLoading(false);
+    };
+    fetchData();
+  }, [searchQuery]);
+
   const fetchRecordings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -62,7 +88,6 @@ export default function HistoryPage() {
       setError(response.error);
       setRecordings([]);
     } else if (response.data) {
-      // Handle both paginated and direct array response
       const items = Array.isArray(response.data)
         ? response.data
         : response.data.data || [];
@@ -71,10 +96,6 @@ export default function HistoryPage() {
 
     setIsLoading(false);
   }, [searchQuery]);
-
-  useEffect(() => {
-    fetchRecordings();
-  }, [fetchRecordings]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("この録音を削除しますか？")) {
