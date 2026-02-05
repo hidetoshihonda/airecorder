@@ -21,10 +21,21 @@ import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
-  const [sourceLanguage, setSourceLanguage] = useState("ja-JP");
-  const [targetLanguage, setTargetLanguage] = useState("en-US");
+  const { settings } = useAuth();
+  
+  const [sourceLanguage, setSourceLanguage] = useState(settings.defaultSourceLanguage);
+  const [targetLanguage, setTargetLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
+  
+  // Sync language settings when settings change (e.g., after navigation from settings page)
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSourceLanguage(settings.defaultSourceLanguage);
+    setTargetLanguage(settings.defaultTargetLanguages[0] || "en-US");
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [settings.defaultSourceLanguage, settings.defaultTargetLanguages]);
   const [translatedText, setTranslatedText] = useState("");
   const [copied, setCopied] = useState<"transcript" | "translation" | null>(null);
   const [isSaving, setIsSaving] = useState(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { User, UserSettings } from "@/types";
 
 interface AuthContextType {
@@ -29,6 +29,8 @@ const defaultSettings: UserSettings = {
   noiseSuppression: true,
 };
 
+const SETTINGS_STORAGE_KEY = "airecorder-settings";
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
@@ -38,12 +40,41 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settings, setSettings] = useState<UserSettings>(() => {
+    // Load settings from localStorage on initial render (client-side only)
+    if (typeof window !== "undefined") {
+      try {
+        const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          return { ...defaultSettings, ...parsed };
+        }
+      } catch (error) {
+        console.error("Failed to load settings from localStorage:", error);
+      }
+    }
+    return defaultSettings;
+  });
+
+  // Mark loading as done after mount
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(false);
+  }, []);
 
   const isAuthenticated = user !== null;
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
+    setSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+      // Save to localStorage
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
+      } catch (error) {
+        console.error("Failed to save settings to localStorage:", error);
+      }
+      return updated;
+    });
   }, []);
 
   // Placeholder auth functions - will be replaced with MSAL implementation
