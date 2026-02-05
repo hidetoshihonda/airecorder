@@ -1,0 +1,94 @@
+name: Azure Functions CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/azure-functions.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+
+env:
+  NODE_VERSION: '20'
+  AZURE_FUNCTIONAPP_NAME: 'func-airecorder-dev'
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'api'
+
+jobs:
+  # ===================================
+  # Build and Test
+  # ===================================
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci
+
+      - name: Build
+        working-directory: ./api
+        run: npm run build
+
+      - name: Upload artifact for deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: api
+          path: |
+            api/dist
+            api/package.json
+            api/package-lock.json
+            api/host.json
+          if-no-files-found: error
+
+  # ===================================
+  # Deploy to Azure Functions
+  # ===================================
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy.outputs.webapp-url }}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api
+          path: api
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install production dependencies
+        working-directory: ./api
+        run: npm ci --omit=dev
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Functions
+        id: deploy
+        uses: azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
