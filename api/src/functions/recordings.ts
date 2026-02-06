@@ -40,7 +40,7 @@ function jsonResponse<T>(
 app.http("listRecordings", {
   methods: ["GET", "OPTIONS"],
   authLevel: "anonymous",
-  route: "recordings",
+  route: "recordings/list",
   handler: async (
     request: HttpRequest,
     _context: InvocationContext

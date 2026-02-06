@@ -95,7 +95,7 @@ class RecordingsApiService {
     }
 
     return this.request<PaginatedResponse<Recording>>(
-      `/recordings?${params.toString()}`
+      `/recordings/list?${params.toString()}`
     );
   }
 
