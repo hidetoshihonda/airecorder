@@ -7,13 +7,8 @@ import {
   PaginatedResponse,
 } from "@/types";
 
-// API base URL - use environment variable or default to Azure Functions URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://func-airecorder-dev.azurewebsites.net/api";
-
-// Temporary user ID for development (will be replaced with auth)
-const TEMP_USER_ID = "temp-user-001";
+// API base URL - BYOF経由でアクセスするため相対パスを使用
+const API_BASE_URL = "/api";
 
 export interface CreateRecordingInput {
   title: string;
@@ -35,15 +30,9 @@ export interface UpdateRecordingInput {
 
 class RecordingsApiService {
   private baseUrl: string;
-  private userId: string;
 
   constructor() {
     this.baseUrl = API_BASE_URL;
-    this.userId = TEMP_USER_ID;
-  }
-
-  setUserId(userId: string) {
-    this.userId = userId;
   }
 
   private async request<T>(
@@ -59,7 +48,17 @@ class RecordingsApiService {
           "Content-Type": "application/json",
           ...options.headers,
         },
+        credentials: 'include',  // 認証Cookie送信に必要
       });
+
+      // 401の場合はログインページへ
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/.auth/login/github?post_login_redirect_uri=' + 
+            encodeURIComponent(window.location.pathname);
+        }
+        return { error: 'Authentication required' };
+      }
 
       // 空レスポンスの安全なハンドリング
       const text = await response.text();
@@ -97,7 +96,6 @@ class RecordingsApiService {
     search?: string
   ): Promise<ApiResponse<PaginatedResponse<Recording>>> {
     const params = new URLSearchParams({
-      userId: this.userId,
       page: page.toString(),
       limit: limit.toString(),
     });
@@ -112,8 +110,7 @@ class RecordingsApiService {
   }
 
   async getRecording(id: string): Promise<ApiResponse<Recording>> {
-    const params = new URLSearchParams({ userId: this.userId });
-    return this.request<Recording>(`/recordings/${id}?${params.toString()}`);
+    return this.request<Recording>(`/recordings/${id}`);
   }
 
   async createRecording(
@@ -121,10 +118,7 @@ class RecordingsApiService {
   ): Promise<ApiResponse<Recording>> {
     return this.request<Recording>("/recordings", {
       method: "POST",
-      body: JSON.stringify({
-        userId: this.userId,
-        ...input,
-      }),
+      body: JSON.stringify(input),
     });
   }
 
@@ -134,16 +128,12 @@ class RecordingsApiService {
   ): Promise<ApiResponse<Recording>> {
     return this.request<Recording>(`/recordings/${id}`, {
       method: "PUT",
-      body: JSON.stringify({
-        userId: this.userId,
-        ...input,
-      }),
+      body: JSON.stringify(input),
     });
   }
 
   async deleteRecording(id: string): Promise<ApiResponse<void>> {
-    const params = new URLSearchParams({ userId: this.userId });
-    return this.request<void>(`/recordings/${id}?${params.toString()}`, {
+    return this.request<void>(`/recordings/${id}`, {
       method: "DELETE",
     });
   }

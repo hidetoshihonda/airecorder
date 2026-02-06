@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic, History, Settings, Menu, X } from "lucide-react";
+import { Mic, History, Settings, Menu, X, LogIn, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { Spinner } from "@/components/ui/spinner";
 
 const navigation = [
-  { name: "録音", href: "/", icon: Mic },
+  { name: "録音", href: "/recording", icon: Mic },
   { name: "履歴", href: "/history", icon: History },
   { name: "設定", href: "/settings", icon: Settings },
 ];
@@ -16,6 +18,7 @@ const navigation = [
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isLoading, login, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
@@ -50,6 +53,39 @@ export function Header() {
               </Link>
             );
           })}
+        </div>
+
+        {/* Auth Section */}
+        <div className="hidden md:flex md:items-center md:gap-3">
+          {isLoading ? (
+            <Spinner size="sm" />
+          ) : user ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <User className="h-4 w-4" />
+                <span>{user.displayName}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="flex items-center gap-1"
+              >
+                <LogOut className="h-4 w-4" />
+                ログアウト
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => login()}
+              className="flex items-center gap-1"
+            >
+              <LogIn className="h-4 w-4" />
+              ログイン
+            </Button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -90,6 +126,43 @@ export function Header() {
                 </Link>
               );
             })}
+            
+            {/* Mobile Auth */}
+            <div className="border-t border-gray-200 pt-3 mt-3">
+              {isLoading ? (
+                <div className="flex justify-center py-2">
+                  <Spinner size="sm" />
+                </div>
+              ) : user ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600">
+                    <User className="h-4 w-4" />
+                    <span>{user.displayName}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    ログアウト
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    login();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-blue-600 hover:bg-blue-50"
+                >
+                  <LogIn className="h-5 w-5" />
+                  ログイン
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

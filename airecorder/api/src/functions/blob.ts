@@ -10,19 +10,48 @@ import {
   BlobSASPermissions,
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
+import {
+  requireAuth,
+  handleAuthError,
+  AuthenticationError,
+  AuthorizationError,
+} from "../utils/auth";
+
+// CORS設定
+const ALLOWED_ORIGINS = [
+  "https://proud-rock-06bba6200.2.azurestaticapps.net",
+  "http://localhost:3000",
+  "http://localhost:4280"
+];
+
+function getCorsHeaders(request: HttpRequest): Record<string, string> {
+  const origin = request.headers.get("origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-ms-client-principal",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400"
+  };
+}
 
 // Helper function to create JSON response
 function jsonResponse<T>(
   data: { success: boolean; data?: T; error?: string },
-  status: number = 200
+  status: number = 200,
+  corsHeaders?: Record<string, string>
 ): HttpResponseInit {
   return {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      ...(corsHeaders || {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }),
     },
     body: JSON.stringify(data),
   };
@@ -35,18 +64,25 @@ app.http("generateUploadSas", {
   route: "blob/upload-sas",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
+      // 認証必須
+      const principal = requireAuth(request);
+      const userId = principal.userId;
+
       const fileName = request.query.get("fileName");
       if (!fileName) {
         return jsonResponse(
           { success: false, error: "fileName is required" },
-          400
+          400,
+          corsHeaders
         );
       }
 
@@ -54,7 +90,8 @@ app.http("generateUploadSas", {
       if (!connectionString) {
         return jsonResponse(
           { success: false, error: "Storage not configured" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -65,12 +102,16 @@ app.http("generateUploadSas", {
       if (!accountName || !accountKey) {
         return jsonResponse(
           { success: false, error: "Invalid storage configuration" },
-          500
+          500,
+          corsHeaders
         );
       }
 
       const containerName = "recordings";
-      const blobName = `${Date.now()}-${fileName}`;
+      // パスにuserIdを含める: recordings/{userId}/{timestamp}-{fileName}
+      const blobName = `${userId}/${Date.now()}-${fileName}`;
+
+      context.log(`generateUploadSas: userId=${userId}, blobName=${blobName}`);
 
       // Create SAS token
       const sharedKeyCredential = new StorageSharedKeyCredential(
@@ -94,18 +135,26 @@ app.http("generateUploadSas", {
 
       const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}`;
 
-      return jsonResponse({
-        success: true,
-        data: {
-          blobUrl,
-          sasToken,
-          fullUrl: `${blobUrl}?${sasToken}`,
-          expiresOn: expiresOn.toISOString(),
+      return jsonResponse(
+        {
+          success: true,
+          data: {
+            blobUrl,
+            sasToken,
+            fullUrl: `${blobUrl}?${sasToken}`,
+            expiresOn: expiresOn.toISOString(),
+          },
         },
-      });
+        200,
+        corsHeaders
+      );
     } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
-      return jsonResponse({ success: false, error: message }, 500);
+      context.error("generateUploadSas error:", error);
+      return jsonResponse({ success: false, error: message }, 500, corsHeaders);
     }
   },
 });
@@ -117,18 +166,25 @@ app.http("generateDownloadSas", {
   route: "blob/download-sas",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
+      // 認証必須
+      const principal = requireAuth(request);
+      const userId = principal.userId;
+
       const blobUrl = request.query.get("blobUrl");
       if (!blobUrl) {
         return jsonResponse(
           { success: false, error: "blobUrl is required" },
-          400
+          400,
+          corsHeaders
         );
       }
 
@@ -136,7 +192,8 @@ app.http("generateDownloadSas", {
       if (!connectionString) {
         return jsonResponse(
           { success: false, error: "Storage not configured" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -147,7 +204,8 @@ app.http("generateDownloadSas", {
       if (!accountName || !accountKey) {
         return jsonResponse(
           { success: false, error: "Invalid storage configuration" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -156,6 +214,18 @@ app.http("generateDownloadSas", {
       const pathParts = urlParts.pathname.split("/").filter(Boolean);
       const containerName = pathParts[0];
       const blobName = pathParts.slice(1).join("/");
+
+      // 所有権確認: blobNameが {userId}/ で始まるか確認
+      if (!blobName.startsWith(`${userId}/`)) {
+        context.warn(`Access denied: userId=${userId} tried to access blob=${blobName}`);
+        return jsonResponse(
+          { success: false, error: "Access denied" },
+          404,  // 存在を隠すため404
+          corsHeaders
+        );
+      }
+
+      context.log(`generateDownloadSas: userId=${userId}, blobName=${blobName}`);
 
       // Create SAS token for read
       const sharedKeyCredential = new StorageSharedKeyCredential(
@@ -177,16 +247,24 @@ app.http("generateDownloadSas", {
         sharedKeyCredential
       ).toString();
 
-      return jsonResponse({
-        success: true,
-        data: {
-          fullUrl: `${blobUrl}?${sasToken}`,
-          expiresOn: expiresOn.toISOString(),
+      return jsonResponse(
+        {
+          success: true,
+          data: {
+            fullUrl: `${blobUrl}?${sasToken}`,
+            expiresOn: expiresOn.toISOString(),
+          },
         },
-      });
+        200,
+        corsHeaders
+      );
     } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
-      return jsonResponse({ success: false, error: message }, 500);
+      context.error("generateDownloadSas error:", error);
+      return jsonResponse({ success: false, error: message }, 500, corsHeaders);
     }
   },
 });
@@ -197,19 +275,26 @@ app.http("listBlobs", {
   authLevel: "anonymous",
   route: "blob/list",
   handler: async (
-    _request: HttpRequest,
-    _context: InvocationContext
+    request: HttpRequest,
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
-    if (_request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+    const corsHeaders = getCorsHeaders(request);
+
+    if (request.method === "OPTIONS") {
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
+      // 認証必須
+      const principal = requireAuth(request);
+      const userId = principal.userId;
+
       const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
       if (!connectionString) {
         return jsonResponse(
           { success: false, error: "Storage not configured" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -228,7 +313,11 @@ app.http("listBlobs", {
         size: number | undefined;
       }> = [];
 
-      for await (const blob of containerClient.listBlobsFlat()) {
+      // ユーザーのprefixでフィルタ: {userId}/
+      const prefix = `${userId}/`;
+      context.log(`listBlobs: userId=${userId}, prefix=${prefix}`);
+
+      for await (const blob of containerClient.listBlobsFlat({ prefix })) {
         blobs.push({
           name: blob.name,
           url: `${containerClient.url}/${blob.name}`,
@@ -237,13 +326,21 @@ app.http("listBlobs", {
         });
       }
 
-      return jsonResponse({
-        success: true,
-        data: blobs,
-      });
+      return jsonResponse(
+        {
+          success: true,
+          data: blobs,
+        },
+        200,
+        corsHeaders
+      );
     } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
-      return jsonResponse({ success: false, error: message }, 500);
+      context.error("listBlobs error:", error);
+      return jsonResponse({ success: false, error: message }, 500, corsHeaders);
     }
   },
 });

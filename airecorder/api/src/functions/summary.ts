@@ -5,6 +5,12 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { AzureOpenAI } from "openai";
+import {
+  requireAuth,
+  handleAuthError,
+  AuthenticationError,
+  AuthorizationError,
+} from "../utils/auth";
 
 interface SummaryRequest {
   transcript: string;
@@ -23,18 +29,41 @@ interface SummaryResponse {
   generatedAt: string;
 }
 
+// CORS設定
+const ALLOWED_ORIGINS = [
+  "https://proud-rock-06bba6200.2.azurestaticapps.net",
+  "http://localhost:3000",
+  "http://localhost:4280"
+];
+
+function getCorsHeaders(request: HttpRequest): Record<string, string> {
+  const origin = request.headers.get("origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-ms-client-principal",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400"
+  };
+}
+
 // Helper function to create JSON response
 function jsonResponse<T>(
   data: { success: boolean; data?: T; error?: string },
-  status: number = 200
+  status: number = 200,
+  corsHeaders?: Record<string, string>
 ): HttpResponseInit {
   return {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      ...(corsHeaders || {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }),
     },
     body: JSON.stringify(data),
   };
@@ -70,19 +99,26 @@ app.http("generateSummary", {
   route: "summary/generate",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
+      // 認証必須（コスト保護）
+      const principal = requireAuth(request);
+      context.log(`generateSummary: userId=${principal.userId}`);
+
       const body = (await request.json()) as SummaryRequest;
 
       if (!body.transcript) {
         return jsonResponse(
           { success: false, error: "transcript is required" },
-          400
+          400,
+          corsHeaders
         );
       }
 
@@ -93,7 +129,8 @@ app.http("generateSummary", {
       if (!endpoint || !apiKey) {
         return jsonResponse(
           { success: false, error: "Azure OpenAI is not configured" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -103,14 +140,26 @@ app.http("generateSummary", {
         apiVersion: "2024-08-01-preview",
       });
 
+      // 言語に応じたプロンプト調整
+      let systemPrompt = SUMMARY_SYSTEM_PROMPT;
+      let userPrompt = `以下の文字起こしテキストから議事録を作成してください：\n\n${body.transcript}`;
+
+      if (body.language && body.language !== 'ja') {
+        const languageNames: Record<string, string> = {
+          'en': 'English',
+          'es': 'Spanish',
+          'zh': 'Chinese',
+          'ko': 'Korean',
+        };
+        const langName = languageNames[body.language] || body.language;
+        userPrompt = `Please create meeting minutes in ${langName} from the following transcript:\n\n${body.transcript}`;
+      }
+
       const response = await client.chat.completions.create({
         model: deploymentName,
         messages: [
-          { role: "system", content: SUMMARY_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `以下の文字起こしテキストから議事録を作成してください：\n\n${body.transcript}`,
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
         max_tokens: 2000,
@@ -121,7 +170,8 @@ app.http("generateSummary", {
       if (!content) {
         return jsonResponse(
           { success: false, error: "No response from OpenAI" },
-          500
+          500,
+          corsHeaders
         );
       }
 
@@ -141,12 +191,20 @@ app.http("generateSummary", {
         generatedAt: new Date().toISOString(),
       };
 
-      return jsonResponse<SummaryResponse>({ success: true, data: summary });
+      return jsonResponse<SummaryResponse>(
+        { success: true, data: summary },
+        200,
+        corsHeaders
+      );
     } catch (error) {
-      console.error("Summary generation error:", error);
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
+      context.error("Summary generation error:", error);
       return jsonResponse(
         { success: false, error: (error as Error).message },
-        500
+        500,
+        corsHeaders
       );
     }
   },

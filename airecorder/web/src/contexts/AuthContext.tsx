@@ -2,6 +2,15 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { User, UserSettings } from "@/types";
+import { 
+  getAuthInfo, 
+  isAuthenticated as checkAuth, 
+  getUserId, 
+  getUserName,
+  getLoginUrl,
+  getLogoutUrl,
+  clearAuthCache
+} from "@/lib/auth";
 
 interface AuthContextType {
   // User state
@@ -15,9 +24,10 @@ interface AuthContextType {
   settings: UserSettings;
   updateSettings: (settings: Partial<UserSettings>) => void;
   
-  // Auth actions (to be implemented with MSAL)
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
+  // Auth actions
+  login: (redirectUri?: string) => void;
+  logout: () => void;
+  refreshAuth: () => Promise<void>;
 }
 
 const defaultSettings: UserSettings = {
@@ -56,11 +66,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return defaultSettings;
   });
 
-  // Mark loading as done after mount
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(false);
+  // 認証状態を確認
+  const checkAuthStatus = useCallback(async (forceRefresh = false) => {
+    try {
+      const authInfo = await getAuthInfo(forceRefresh);
+      
+      if (checkAuth(authInfo)) {
+        const userName = getUserName(authInfo) || 'User';
+        setUser({
+          id: getUserId(authInfo)!,
+          email: userName,
+          displayName: userName,
+          settings: defaultSettings,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  // 初回マウント時に認証状態を確認
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
   const isAuthenticated = user !== null;
 
@@ -77,17 +112,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   }, []);
 
-  // Placeholder auth functions - will be replaced with MSAL implementation
-  const login = useCallback(async () => {
-    // TODO: Implement MSAL login
-    console.warn("Login not implemented yet");
+  // ログイン - SWAのログインページにリダイレクト
+  const login = useCallback((redirectUri?: string) => {
+    window.location.href = getLoginUrl(redirectUri);
   }, []);
 
-  const logout = useCallback(async () => {
-    // TODO: Implement MSAL logout
-    setUser(null);
-    console.warn("Logout not implemented yet");
+  // ログアウト - SWAのログアウトページにリダイレクト
+  const logout = useCallback(() => {
+    clearAuthCache();
+    window.location.href = getLogoutUrl();
   }, []);
+
+  // 認証状態リフレッシュ
+  const refreshAuth = useCallback(async () => {
+    setIsLoading(true);
+    await checkAuthStatus(true);
+  }, [checkAuthStatus]);
 
   const value: AuthContextType = {
     user,
@@ -99,6 +139,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     updateSettings,
     login,
     logout,
+    refreshAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

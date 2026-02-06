@@ -18,19 +18,48 @@ import {
   UpdateRecordingRequest,
   PaginatedResponse,
 } from "../models";
+import {
+  requireAuth,
+  handleAuthError,
+  AuthenticationError,
+  AuthorizationError,
+} from "../utils/auth";
+
+// CORS設定
+const ALLOWED_ORIGINS = [
+  "https://proud-rock-06bba6200.2.azurestaticapps.net",
+  "http://localhost:3000",
+  "http://localhost:4280"
+];
+
+function getCorsHeaders(request: HttpRequest): Record<string, string> {
+  const origin = request.headers.get("origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-ms-client-principal",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400"
+  };
+}
 
 // Helper function to create JSON response
 function jsonResponse<T>(
   data: ApiResponse<T>,
-  status: number = 200
+  status: number = 200,
+  corsHeaders?: Record<string, string>
 ): HttpResponseInit {
   return {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      ...(corsHeaders || {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }),
     },
     body: JSON.stringify(data),
   };
@@ -43,34 +72,40 @@ app.http("listRecordings", {
   route: "recordings/list",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
-      const userId = request.query.get("userId");
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
-      }
+      // 認証必須 - ヘッダーからユーザーID取得
+      const principal = requireAuth(request);
+      const userId = principal.userId;
 
       const page = parseInt(request.query.get("page") || "1", 10);
       const limit = parseInt(request.query.get("limit") || "20", 10);
       const search = request.query.get("search") || undefined;
 
+      context.log(`listRecordings: userId=${userId}, page=${page}, limit=${limit}`);
+
       const result = await listRecordings(userId, page, limit, search);
-      return jsonResponse<PaginatedResponse<Recording>>({
-        success: true,
-        data: result,
-      });
+      return jsonResponse<PaginatedResponse<Recording>>(
+        { success: true, data: result },
+        200,
+        corsHeaders
+      );
     } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
+      context.error("listRecordings error:", error);
       return jsonResponse(
         { success: false, error: (error as Error).message },
-        500
+        500,
+        corsHeaders
       );
     }
   },
@@ -83,141 +118,151 @@ app.http("createRecording", {
   route: "recordings",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     try {
-      const body = (await request.json()) as CreateRecordingRequest;
+      // 認証必須
+      const principal = requireAuth(request);
+      const userId = principal.userId;
 
-      if (!body.userId || !body.title || !body.sourceLanguage) {
+      const body = (await request.json()) as Omit<CreateRecordingRequest, 'userId'>;
+
+      if (!body.title || !body.sourceLanguage) {
         return jsonResponse(
-          {
-            success: false,
-            error: "userId, title, and sourceLanguage are required",
-          },
-          400
+          { success: false, error: "title and sourceLanguage are required" },
+          400,
+          corsHeaders
         );
       }
 
-      const recording = await createRecording(body);
-      return jsonResponse<Recording>({ success: true, data: recording }, 201);
+      context.log(`createRecording: userId=${userId}, title=${body.title}`);
+
+      // userIdは認証情報から取得（リクエストボディは無視）
+      const recording = await createRecording({ ...body, userId });
+      return jsonResponse<Recording>(
+        { success: true, data: recording },
+        201,
+        corsHeaders
+      );
     } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
+      context.error("createRecording error:", error);
       return jsonResponse(
         { success: false, error: (error as Error).message },
-        500
+        500,
+        corsHeaders
       );
     }
   },
 });
 
-// Get, Update, Delete recording by ID - Combined into single function to avoid route conflicts
+// Get, Update, Delete recording by ID
 app.http("recordingById", {
   methods: ["GET", "PUT", "DELETE", "OPTIONS"],
   authLevel: "anonymous",
   route: "recordings/{id}",
   handler: async (
     request: HttpRequest,
-    _context: InvocationContext
+    context: InvocationContext
   ): Promise<HttpResponseInit> => {
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
+      return { status: 204, headers: corsHeaders };
     }
 
     const id = request.params.id;
 
-    // Handle GET - Get recording by ID
-    if (request.method === "GET") {
-      try {
-        const userId = request.query.get("userId");
+    try {
+      // 認証必須
+      const principal = requireAuth(request);
+      const userId = principal.userId;
 
-        if (!userId) {
-          return jsonResponse(
-            { success: false, error: "userId is required" },
-            400
-          );
-        }
-
+      // Handle GET - Get recording by ID
+      if (request.method === "GET") {
         const recording = await getRecording(id!, userId);
-        if (!recording) {
+        
+        // 存在しないか、他人のレコード → 404（存在を隠す）
+        if (!recording || recording.userId !== userId) {
           return jsonResponse(
             { success: false, error: "Recording not found" },
-            404
+            404,
+            corsHeaders
           );
         }
 
-        return jsonResponse<Recording>({ success: true, data: recording });
-      } catch (error) {
-        return jsonResponse(
-          { success: false, error: (error as Error).message },
-          500
+        return jsonResponse<Recording>(
+          { success: true, data: recording },
+          200,
+          corsHeaders
         );
       }
-    }
 
-    // Handle PUT - Update recording
-    if (request.method === "PUT") {
-      try {
-        const body = (await request.json()) as UpdateRecordingRequest & {
-          userId?: string;
-        };
-        const userId = body.userId || request.query.get("userId");
-
-        if (!userId) {
+      // Handle PUT - Update recording
+      if (request.method === "PUT") {
+        // 所有権確認
+        const existing = await getRecording(id!, userId);
+        if (!existing || existing.userId !== userId) {
           return jsonResponse(
-            { success: false, error: "userId is required" },
-            400
+            { success: false, error: "Recording not found" },
+            404,
+            corsHeaders
           );
         }
 
+        const body = (await request.json()) as UpdateRecordingRequest;
         const recording = await updateRecording(id!, userId, body);
-        if (!recording) {
-          return jsonResponse(
-            { success: false, error: "Recording not found" },
-            404
-          );
-        }
 
-        return jsonResponse<Recording>({ success: true, data: recording });
-      } catch (error) {
-        return jsonResponse(
-          { success: false, error: (error as Error).message },
-          500
+        return jsonResponse<Recording>(
+          { success: true, data: recording! },
+          200,
+          corsHeaders
         );
       }
-    }
 
-    // Handle DELETE - Delete recording
-    if (request.method === "DELETE") {
-      try {
-        const userId = request.query.get("userId");
-
-        if (!userId) {
-          return jsonResponse(
-            { success: false, error: "userId is required" },
-            400
-          );
-        }
-
-        const deleted = await deleteRecording(id!, userId);
-        if (!deleted) {
+      // Handle DELETE - Delete recording
+      if (request.method === "DELETE") {
+        // 所有権確認
+        const existing = await getRecording(id!, userId);
+        if (!existing || existing.userId !== userId) {
           return jsonResponse(
             { success: false, error: "Recording not found" },
-            404
+            404,
+            corsHeaders
           );
         }
 
-        return jsonResponse({ success: true });
-      } catch (error) {
+        await deleteRecording(id!, userId);
         return jsonResponse(
-          { success: false, error: (error as Error).message },
-          500
+          { success: true },
+          200,
+          corsHeaders
         );
       }
-    }
 
-    return jsonResponse({ success: false, error: "Method not allowed" }, 405);
+      return jsonResponse(
+        { success: false, error: "Method not allowed" },
+        405,
+        corsHeaders
+      );
+    } catch (error) {
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        return handleAuthError(error, corsHeaders);
+      }
+      context.error("recordingById error:", error);
+      return jsonResponse(
+        { success: false, error: (error as Error).message },
+        500,
+        corsHeaders
+      );
+    }
   },
 });

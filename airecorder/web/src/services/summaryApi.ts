@@ -1,8 +1,7 @@
 import { Summary, ApiResponse } from "@/types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://func-airecorder-dev.azurewebsites.net/api";
+// BYOF経由でアクセスするため相対パスを使用
+const API_BASE_URL = "/api";
 
 export interface GenerateSummaryInput {
   transcript: string;
@@ -25,8 +24,18 @@ class SummaryApiService {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: 'include',  // 認証Cookie送信
         body: JSON.stringify(input),
       });
+
+      // 401の場合はログインページへ
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/.auth/login/github?post_login_redirect_uri=' + 
+            encodeURIComponent(window.location.pathname);
+        }
+        return { error: 'Authentication required' };
+      }
 
       const text = await response.text();
       let data: Record<string, unknown> | null = null;
