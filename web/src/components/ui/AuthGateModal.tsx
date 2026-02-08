@@ -1,6 +1,7 @@
 "use client";
 
 import { LogIn, Mic, History, Sparkles, Github } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -22,9 +23,9 @@ interface AuthGateModalProps {
 const LOGIN_URL = "/.auth/login/github";
 
 const BENEFITS = [
-  { icon: Mic, text: "録音と文字起こし" },
-  { icon: History, text: "録音履歴の保存・管理" },
-  { icon: Sparkles, text: "AI議事録の生成" },
+  { icon: Mic, key: "benefitRecording" },
+  { icon: History, key: "benefitHistory" },
+  { icon: Sparkles, key: "benefitMinutes" },
 ] as const;
 
 /**
@@ -34,6 +35,7 @@ const BENEFITS = [
  * GitHubログインへの誘導を行い、ログイン後は元のページに戻る。
  */
 export function AuthGateModal({ isOpen, onClose, action }: AuthGateModalProps) {
+  const t = useTranslations("AuthGateModal");
   const handleLogin = () => {
     // 現在のページをログイン後のリダイレクト先に設定
     const redirectUri = encodeURIComponent(window.location.pathname);
@@ -47,15 +49,14 @@ export function AuthGateModal({ isOpen, onClose, action }: AuthGateModalProps) {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
             <LogIn className="h-8 w-8 text-blue-600" />
           </div>
-          <DialogTitle className="text-xl">ログインが必要です</DialogTitle>
+          <DialogTitle className="text-xl">{t("title")}</DialogTitle>
           <DialogDescription className="text-base">
             {action ? (
               <>
-                「<span className="font-medium text-gray-700">{action}</span>
-                」するにはログインしてください
+                {t("actionRequired", { action })}
               </>
             ) : (
-              "この機能を使用するにはログインしてください"
+              t("loginRequired")
             )}
           </DialogDescription>
         </DialogHeader>
@@ -68,22 +69,22 @@ export function AuthGateModal({ isOpen, onClose, action }: AuthGateModalProps) {
             size="lg"
           >
             <Github className="h-5 w-5" />
-            GitHubでログイン
+            {t("loginWithGitHub")}
           </Button>
 
           {/* ログインのメリット */}
           <div className="rounded-lg bg-gray-50 p-4">
             <p className="mb-3 text-sm font-medium text-gray-700">
-              ログインすると以下が可能になります:
+              {t("benefitsHeading")}
             </p>
             <ul className="space-y-2">
-              {BENEFITS.map(({ icon: Icon, text }) => (
+              {BENEFITS.map(({ icon: Icon, key }) => (
                 <li
-                  key={text}
+                  key={key}
                   className="flex items-center gap-2 text-sm text-gray-600"
                 >
                   <Icon className="h-4 w-4 flex-shrink-0 text-blue-500" />
-                  {text}
+                  {t(key)}
                 </li>
               ))}
             </ul>
@@ -95,7 +96,7 @@ export function AuthGateModal({ isOpen, onClose, action }: AuthGateModalProps) {
               onClick={onClose}
               className="underline hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
-              閉じる
+              {t("close")}
             </button>
           </p>
         </div>

@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { Mic, Github, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const t = useTranslations("Footer");
+  const tc = useTranslations("Common");
 
   return (
     <footer className="border-t border-gray-200 bg-white">
@@ -24,13 +29,13 @@ export function Footer() {
               href="/privacy"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
-              プライバシーポリシー
+              {t("privacyPolicy")}
             </Link>
             <Link
               href="/terms"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
-              利用規約
+              {t("termsOfService")}
             </Link>
             <a
               href="https://github.com/hidetoshihonda/airecorder"
@@ -47,7 +52,7 @@ export function Footer() {
 
         {/* Tech Stack */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
-          <span>Powered by</span>
+          <span>{tc("poweredBy")}</span>
           <span className="rounded bg-gray-100 px-2 py-1">Azure Speech Services</span>
           <span className="rounded bg-gray-100 px-2 py-1">Azure Translator</span>
           <span className="rounded bg-gray-100 px-2 py-1">Azure OpenAI</span>

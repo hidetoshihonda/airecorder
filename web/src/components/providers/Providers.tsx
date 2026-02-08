@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RecordingProvider } from "@/contexts/RecordingContext";
+import { I18nProvider } from "@/contexts/I18nContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface ProvidersProps {
@@ -12,9 +13,11 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <AuthProvider>
-      <RecordingProvider>
-        <TooltipProvider>{children}</TooltipProvider>
-      </RecordingProvider>
+      <I18nProvider>
+        <RecordingProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </RecordingProvider>
+      </I18nProvider>
     </AuthProvider>
   );
 }

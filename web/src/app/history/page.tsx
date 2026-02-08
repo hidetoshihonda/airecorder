@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { useTranslations } from "next-intl";
+import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Recording } from "@/types";
 import { recordingsApi, blobApi } from "@/services";
 
@@ -30,9 +32,10 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, locale: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString("ja-JP", {
+  const dateLocale = locale === "ja" ? "ja-JP" : locale === "es" ? "es-ES" : "en-US";
+  return date.toLocaleDateString(dateLocale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -48,6 +51,8 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+  const t = useTranslations("HistoryPage");
+  const { locale: appLocale } = useAppLocale();
 
   // BUG-1 fix: SAS 付き URL を取得してから再生・DL する
   const handlePlay = async (recording: Recording) => {
@@ -58,10 +63,10 @@ export default function HistoryPage() {
       if (playableUrl) {
         window.open(playableUrl, '_blank');
       } else {
-        alert("音声ファイルを読み込めませんでした");
+        alert(t("audioLoadFailed"));
       }
     } catch {
-      alert("音声ファイルの取得中にエラーが発生しました");
+      alert(t("audioFetchError"));
     } finally {
       setLoadingAudioId(null);
     }
@@ -86,10 +91,10 @@ export default function HistoryPage() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        alert("音声ファイルをダウンロードできませんでした");
+        alert(t("downloadFailed"));
       }
     } catch {
-      alert("ダウンロード中にエラーが発生しました");
+      alert(t("downloadError"));
     } finally {
       setLoadingAudioId(null);
     }
@@ -151,7 +156,7 @@ export default function HistoryPage() {
   }, [searchQuery]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("この録音を削除しますか？")) {
+    if (!confirm(t("deleteConfirm"))) {
       return;
     }
 
@@ -159,7 +164,7 @@ export default function HistoryPage() {
     const response = await recordingsApi.deleteRecording(id);
 
     if (response.error) {
-      alert(`削除に失敗しました: ${response.error}`);
+      alert(t("deleteFailed", { error: response.error || "Unknown" }));
     } else {
       setRecordings((prev) => prev.filter((r) => r.id !== id));
     }
@@ -177,9 +182,9 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">録音履歴</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
           <p className="mt-1 text-gray-600">
-            過去の録音を確認・再生・ダウンロード
+            {t("description")}
           </p>
         </div>
         <Button
@@ -191,7 +196,7 @@ export default function HistoryPage() {
           <RefreshCw
             className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
           />
-          更新
+          {t("refresh")}
         </Button>
       </div>
 
@@ -201,7 +206,7 @@ export default function HistoryPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             type="search"
-            placeholder="録音を検索..."
+            placeholder={t("searchPlaceholder")}
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -214,10 +219,10 @@ export default function HistoryPage() {
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <div>
-            <p className="font-medium">データの取得に失敗しました</p>
+            <p className="font-medium">{t("fetchFailed")}</p>
             <p className="text-sm">
               {error === "Network error"
-                ? "APIサーバーに接続できません。Azure Functionsがデプロイされていることを確認してください。"
+                ? t("networkError")
                 : error}
             </p>
           </div>
@@ -228,7 +233,7 @@ export default function HistoryPage() {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <Spinner size="lg" />
-          <span className="ml-2 text-gray-600">読み込み中...</span>
+          <span className="ml-2 text-gray-600">{t("loading")}</span>
         </div>
       )}
 
@@ -253,7 +258,7 @@ export default function HistoryPage() {
                       <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          {formatDate(recording.createdAt)}
+                          {formatDate(recording.createdAt, appLocale)}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
@@ -266,18 +271,18 @@ export default function HistoryPage() {
                       <div className="mt-2 flex gap-2">
                         {recording.transcript && (
                           <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                            文字起こし済み
+                            {t("transcribed")}
                           </span>
                         )}
                         {recording.translations &&
                           Object.keys(recording.translations).length > 0 && (
                             <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                              翻訳済み
+                              {t("translated")}
                             </span>
                           )}
                         {recording.summary && (
                           <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
-                            議事録作成済み
+                            {t("minutesCreated")}
                           </span>
                         )}
                       </div>
@@ -310,7 +315,7 @@ export default function HistoryPage() {
                         </>
                       ) : (
                         <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                          音声なし
+                          {t("noAudio")}
                         </span>
                       )}
                       <Button
@@ -336,13 +341,13 @@ export default function HistoryPage() {
               <CardContent className="py-12 text-center">
                 <p className="text-gray-500">
                   {error
-                    ? "データを取得できませんでした"
+                    ? t("fetchFailedShort")
                     : searchQuery
-                      ? "検索結果がありません"
-                      : "録音履歴がありません"}
+                      ? t("noSearchResults")
+                      : t("noRecordings")}
                 </p>
                 <Link href="/" className="mt-4 inline-block">
-                  <Button>録音を開始</Button>
+                  <Button>{t("startRecording")}</Button>
                 </Link>
               </CardContent>
             </Card>
