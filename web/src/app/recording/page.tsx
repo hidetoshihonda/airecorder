@@ -472,7 +472,7 @@ function RecordingDetailContent() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      📋 概要
+                      概要
                     </h3>
                     <div className="rounded-md bg-gray-50 p-4 text-gray-800">
                       {recording.summary.overview}
@@ -483,7 +483,7 @@ function RecordingDetailContent() {
                     recording.summary.keyPoints.length > 0 && (
                       <div>
                         <h3 className="text-sm font-medium text-gray-700 mb-2">
-                          🔑 重要ポイント
+                          重要ポイント
                         </h3>
                         <ul className="space-y-2">
                           {recording.summary.keyPoints.map((point, index) => (
@@ -505,7 +505,7 @@ function RecordingDetailContent() {
                     recording.summary.actionItems.length > 0 && (
                       <div>
                         <h3 className="text-sm font-medium text-gray-700 mb-2">
-                          ✅ アクションアイテム
+                          アクションアイテム
                         </h3>
                         <ul className="space-y-2">
                           {recording.summary.actionItems.map((item) => (
@@ -516,10 +516,10 @@ function RecordingDetailContent() {
                               <p className="text-gray-800">{item.description}</p>
                               <div className="mt-2 flex gap-4 text-sm text-gray-600">
                                 {item.assignee && (
-                                  <span>👤 担当: {item.assignee}</span>
+                                  <span>担当: {item.assignee}</span>
                                 )}
                                 {item.dueDate && (
-                                  <span>📅 期限: {item.dueDate}</span>
+                                  <span>期限: {item.dueDate}</span>
                                 )}
                               </div>
                             </li>

@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
-  const { settings, isLoading: isAuthLoading } = useAuth();
+  const { settings } = useAuth();
   const { requireAuth, isModalOpen, closeModal, blockedAction } = useAuthGate();
   
   const [sourceLanguage, setSourceLanguage] = useState(settings.defaultSourceLanguage);
@@ -47,7 +47,6 @@ export default function HomePage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
-  const [enableSpeakerDiarization, setEnableSpeakerDiarization] = useState(false);
   
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
@@ -70,7 +69,6 @@ export default function HomePage() {
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
     language: sourceLanguage,
-    enableSpeakerDiarization,
   });
 
   // Audio Recording (for saving audio files)
@@ -234,52 +232,66 @@ export default function HomePage() {
     setIsSaving(true);
     setSaveSuccess(false);
 
-    const now = new Date();
-    const title = `録音 ${now.toLocaleDateString("ja-JP")} ${now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`;
+    try {
+      const now = new Date();
+      const title = `録音 ${now.toLocaleDateString("ja-JP")} ${now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`;
 
-    // Upload audio file to Blob Storage if available
-    let audioUrl: string | undefined;
-    if (audioBlob) {
-      const fileName = `recording-${now.getTime()}.webm`;
-      const uploadResponse = await blobApi.uploadAudio(audioBlob, fileName);
-      if (uploadResponse.success && uploadResponse.data) {
-        audioUrl = uploadResponse.data.blobUrl;
+      // Upload audio file to Blob Storage if available
+      let audioUrl: string | undefined;
+      if (audioBlob) {
+        console.log("[Save] Uploading audio blob...");
+        const fileName = `recording-${now.getTime()}.webm`;
+        const uploadResponse = await blobApi.uploadAudio(audioBlob, fileName);
+        console.log("[Save] Upload response:", uploadResponse);
+        if (uploadResponse.success && uploadResponse.data) {
+          audioUrl = uploadResponse.data.blobUrl;
+        } else {
+          console.warn("[Save] Audio upload failed, continuing without audio URL:", uploadResponse.error);
+        }
       }
-    }
 
-    const response = await recordingsApi.createRecording({
-      title,
-      sourceLanguage,
-      duration,
-      audioUrl, // Include audio URL
-      transcript: {
-        segments: [{
-          id: "1",
-          text: transcript,
-          startTime: 0,
-          endTime: duration,
-        }],
-        fullText: transcript,
-      },
-      translations: translatedText ? {
-        [targetLanguage]: {
-          languageCode: targetLanguage,
+      console.log("[Save] Creating recording...", { title, sourceLanguage, duration, audioUrl });
+      const response = await recordingsApi.createRecording({
+        title,
+        sourceLanguage,
+        duration,
+        audioUrl, // Include audio URL
+        transcript: {
           segments: [{
-            originalSegmentId: "1",
-            text: translatedText,
+            id: "1",
+            text: transcript,
+            startTime: 0,
+            endTime: duration,
           }],
-          fullText: translatedText,
+          fullText: transcript,
         },
-      } : undefined,
-    });
+        translations: translatedText ? {
+          [targetLanguage]: {
+            languageCode: targetLanguage,
+            segments: [{
+              originalSegmentId: "1",
+              text: translatedText,
+            }],
+            fullText: translatedText,
+          },
+        } : undefined,
+      });
 
-    setIsSaving(false);
+      console.log("[Save] Create recording response:", response);
 
-    if (response.error) {
-      alert(`保存に失敗しました: ${response.error}`);
-    } else {
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setIsSaving(false);
+
+      if (response.error) {
+        console.error("[Save] Error:", response.error);
+        alert(`保存に失敗しました: ${response.error}`);
+      } else {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error("[Save] Unexpected error:", err);
+      alert(`予期しないエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
+      setIsSaving(false);
     }
   };
 
@@ -357,15 +369,14 @@ export default function HomePage() {
               <div className="relative">
                 <button
                   onClick={isListening ? handleStopRecording : handleStartRecording}
-                  disabled={!hasApiKeys || isAuthLoading}
-                  title={isAuthLoading ? "認証確認中..." : undefined}
+                  disabled={!hasApiKeys}
                   className={cn(
                     "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
                     isListening
                       ? isPaused 
                         ? "bg-orange-500 hover:bg-orange-600"
                         : "bg-red-500 hover:bg-red-600 animate-pulse"
-                      : hasApiKeys && !isAuthLoading
+                      : hasApiKeys
                       ? "bg-blue-600 hover:bg-blue-700"
                       : "bg-gray-400 cursor-not-allowed"
                   )}
@@ -479,28 +490,6 @@ export default function HomePage() {
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
                   翻訳中...
-                </span>
-              )}
-            </div>
-            
-            {/* Speaker Diarization Toggle */}
-            <div className="flex items-center gap-3">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enableSpeakerDiarization}
-                  onChange={(e) => setEnableSpeakerDiarization(e.target.checked)}
-                  disabled={isListening}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
-                <span className="ml-3 text-sm font-medium text-gray-700">
-                  話者識別
-                </span>
-              </label>
-              {enableSpeakerDiarization && (
-                <span className="text-xs text-gray-500">
-                  (沈黙で話者を切替)
                 </span>
               )}
             </div>
@@ -717,7 +706,7 @@ export default function HomePage() {
                 <div className="space-y-6">
                   {/* Overview */}
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">📋 概要</h3>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">概要</h3>
                     <div className="rounded-md bg-gray-50 p-4 text-gray-800">
                       {summary.overview}
                     </div>
@@ -726,7 +715,7 @@ export default function HomePage() {
                   {/* Key Points */}
                   {summary.keyPoints && summary.keyPoints.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">🔑 重要ポイント</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">重要ポイント</h3>
                       <ul className="space-y-2">
                         {summary.keyPoints.map((point, index) => (
                           <li
@@ -744,7 +733,7 @@ export default function HomePage() {
                   {/* Action Items */}
                   {summary.actionItems && summary.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">✅ アクションアイテム</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">アクションアイテム</h3>
                       <ul className="space-y-2">
                         {summary.actionItems.map((item) => (
                           <li
@@ -754,10 +743,10 @@ export default function HomePage() {
                             <p className="text-gray-800">{item.description}</p>
                             <div className="mt-2 flex gap-4 text-sm text-gray-600">
                               {item.assignee && (
-                                <span>👤 担当: {item.assignee}</span>
+                                <span>担当: {item.assignee}</span>
                               )}
                               {item.dueDate && (
-                                <span>📅 期限: {item.dueDate}</span>
+                                <span>期限: {item.dueDate}</span>
                               )}
                             </div>
                           </li>
