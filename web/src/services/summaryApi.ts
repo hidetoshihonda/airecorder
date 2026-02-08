@@ -28,18 +28,30 @@ class SummaryApiService {
         body: JSON.stringify(input),
       });
 
-      const data = await response.json();
+      // 安全なJSONパース
+      const text = await response.text();
+      let data: Record<string, unknown> | null = null;
+
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[SummaryAPI] JSON parse error:', parseError);
+          return { error: `サーバーからの応答を解析できませんでした: ${text.substring(0, 100)}` };
+        }
+      }
 
       if (!response.ok) {
         return {
-          error: data.error || `HTTP error ${response.status}`,
+          error: (data?.error as string) || `HTTP error ${response.status}`,
         };
       }
 
       return {
-        data: data.data || data,
+        data: ((data?.data as Summary) || data) as Summary,
       };
     } catch (error) {
+      console.error('[SummaryAPI] Request error:', error);
       return {
         error: (error as Error).message || "Network error",
       };

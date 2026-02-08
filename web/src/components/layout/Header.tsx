@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic, History, Settings, Menu, X } from "lucide-react";
+import { Mic, History, Settings, Menu, X, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: "録音", href: "/", icon: Mic },
@@ -16,6 +17,7 @@ const navigation = [
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, login, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
@@ -50,6 +52,37 @@ export function Header() {
               </Link>
             );
           })}
+        </div>
+
+        {/* User Menu */}
+        <div className="hidden md:flex md:items-center md:gap-2">
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-1.5">
+                <User className="h-4 w-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">{user.displayName}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => logout()}
+                className="gap-1 text-gray-600 hover:text-red-600"
+              >
+                <LogOut className="h-4 w-4" />
+                ログアウト
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => login()}
+              className="gap-1"
+            >
+              <User className="h-4 w-4" />
+              ログイン
+            </Button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -90,6 +123,32 @@ export function Header() {
                 </Link>
               );
             })}
+          </div>
+          {/* Mobile User Info */}
+          <div className="mt-3 border-t border-gray-200 pt-3">
+            {isAuthenticated && user ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700">
+                  <User className="h-4 w-4" />
+                  {user.displayName}
+                </div>
+                <button
+                  onClick={() => { logout(); setMobileMenuOpen(false); }}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="h-5 w-5" />
+                  ログアウト
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { login(); setMobileMenuOpen(false); }}
+                className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-blue-600 hover:bg-blue-50"
+              >
+                <User className="h-5 w-5" />
+                ログイン
+              </button>
+            )}
           </div>
         </div>
       )}
