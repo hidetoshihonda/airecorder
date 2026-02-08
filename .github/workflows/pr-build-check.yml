@@ -1,0 +1,71 @@
+name: PR Build Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ===================================
+  # Web: Lint + Type Check + Build
+  # ===================================
+  web-build:
+    runs-on: ubuntu-latest
+    name: Web Build Verification
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./web
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./web
+        run: npm run lint
+
+      - name: Run Type Check
+        working-directory: ./web
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: ./web
+        run: npm run build
+
+  # ===================================
+  # API: Type Check + Build
+  # ===================================
+  api-build:
+    runs-on: ubuntu-latest
+    name: API Build Verification
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci
+
+      - name: Type Check
+        working-directory: ./api
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: ./api
+        run: npm run build
