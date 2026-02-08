@@ -15,7 +15,7 @@ app.http("healthCheck", {
       body: JSON.stringify({
         status: "healthy",
         timestamp: new Date().toISOString(),
-        version: "1.0.0",
+        version: "1.1.0",
       }),
     };
   },
