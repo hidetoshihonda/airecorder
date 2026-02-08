@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, Globe, Mic, Palette } from "lucide-react";
+import { Save, Globe, Mic, Palette, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -144,6 +144,50 @@ export default function SettingsPage() {
                 <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
               </label>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Speaker Diarization Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">話者識別設定</CardTitle>
+            </div>
+            <CardDescription>
+              複数人の発話を声紋で自動識別（Azure ConversationTranscriber）
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">話者識別（Speaker Diarization）</p>
+                <p className="text-xs text-gray-500">
+                  有効にすると、複数人の発話を声紋で自動識別し色分け表示します
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.enableSpeakerDiarization ?? false}
+                  onChange={(e) =>
+                    updateSettings({ enableSpeakerDiarization: e.target.checked })
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
+              </label>
+            </div>
+            {(settings.enableSpeakerDiarization ?? false) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <p className="font-medium mb-1">⚠️ 注意事項</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>一時停止・再開時に話者番号がリセットされることがあります</li>
+                  <li>中間結果の話者は「Unknown」と表示される場合があります</li>
+                  <li>リージョンによっては利用できない場合があります</li>
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
 

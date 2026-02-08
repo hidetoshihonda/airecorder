@@ -27,6 +27,7 @@ const defaultSettings: UserSettings = {
   autoSaveRecordings: true,
   audioQuality: "high",
   noiseSuppression: true,
+  enableSpeakerDiarization: false,
 };
 
 const SETTINGS_STORAGE_KEY = "airecorder-settings";

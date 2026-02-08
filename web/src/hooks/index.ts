@@ -3,4 +3,5 @@ export { useAudioRecorder } from "./useAudioRecorder";
 export { useRecorder } from "./useRecorder";
 export { useRecordingStateMachine } from "./useRecordingStateMachine";
 export { useSpeechRecognition } from "./useSpeechRecognition";
+export { useSpeakerManager } from "./useSpeakerManager";
 export { useTranslation } from "./useTranslation";
