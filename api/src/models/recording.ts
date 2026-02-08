@@ -47,6 +47,7 @@ export interface CreateRecordingRequest {
   title: string;
   sourceLanguage: string;
   duration: number;
+  audioUrl?: string;
   transcript?: Transcript;
   translations?: { [languageCode: string]: Translation };
 }

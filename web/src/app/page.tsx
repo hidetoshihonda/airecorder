@@ -292,7 +292,17 @@ export default function HomePage() {
         if (uploadResponse.success && uploadResponse.data) {
           audioUrl = uploadResponse.data.blobUrl;
         } else {
-          console.warn("[Save] Audio upload failed, continuing without audio URL:", uploadResponse.error);
+          console.warn("[Save] Audio upload failed:", uploadResponse.error);
+          const continueWithout = confirm(
+            `音声ファイルのアップロードに失敗しました。\n` +
+            `エラー: ${uploadResponse.error}\n\n` +
+            `音声なしで保存を続けますか？\n` +
+            `「キャンセル」を押すと保存を中止します。`
+          );
+          if (!continueWithout) {
+            setIsSaving(false);
+            return;
+          }
         }
       }
 

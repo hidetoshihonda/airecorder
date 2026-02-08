@@ -24,6 +24,7 @@ export async function createRecording(
     title: request.title,
     sourceLanguage: request.sourceLanguage,
     duration: request.duration,
+    audioUrl: request.audioUrl,
     transcript: request.transcript,
     translations: request.translations,
     createdAt: now,
