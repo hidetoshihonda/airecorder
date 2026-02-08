@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
-import { useAuth } from "@/contexts/AuthContext";
 
 export type AppLocale = "ja" | "en" | "es";
 

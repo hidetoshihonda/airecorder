@@ -104,6 +104,7 @@ export function TranscriptView({
   // Reset autoFollow when recording starts
   useEffect(() => {
     if (isRecording) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: reset scroll follow on recording start (one-time sync)
       setAutoFollow(true);
     }
   }, [isRecording]);
