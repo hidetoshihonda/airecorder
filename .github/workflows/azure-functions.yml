@@ -89,3 +89,40 @@ jobs:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+      - name: Verify deployment health
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          HEALTH_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/health"
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            HTTP_STATUS=$(curl -s -o /tmp/health_response.json -w "%{http_code}" "$HEALTH_URL")
+            RESPONSE=$(cat /tmp/health_response.json)
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Health check passed (HTTP $HTTP_STATUS)"
+              echo "Response: $RESPONSE"
+              
+              # Verify the response contains expected fields
+              if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
+                echo "✅ API is healthy and responding correctly"
+                exit 0
+              else
+                echo "⚠️ API responded but health status is unexpected: $RESPONSE"
+                exit 1
+              fi
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "⏳ Attempt $RETRY_COUNT/$MAX_RETRIES: HTTP $HTTP_STATUS - retrying in 15s..."
+            sleep 15
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          echo "Last HTTP status: $HTTP_STATUS"
+          echo "Last response: $(cat /tmp/health_response.json)"
+          exit 1

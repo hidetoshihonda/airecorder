@@ -1,0 +1,172 @@
+name: Azure Infrastructure Health Check
+
+# 定期的にAzureインフラ設定を検証し、CI/CDが壊れる前に異常を検知する
+# 背景: SCM Basic Auth無効化 / EasyAuth誤有効化 でデプロイが401失敗した障害の再発防止
+
+on:
+  schedule:
+    # 毎日 JST 9:00 (UTC 0:00) に実行
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'func-airecorder-dev'
+  RESOURCE_GROUP: 'rg-airecorder-dev'
+
+jobs:
+  check-azure-config:
+    runs-on: ubuntu-latest
+    name: Verify Azure Configuration
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        continue-on-error: true
+
+      # ========================================
+      # Check 1: Functions App Health Check
+      # ========================================
+      - name: Check Functions App health endpoint
+        id: health
+        run: |
+          HEALTH_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/health"
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" "$HEALTH_URL")
+          RESPONSE=$(cat /tmp/health.json)
+          
+          echo "health_status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+          echo "health_response=$RESPONSE" >> $GITHUB_OUTPUT
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ Health endpoint: HTTP $HTTP_STATUS"
+            echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+          else
+            echo "❌ Health endpoint: HTTP $HTTP_STATUS"
+            echo "Response: $RESPONSE"
+          fi
+
+      # ========================================
+      # Check 2: SCM Basic Auth (Publish Profile認証に必須)
+      # ========================================
+      - name: Check SCM Basic Auth policy
+        id: scm_auth
+        if: steps.health.outcome == 'success' || steps.health.outcome == 'failure'
+        run: |
+          # Publish Profile を使ってSCMにアクセスできるか確認
+          PUBLISH_PROFILE='${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}'
+          
+          if [ -z "$PUBLISH_PROFILE" ]; then
+            echo "⚠️ AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret is not set"
+            echo "scm_auth=missing" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Publish Profileからユーザー名とパスワードを抽出
+          SCM_USER=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | sed 's/userName="//;s/"//')
+          SCM_PASS=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | sed 's/userPWD="//;s/"//')
+          
+          if [ -z "$SCM_USER" ] || [ -z "$SCM_PASS" ]; then
+            echo "⚠️ Could not parse credentials from Publish Profile"
+            echo "scm_auth=parse_error" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          SCM_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.scm.azurewebsites.net/api/settings"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "${SCM_USER}:${SCM_PASS}" "$SCM_URL")
+          
+          echo "scm_auth_status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ SCM Basic Auth: enabled (HTTP $HTTP_STATUS)"
+            echo "scm_auth=ok" >> $GITHUB_OUTPUT
+          elif [ "$HTTP_STATUS" = "401" ]; then
+            echo "❌ SCM Basic Auth: DISABLED (HTTP 401)"
+            echo "   → Publish Profile認証でのデプロイが失敗します"
+            echo "   → Azure Portal → Functions App → 設定 → 構成 → 基本認証を有効化してください"
+            echo "   → または: az rest --method PUT --url '.../basicPublishingCredentialsPolicies/scm' --body '{\"properties\":{\"allow\":true}}'"
+            echo "scm_auth=disabled" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ SCM endpoint: unexpected HTTP $HTTP_STATUS"
+            echo "scm_auth=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      # ========================================
+      # Check 3: EasyAuth (誤有効化の検知)
+      # ========================================
+      - name: Check EasyAuth is disabled
+        id: easyauth
+        run: |
+          # Functions AppのAPIにanonymousでアクセスできることを確認
+          # EasyAuthが有効だと302リダイレクトまたは401が返る
+          API_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/health"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$API_URL")
+          
+          # curlの-Lでリダイレクト先まで追跡した結果をチェック
+          REDIRECT_CHECK=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL")
+          
+          if [ "$REDIRECT_CHECK" = "200" ]; then
+            echo "✅ EasyAuth: disabled (anonymous access works)"
+            echo "easyauth=ok" >> $GITHUB_OUTPUT
+          elif [ "$REDIRECT_CHECK" = "302" ] || [ "$REDIRECT_CHECK" = "401" ]; then
+            echo "❌ EasyAuth: ENABLED (HTTP $REDIRECT_CHECK)"
+            echo "   → 全APIリクエストが認証を要求されています"
+            echo "   → Azure Portal → Functions App → 認証 → 認証を無効化してください"
+            echo "easyauth=enabled" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Unexpected HTTP status: $REDIRECT_CHECK"
+            echo "easyauth=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      # ========================================
+      # Summary & Alert
+      # ========================================
+      - name: Generate summary
+        if: always()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo " Azure Infrastructure Health Check Summary"
+          echo "=========================================="
+          echo ""
+          
+          FAILED=0
+          
+          # Health check
+          HEALTH="${{ steps.health.outputs.health_status }}"
+          if [ "$HEALTH" = "200" ]; then
+            echo "✅ Functions App Health: OK"
+          else
+            echo "❌ Functions App Health: FAILED (HTTP $HEALTH)"
+            FAILED=$((FAILED + 1))
+          fi
+          
+          # SCM Auth
+          SCM="${{ steps.scm_auth.outputs.scm_auth }}"
+          if [ "$SCM" = "ok" ]; then
+            echo "✅ SCM Basic Auth: Enabled"
+          elif [ "$SCM" = "disabled" ]; then
+            echo "❌ SCM Basic Auth: DISABLED — CI/CDデプロイが失敗します！"
+            FAILED=$((FAILED + 1))
+          else
+            echo "⚠️ SCM Basic Auth: $SCM"
+          fi
+          
+          # EasyAuth
+          EASYAUTH="${{ steps.easyauth.outputs.easyauth }}"
+          if [ "$EASYAUTH" = "ok" ]; then
+            echo "✅ EasyAuth: Disabled (correct)"
+          elif [ "$EASYAUTH" = "enabled" ]; then
+            echo "❌ EasyAuth: ENABLED — APIが全て401になります！"
+            FAILED=$((FAILED + 1))
+          else
+            echo "⚠️ EasyAuth: $EASYAUTH"
+          fi
+          
+          echo ""
+          if [ $FAILED -gt 0 ]; then
+            echo "🚨 $FAILED 件の問題が検出されました！"
+            exit 1
+          else
+            echo "✅ すべてのチェックに合格しました"
+          fi

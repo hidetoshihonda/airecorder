@@ -142,7 +142,56 @@ airecorder/
 |---|---|---|
 | PR Build Verification | PR → main | web/api のビルド検証 |
 | Azure SWA CI/CD | push to main | フロントエンドデプロイ |
-| Azure Functions CI/CD | push to main (api/**) | バックエンドデプロイ |
+| Azure Functions CI/CD | push to main (api/**) | バックエンドデプロイ + ヘルスチェック検証 |
+| Azure Infra Health Check | 毎日 JST 9:00 / 手動 | Azure設定の異常検知 |
+
+## ⚠️ Azure インフラ設定 — 絶対に変更してはいけない項目
+
+以下の Azure 設定は CI/CD の動作に直結します。**変更すると本番デプロイが完全に停止します。**
+
+### 1. SCM Basic Auth（基本認証）→ **有効のまま維持**
+
+| 項目 | 正しい値 |
+|---|---|
+| `basicPublishingCredentialsPolicies/scm` | `allow: true` |
+| `basicPublishingCredentialsPolicies/ftp` | `allow: true` |
+
+**変更した場合の影響**: Publish Profile を使った CI/CD デプロイが 401 エラーで失敗  
+**復旧方法**:
+```bash
+az rest --method PUT \
+  --url "https://management.azure.com/subscriptions/{subId}/resourceGroups/rg-airecorder-dev/providers/Microsoft.Web/sites/func-airecorder-dev/basicPublishingCredentialsPolicies/scm?api-version=2022-03-01" \
+  --body '{"properties":{"allow":true}}'
+```
+
+### 2. EasyAuth（App Service 認証）→ **無効のまま維持**
+
+| 項目 | 正しい値 |
+|---|---|
+| 認証 (Authentication) | 無効 |
+| `platform.enabled` | `false` |
+
+**変更した場合の影響**: 全 API リクエストが認証要求（401/302）で失敗  
+**復旧方法**: Azure Portal → Functions App → 認証 → 無効化
+
+### 3. Publish Profile（GitHub Secret）
+
+| 項目 | 説明 |
+|---|---|
+| `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` | Functions デプロイ用認証情報 |
+
+**SCM Basic Auth を無効→有効に戻した場合**: Publish Profile の再取得 & Secret の更新が必要
+```bash
+az functionapp deployment list-publishing-profiles --name func-airecorder-dev --resource-group rg-airecorder-dev --xml > profile.xml
+gh secret set AZURE_FUNCTIONAPP_PUBLISH_PROFILE < profile.xml
+```
+
+### 過去のインシデント
+
+| 日付 | 問題 | 原因 | 影響時間 |
+|---|---|---|---|
+| 2026-02-08 | Functions CI/CD デプロイ 401 失敗 | SCM Basic Auth が `allow: false` に設定されていた | 〜2時間 |
+| 2026-02-08 | 全API 401 Unauthorized | EasyAuth が誤って有効化されていた | 〜3時間 |
 
 ## コーディング規約
 
