@@ -55,6 +55,7 @@ export default function HomePage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
+  const [summaryLanguage, setSummaryLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
   
   // Ref to track last translated text to avoid redundant translations
@@ -328,7 +329,7 @@ export default function HomePage() {
 
     const response = await summaryApi.generateSummary({
       transcript: transcriptForSummary,
-      language: sourceLanguage,
+      language: summaryLanguage,
       templateId: selectedTemplateId,
       ...(selectedTemplateId.startsWith("custom-")
         ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
@@ -855,9 +856,29 @@ export default function HomePage() {
               )}
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
-              {/* テンプレート選択 UI */}
+              {/* テンプレート選択 & 出力言語 */}
               {transcript && !showRecordingUI && !isGeneratingSummary && (
-                <div className="mb-4">
+                <div className="mb-4 space-y-3">
+                  {/* 議事録出力言語 */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                      {t("summaryLanguageLabel")}
+                    </label>
+                    <Select value={summaryLanguage} onValueChange={setSummaryLanguage}>
+                      <SelectTrigger className="h-8 w-44 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            {lang.flag} {lang.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* テンプレート選択 */}
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     {t("templateLabel")}
                   </label>
