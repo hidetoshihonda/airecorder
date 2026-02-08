@@ -37,6 +37,49 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Auth cache to avoid redundant /.auth/me calls
+const AUTH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let authCache: { user: User | null; timestamp: number } | null = null;
+
+async function fetchSwaAuthInfo(): Promise<User | null> {
+  // Return cached result if still valid
+  if (authCache && Date.now() - authCache.timestamp < AUTH_CACHE_TTL) {
+    return authCache.user;
+  }
+
+  try {
+    const response = await fetch("/.auth/me");
+    if (!response.ok) {
+      authCache = { user: null, timestamp: Date.now() };
+      return null;
+    }
+
+    const data = await response.json();
+    const principal = data?.clientPrincipal;
+
+    if (!principal || !principal.userId) {
+      authCache = { user: null, timestamp: Date.now() };
+      return null;
+    }
+
+    const user: User = {
+      id: principal.userId,
+      email: principal.userDetails || "",
+      displayName: principal.userDetails || "User",
+      settings: defaultSettings,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    authCache = { user, timestamp: Date.now() };
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch auth info:", error);
+    authCache = { user: null, timestamp: Date.now() };
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,10 +99,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return defaultSettings;
   });
 
-  // Mark loading as done after mount
+  // Fetch SWA auth info on mount
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        const authUser = await fetchSwaAuthInfo();
+        if (!cancelled) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setUser(authUser);
+        }
+      } catch {
+        // Auth fetch failed — treat as unauthenticated
+      } finally {
+        if (!cancelled) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setIsLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const isAuthenticated = user !== null;
@@ -77,16 +136,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   }, []);
 
-  // Placeholder auth functions - will be replaced with MSAL implementation
+  // SWA built-in auth: redirect to GitHub login
   const login = useCallback(async () => {
-    // TODO: Implement MSAL login
-    console.warn("Login not implemented yet");
+    const redirectUri = encodeURIComponent(window.location.pathname);
+    window.location.href = `/.auth/login/github?post_login_redirect_uri=${redirectUri}`;
   }, []);
 
+  // SWA built-in auth: redirect to logout endpoint
   const logout = useCallback(async () => {
-    // TODO: Implement MSAL logout
+    authCache = null;
     setUser(null);
-    console.warn("Logout not implemented yet");
+    window.location.href = "/.auth/logout?post_logout_redirect_uri=/";
   }, []);
 
   const value: AuthContextType = {
