@@ -18,13 +18,16 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useAuthGate } from "@/hooks/useAuthGate";
+import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
-  const { settings } = useAuth();
+  const { settings, isLoading: isAuthLoading } = useAuth();
+  const { requireAuth, isModalOpen, closeModal, blockedAction } = useAuthGate();
   
   const [sourceLanguage, setSourceLanguage] = useState(settings.defaultSourceLanguage);
   const [targetLanguage, setTargetLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
@@ -161,6 +164,9 @@ export default function HomePage() {
   };
 
   const handleStartRecording = async () => {
+    // 認証ゲート: 未ログインならモーダル表示でブロック
+    if (!requireAuth("録音を開始")) return;
+
     setDuration(0);
     setTranslatedText("");
     setSaveSuccess(false);
@@ -192,6 +198,8 @@ export default function HomePage() {
 
   const handleGenerateSummary = async () => {
     if (!transcript) return;
+    // 認証ゲート: 未ログインならモーダル表示でブロック
+    if (!requireAuth("議事録を生成")) return;
 
     setIsGeneratingSummary(true);
     setSummaryError(null);
@@ -218,6 +226,8 @@ export default function HomePage() {
 
   const handleSave = async () => {
     if (!transcript) return;
+    // 認証ゲート: 未ログインならモーダル表示でブロック
+    if (!requireAuth("録音を保存")) return;
 
     setIsSaving(true);
     setSaveSuccess(false);
@@ -359,14 +369,15 @@ export default function HomePage() {
               <div className="relative">
                 <button
                   onClick={isListening ? handleStopRecording : handleStartRecording}
-                  disabled={!hasApiKeys}
+                  disabled={!hasApiKeys || isAuthLoading}
+                  title={isAuthLoading ? "認証確認中..." : undefined}
                   className={cn(
                     "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
                     isListening
                       ? isPaused 
                         ? "bg-orange-500 hover:bg-orange-600"
                         : "bg-red-500 hover:bg-red-600 animate-pulse"
-                      : hasApiKeys
+                      : hasApiKeys && !isAuthLoading
                       ? "bg-blue-600 hover:bg-blue-700"
                       : "bg-gray-400 cursor-not-allowed"
                   )}
@@ -774,6 +785,13 @@ export default function HomePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 認証ゲートモーダル */}
+      <AuthGateModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        action={blockedAction}
+      />
     </div>
   );
 }
