@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Recording } from "@/types";
-import { recordingsApi } from "@/services";
+import { recordingsApi, blobApi } from "@/services";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -47,6 +47,53 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+
+  // BUG-1 fix: SAS 付き URL を取得してから再生・DL する
+  const handlePlay = async (recording: Recording) => {
+    if (!recording.audioUrl) return;
+    setLoadingAudioId(recording.id);
+    try {
+      const playableUrl = await blobApi.getPlayableUrl(recording.audioUrl);
+      if (playableUrl) {
+        window.open(playableUrl, '_blank');
+      } else {
+        alert("音声ファイルを読み込めませんでした");
+      }
+    } catch {
+      alert("音声ファイルの取得中にエラーが発生しました");
+    } finally {
+      setLoadingAudioId(null);
+    }
+  };
+
+  const handleDownload = async (recording: Recording) => {
+    if (!recording.audioUrl) return;
+    setLoadingAudioId(recording.id);
+    try {
+      const playableUrl = await blobApi.getPlayableUrl(recording.audioUrl);
+      if (playableUrl) {
+        // fetch → blob → createObjectURL で cross-origin DL 対応
+        const response = await fetch(playableUrl);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ext = blob.type.includes('mp4') ? '.m4a' : blob.type.includes('wav') ? '.wav' : '.webm';
+        a.download = `${recording.title}${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert("音声ファイルをダウンロードできませんでした");
+      }
+    } catch {
+      alert("ダウンロード中にエラーが発生しました");
+    } finally {
+      setLoadingAudioId(null);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -236,33 +283,35 @@ export default function HistoryPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {recording.audioUrl && (
+                      {recording.audioUrl ? (
                         <>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-gray-600"
-                            asChild
+                            onClick={() => handlePlay(recording)}
+                            disabled={loadingAudioId === recording.id}
                           >
-                            <a
-                              href={recording.audioUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                            {loadingAudioId === recording.id ? (
+                              <Spinner size="sm" />
+                            ) : (
                               <Play className="h-4 w-4" />
-                            </a>
+                            )}
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-gray-600"
-                            asChild
+                            onClick={() => handleDownload(recording)}
+                            disabled={loadingAudioId === recording.id}
                           >
-                            <a href={recording.audioUrl} download>
-                              <Download className="h-4 w-4" />
-                            </a>
+                            <Download className="h-4 w-4" />
                           </Button>
                         </>
+                      ) : (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                          音声なし
+                        </span>
                       )}
                       <Button
                         variant="ghost"

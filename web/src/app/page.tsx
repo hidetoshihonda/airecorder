@@ -284,7 +284,9 @@ export default function HomePage() {
       let audioUrl: string | undefined;
       if (audioBlob) {
         console.log("[Save] Uploading audio blob...");
-        const fileName = `recording-${now.getTime()}.webm`;
+        // DESIGN-4 fix: MIME タイプに応じた拡張子を使用
+        const ext = audioBlob.type.includes('mp4') ? '.m4a' : audioBlob.type.includes('wav') ? '.wav' : '.webm';
+        const fileName = `recording-${now.getTime()}${ext}`;
         const uploadResponse = await blobApi.uploadAudio(audioBlob, fileName);
         console.log("[Save] Upload response:", uploadResponse);
         if (uploadResponse.success && uploadResponse.data) {
