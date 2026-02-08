@@ -63,9 +63,12 @@ export default function HistoryPage() {
         setError(response.error);
         setRecordings([]);
       } else if (response.data) {
-        const items = Array.isArray(response.data)
-          ? response.data
-          : response.data.data || [];
+        // APIレスポンス: { items: [...], total, page, ... } or { data: [...] }
+        const responseData = response.data as unknown;
+        const items = Array.isArray(responseData)
+          ? responseData as Recording[]
+          : (responseData as Record<string, unknown>).items as Recording[] || [];
+        console.log('[History] Loaded recordings:', items.length);
         setRecordings(items);
       }
 
@@ -88,9 +91,12 @@ export default function HistoryPage() {
       setError(response.error);
       setRecordings([]);
     } else if (response.data) {
-      const items = Array.isArray(response.data)
-        ? response.data
-        : response.data.data || [];
+      // APIレスポンス: { items: [...], total, page, ... } or { data: [...] }
+      const responseData = response.data as unknown;
+      const items = Array.isArray(responseData)
+        ? responseData as Recording[]
+        : (responseData as Record<string, unknown>).items as Recording[] || [];
+      console.log('[History] Refreshed recordings:', items.length);
       setRecordings(items);
     }
 

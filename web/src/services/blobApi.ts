@@ -42,9 +42,20 @@ class BlobApiService {
         }
       );
 
-      const data = await response.json();
-      return data;
+      const text = await response.text();
+      if (!text) {
+        return { success: false, error: 'Empty response from server' };
+      }
+      
+      try {
+        const data = JSON.parse(text);
+        return data;
+      } catch (parseError) {
+        console.error('[BlobAPI] JSON parse error in getUploadSas:', parseError);
+        return { success: false, error: 'Invalid JSON response' };
+      }
     } catch (error) {
+      console.error('[BlobAPI] getUploadSas error:', error);
       return {
         success: false,
         error: (error as Error).message || "Network error",
@@ -67,9 +78,20 @@ class BlobApiService {
         }
       );
 
-      const data = await response.json();
-      return data;
+      const text = await response.text();
+      if (!text) {
+        return { success: false, error: 'Empty response from server' };
+      }
+      
+      try {
+        const data = JSON.parse(text);
+        return data;
+      } catch (parseError) {
+        console.error('[BlobAPI] JSON parse error in getDownloadSas:', parseError);
+        return { success: false, error: 'Invalid JSON response' };
+      }
     } catch (error) {
+      console.error('[BlobAPI] getDownloadSas error:', error);
       return {
         success: false,
         error: (error as Error).message || "Network error",

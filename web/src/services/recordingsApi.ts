@@ -61,18 +61,30 @@ class RecordingsApiService {
         },
       });
 
-      const data = await response.json();
+      // 空レスポンスの安全なハンドリング
+      const text = await response.text();
+      let data: Record<string, unknown> | null = null;
+      
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[RecordingsAPI] JSON parse error:', parseError);
+          return { error: 'Invalid JSON response from server' };
+        }
+      }
 
       if (!response.ok) {
         return {
-          error: data.error || `HTTP error ${response.status}`,
+          error: (data?.error as string) || `HTTP error ${response.status}`,
         };
       }
 
       return {
-        data: data.data || data,
+        data: ((data?.data as T) || data) as T,
       };
     } catch (error) {
+      console.error('[RecordingsAPI] Request error:', error);
       return {
         error: (error as Error).message || "Network error",
       };

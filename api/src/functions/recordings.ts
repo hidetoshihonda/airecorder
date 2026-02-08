@@ -113,9 +113,9 @@ app.http("createRecording", {
   },
 });
 
-// Get recording by ID
-app.http("getRecording", {
-  methods: ["GET", "OPTIONS"],
+// Get, Update, or Delete recording by ID
+app.http("recordingById", {
+  methods: ["GET", "PUT", "DELETE", "OPTIONS"],
   authLevel: "anonymous",
   route: "recordings/{id}",
   handler: async (
@@ -126,113 +126,80 @@ app.http("getRecording", {
       return jsonResponse({ success: true });
     }
 
+    const id = request.params.id;
+
     try {
-      const id = request.params.id;
-      const userId = request.query.get("userId");
+      // GET: Get recording by ID
+      if (request.method === "GET") {
+        const userId = request.query.get("userId");
+        if (!userId) {
+          return jsonResponse(
+            { success: false, error: "userId is required" },
+            400
+          );
+        }
 
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
+        const recording = await getRecording(id!, userId);
+        if (!recording) {
+          return jsonResponse(
+            { success: false, error: "Recording not found" },
+            404
+          );
+        }
+
+        return jsonResponse<Recording>({ success: true, data: recording });
       }
 
-      const recording = await getRecording(id!, userId);
-      if (!recording) {
-        return jsonResponse(
-          { success: false, error: "Recording not found" },
-          404
-        );
+      // PUT: Update recording
+      if (request.method === "PUT") {
+        const body = (await request.json()) as UpdateRecordingRequest & {
+          userId?: string;
+        };
+        const userId = body.userId || request.query.get("userId");
+
+        if (!userId) {
+          return jsonResponse(
+            { success: false, error: "userId is required" },
+            400
+          );
+        }
+
+        const recording = await updateRecording(id!, userId, body);
+        if (!recording) {
+          return jsonResponse(
+            { success: false, error: "Recording not found" },
+            404
+          );
+        }
+
+        return jsonResponse<Recording>({ success: true, data: recording });
       }
 
-      return jsonResponse<Recording>({ success: true, data: recording });
-    } catch (error) {
+      // DELETE: Delete recording
+      if (request.method === "DELETE") {
+        const userId = request.query.get("userId");
+        if (!userId) {
+          return jsonResponse(
+            { success: false, error: "userId is required" },
+            400
+          );
+        }
+
+        const deleted = await deleteRecording(id!, userId);
+        if (!deleted) {
+          return jsonResponse(
+            { success: false, error: "Recording not found" },
+            404
+          );
+        }
+
+        return jsonResponse({ success: true });
+      }
+
       return jsonResponse(
-        { success: false, error: (error as Error).message },
-        500
+        { success: false, error: "Method not allowed" },
+        405
       );
-    }
-  },
-});
-
-// Update recording
-app.http("updateRecording", {
-  methods: ["PUT", "OPTIONS"],
-  authLevel: "anonymous",
-  route: "recordings/{id}",
-  handler: async (
-    request: HttpRequest,
-    _context: InvocationContext
-  ): Promise<HttpResponseInit> => {
-    if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
-    }
-
-    try {
-      const id = request.params.id;
-      const body = (await request.json()) as UpdateRecordingRequest & {
-        userId?: string;
-      };
-      const userId = body.userId || request.query.get("userId");
-
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
-      }
-
-      const recording = await updateRecording(id!, userId, body);
-      if (!recording) {
-        return jsonResponse(
-          { success: false, error: "Recording not found" },
-          404
-        );
-      }
-
-      return jsonResponse<Recording>({ success: true, data: recording });
-    } catch (error) {
-      return jsonResponse(
-        { success: false, error: (error as Error).message },
-        500
-      );
-    }
-  },
-});
-
-// Delete recording
-app.http("deleteRecording", {
-  methods: ["DELETE", "OPTIONS"],
-  authLevel: "anonymous",
-  route: "recordings/{id}",
-  handler: async (
-    request: HttpRequest,
-    _context: InvocationContext
-  ): Promise<HttpResponseInit> => {
-    if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
-    }
-
-    try {
-      const id = request.params.id;
-      const userId = request.query.get("userId");
-
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
-      }
-
-      const deleted = await deleteRecording(id!, userId);
-      if (!deleted) {
-        return jsonResponse(
-          { success: false, error: "Recording not found" },
-          404
-        );
-      }
-
-      return jsonResponse({ success: true });
     } catch (error) {
       return jsonResponse(
         { success: false, error: (error as Error).message },
