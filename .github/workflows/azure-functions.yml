@@ -12,6 +12,7 @@ on:
       - main
     paths:
       - 'api/**'
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '20'
