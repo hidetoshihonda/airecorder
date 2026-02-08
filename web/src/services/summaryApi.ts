@@ -7,6 +7,8 @@ const API_BASE_URL =
 export interface GenerateSummaryInput {
   transcript: string;
   language?: string;
+  templateId?: string;
+  customPrompt?: string;
 }
 
 class SummaryApiService {

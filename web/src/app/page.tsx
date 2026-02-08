@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, Users } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,8 @@ import { useSpeakerManager } from "@/hooks/useSpeakerManager";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
-import { Summary } from "@/types";
+import { Summary, TemplateId } from "@/types";
+import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -53,6 +54,7 @@ export default function HomePage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
   
   // Ref to track last translated text to avoid redundant translations
@@ -158,6 +160,24 @@ export default function HomePage() {
 
   // FSM ベースの表示状態（isListening の代わりに使用）
   const showRecordingUI = fsmIsRecording || fsmIsPaused || isTransitioning;
+
+  // テンプレートアイコンマッピング
+  const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
+    FileText: <FileText className="h-4 w-4" />,
+    CalendarCheck: <CalendarCheck className="h-4 w-4" />,
+    Users: <Users className="h-4 w-4" />,
+    Handshake: <Handshake className="h-4 w-4" />,
+    Code: <Code className="h-4 w-4" />,
+    Lightbulb: <Lightbulb className="h-4 w-4" />,
+    PenSquare: <PenSquare className="h-4 w-4" />,
+  }), []);
+
+  // プリセット + カスタムテンプレート一覧
+  const allTemplates = useMemo(() => {
+    const customs = loadCustomTemplates().map(customToMeetingTemplate);
+    return [...PRESET_TEMPLATES, ...customs];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 初回のみ（カスタムテンプレートは設定ページで管理）
 
   // BUG-7 fix: Duration は useAudioRecorder 内部で管理（isListening 依存を排除）
   // 録音中のページ離脱防止（beforeunload）
@@ -309,6 +329,10 @@ export default function HomePage() {
     const response = await summaryApi.generateSummary({
       transcript: transcriptForSummary,
       language: sourceLanguage,
+      templateId: selectedTemplateId,
+      ...(selectedTemplateId.startsWith("custom-")
+        ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
+        : {}),
     });
 
     setIsGeneratingSummary(false);
@@ -865,6 +889,39 @@ export default function HomePage() {
               )}
             </CardHeader>
             <CardContent>
+              {/* テンプレート選択 UI */}
+              {transcript && !showRecordingUI && !isGeneratingSummary && (
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    {t("templateLabel")}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {allTemplates.map((tmpl) => (
+                      <button
+                        key={tmpl.id}
+                        onClick={() => setSelectedTemplateId(tmpl.id)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
+                          selectedTemplateId === tmpl.id
+                            ? "border-blue-500 bg-blue-50 text-blue-800"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                        )}
+                      >
+                        {TEMPLATE_ICONS[tmpl.icon] || <FileText className="h-4 w-4" />}
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">
+                            {tmpl.isPreset ? t(`template_${tmpl.nameKey}`) : tmpl.nameKey}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {tmpl.isPreset ? t(`template_${tmpl.descriptionKey}`) : tmpl.descriptionKey}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {summaryError && (
                 <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
