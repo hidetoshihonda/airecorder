@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,6 +52,11 @@ export default function HomePage() {
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
   const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-scroll / follow control (Issue #4)
+  const [autoFollow, setAutoFollow] = useState(true);
+  const transcriptScrollRef = useRef<HTMLDivElement>(null);
+  const translationScrollRef = useRef<HTMLDivElement>(null);
 
   // Recording State Machine (BUG-1~7 の根本修正)
   const {
@@ -183,6 +188,30 @@ export default function HomePage() {
     };
   }, [transcript, interimTranscript, showRecordingUI, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
 
+  // Issue #4: Auto-scroll to bottom when transcript/translation updates
+  useEffect(() => {
+    if (autoFollow && transcriptScrollRef.current) {
+      const el = transcriptScrollRef.current;
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [transcript, interimTranscript, autoFollow]);
+
+  useEffect(() => {
+    if (autoFollow && translationScrollRef.current) {
+      const el = translationScrollRef.current;
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [translatedText, autoFollow]);
+
+  // Issue #4: Detect manual scroll to pause auto-follow
+  const handleScrollContainer = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    if (!isAtBottom && autoFollow) {
+      setAutoFollow(false);
+    }
+  }, [autoFollow]);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -201,6 +230,7 @@ export default function HomePage() {
     setSummary(null);
     setSummaryError(null);
     lastTranslatedTextRef.current = "";
+    setAutoFollow(true); // Issue #4: reset auto-follow on new recording
     resetTranscript();
     resetAudioRecording();
     
@@ -625,26 +655,44 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               {showRecordingUI ? (
-                <div className="space-y-2">
-                  {transcript && (
-                    <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                      {transcript}
-                    </div>
-                  )}
-                  {interimTranscript && (
-                    <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-blue-600 italic">
-                      {interimTranscript}
-                    </div>
-                  )}
-                  {!transcript && !interimTranscript && (
-                    <div className="flex items-center justify-center py-8">
-                      <Spinner size="lg" />
-                      <span className="ml-2 text-gray-600">音声を待っています...</span>
+                <div className="relative">
+                  <div
+                    ref={transcriptScrollRef}
+                    onScroll={handleScrollContainer}
+                    className="max-h-[400px] overflow-y-auto space-y-2 scroll-smooth"
+                  >
+                    {transcript && (
+                      <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                        {transcript}
+                      </div>
+                    )}
+                    {interimTranscript && (
+                      <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-blue-600 italic">
+                        {interimTranscript}
+                      </div>
+                    )}
+                    {!transcript && !interimTranscript && (
+                      <div className="flex items-center justify-center py-8">
+                        <Spinner size="lg" />
+                        <span className="ml-2 text-gray-600">音声を待っています...</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Issue #4: Follow toggle button */}
+                  {!autoFollow && (
+                    <div className="flex justify-center mt-2">
+                      <button
+                        onClick={() => setAutoFollow(true)}
+                        className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                        最新に追従
+                      </button>
                     </div>
                   )}
                 </div>
               ) : transcript ? (
-                <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                <div className="max-h-[600px] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                   {transcript}
                 </div>
               ) : (
@@ -683,49 +731,67 @@ export default function HomePage() {
                   <span className="ml-2 text-gray-600">翻訳中...</span>
                 </div>
               ) : translatedText ? (
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-500">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSpeak(translatedText, targetLanguage)}
-                        className="gap-1 h-7 px-2"
-                        title={isSpeaking ? "停止" : "読み上げ"}
-                      >
-                        {isSpeaking ? (
-                          <VolumeX className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Volume2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                <div className="relative">
+                  <div
+                    ref={translationScrollRef}
+                    onScroll={handleScrollContainer}
+                    className="max-h-[400px] overflow-y-auto space-y-4 scroll-smooth"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-500">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSpeak(translatedText, targetLanguage)}
+                          className="gap-1 h-7 px-2"
+                          title={isSpeaking ? "停止" : "読み上げ"}
+                        >
+                          {isSpeaking ? (
+                            <VolumeX className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
+                        {translatedText}
+                      </div>
                     </div>
-                    <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
-                      {translatedText}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSpeak(transcript, sourceLanguage)}
+                          className="gap-1 h-7 px-2"
+                          title={isSpeaking ? "停止" : "読み上げ"}
+                        >
+                          {isSpeaking ? (
+                            <VolumeX className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                        {transcript}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSpeak(transcript, sourceLanguage)}
-                        className="gap-1 h-7 px-2"
-                        title={isSpeaking ? "停止" : "読み上げ"}
+                  {/* Issue #4: Follow toggle button for translation tab */}
+                  {showRecordingUI && !autoFollow && (
+                    <div className="flex justify-center mt-2">
+                      <button
+                        onClick={() => setAutoFollow(true)}
+                        className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
                       >
-                        {isSpeaking ? (
-                          <VolumeX className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Volume2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                        <ArrowDown className="h-4 w-4" />
+                        最新に追従
+                      </button>
                     </div>
-                    <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                      {transcript}
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
