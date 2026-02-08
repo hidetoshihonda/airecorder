@@ -617,27 +617,6 @@ export default function HomePage() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSpeak(transcript, sourceLanguage)}
-                        className="gap-1 h-7 px-2"
-                        title={isSpeaking ? "停止" : "読み上げ"}
-                      >
-                        {isSpeaking ? (
-                          <VolumeX className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Volume2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                      {transcript}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
                       <p className="text-sm text-gray-500">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
                       <Button
                         variant="ghost"
@@ -655,6 +634,27 @@ export default function HomePage() {
                     </div>
                     <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
                       {translatedText}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSpeak(transcript, sourceLanguage)}
+                        className="gap-1 h-7 px-2"
+                        title={isSpeaking ? "停止" : "読み上げ"}
+                      >
+                        {isSpeaking ? (
+                          <VolumeX className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                      {transcript}
                     </div>
                   </div>
                 </div>
