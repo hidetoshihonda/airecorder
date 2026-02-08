@@ -82,6 +82,7 @@
     "assignee": "Assignee: {name}",
     "dueDate": "Due: {date}",
     "regenerate": "Regenerate",
+    "summaryLanguageLabel": "Output language",
     "templateLabel": "Select template",
     "template_general": "General",
     "template_generalDesc": "Standard meeting minutes",

@@ -82,6 +82,7 @@
     "assignee": "担当: {name}",
     "dueDate": "期限: {date}",
     "regenerate": "再生成",
+    "summaryLanguageLabel": "出力言語",
     "templateLabel": "テンプレートを選択",
     "template_general": "汎用",
     "template_generalDesc": "標準的な議事録",

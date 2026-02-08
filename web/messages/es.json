@@ -82,6 +82,7 @@
     "assignee": "Responsable: {name}",
     "dueDate": "Fecha límite: {date}",
     "regenerate": "Regenerar",
+    "summaryLanguageLabel": "Idioma de salida",
     "templateLabel": "Seleccionar plantilla",
     "template_general": "General",
     "template_generalDesc": "Acta de reunión estándar",
