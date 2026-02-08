@@ -474,7 +474,7 @@ export default function HomePage() {
       <div className="flex-none rounded-lg border border-gray-200 bg-white px-4 py-2 mb-2 shadow-sm">
         {showRecordingUI ? (
           /* ─── Recording in progress: status + controls ─── */
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             {/* Left: Recording status */}
             <div className="flex items-center gap-3">
               <div className={cn(
@@ -539,72 +539,77 @@ export default function HomePage() {
           </div>
         ) : (
           /* ─── Idle: language selectors + record button ─── */
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Left: Language selectors */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Select
-                value={sourceLanguage}
-                onValueChange={setSourceLanguage}
-              >
-                <SelectTrigger className="h-8 w-32 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_LANGUAGES.map((lang) => (
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Select
+              value={sourceLanguage}
+              onValueChange={setSourceLanguage}
+            >
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    {lang.flag} {lang.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Languages className="h-4 w-4 text-gray-400" />
+
+            <Select
+              value={targetLanguage}
+              onValueChange={setTargetLanguage}
+            >
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_LANGUAGES.filter((l) => l.code !== sourceLanguage).map(
+                  (lang) => (
                     <SelectItem key={lang.code} value={lang.code}>
                       {lang.flag} {lang.name}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  )
+                )}
+              </SelectContent>
+            </Select>
 
-              <Languages className="h-4 w-4 text-gray-400" />
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-200" />
 
-              <Select
-                value={targetLanguage}
-                onValueChange={setTargetLanguage}
-              >
-                <SelectTrigger className="h-8 w-32 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_LANGUAGES.filter((l) => l.code !== sourceLanguage).map(
-                    (lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+            {/* Real-time Translation Toggle */}
+            <label className="relative inline-flex items-center cursor-pointer gap-1.5">
+              <input
+                type="checkbox"
+                checked={isRealtimeTranslation}
+                onChange={(e) => setIsRealtimeTranslation(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+              <span className="text-xs text-gray-600">
+                {t("realtimeTranslation")}
+              </span>
+            </label>
 
-              {/* Real-time Translation Toggle (inline) */}
-              <div className="flex items-center gap-1.5 ml-1">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isRealtimeTranslation}
-                    onChange={(e) => setIsRealtimeTranslation(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                  <span className="ml-1.5 text-xs text-gray-600 hidden sm:inline">
-                    {t("realtimeTranslation")}
-                  </span>
-                </label>
-              </div>
-            </div>
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-200" />
 
-            {/* Right: Record button */}
-            <Button
+            {/* Record button (round) */}
+            <button
               onClick={handleStartRecording}
               disabled={!hasApiKeys || isTransitioning}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
-              size="sm"
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200",
+                hasApiKeys && !isTransitioning
+                  ? "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
+                  : "bg-gray-400 cursor-not-allowed"
+              )}
+              title={t("startRecording")}
             >
-              <Mic className="h-4 w-4" />
-              {t("startRecording")}
-            </Button>
+              <Mic className="h-5 w-5 text-white" />
+            </button>
           </div>
         )}
       </div>
