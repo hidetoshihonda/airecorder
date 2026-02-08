@@ -142,11 +142,15 @@ export function TranscriptView({
           </div>
         )}
 
-        {interimTranscript && (
-          <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-blue-600 italic mt-1">
-            {interimTranscript}
-          </div>
-        )}
+        {/* interimTranscript: opacity transition で点滅を防止 */}
+        <div
+          className={`whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-blue-600 italic mt-1 transition-opacity duration-200 ${
+            interimTranscript ? "opacity-100" : "opacity-0 h-0 p-0 mt-0 overflow-hidden"
+          }`}
+          aria-live="polite"
+        >
+          {interimTranscript || "\u00A0"}
+        </div>
 
         {/* Scroll anchor for overflow-anchor */}
         <div ref={anchorRef} className="h-px" style={{ overflowAnchor: "auto" }} />

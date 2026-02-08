@@ -764,7 +764,7 @@ export default function HomePage() {
               )}
             </CardHeader>
             <CardContent>
-              {isTranslating ? (
+              {isTranslating && !translatedText && !showRecordingUI ? (
                 <div className="flex items-center justify-center py-8">
                   <Spinner size="lg" />
                   <span className="ml-2 text-gray-600">翻訳中...</span>
