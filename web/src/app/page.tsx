@@ -724,9 +724,19 @@ export default function HomePage() {
                   )}
                 </div>
               ) : transcript ? (
-                <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                  {transcript}
-                </div>
+                enableSpeakerDiarization && labeledSegments.length > 0 ? (
+                  <TranscriptView
+                    segments={labeledSegments}
+                    interimTranscript=""
+                    showSpeaker={enableSpeakerDiarization}
+                    isRecording={false}
+                    fillHeight
+                  />
+                ) : (
+                  <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                    {transcript}
+                  </div>
+                )
               ) : (
                 <div className="py-8 text-center text-gray-500">
                   {t("emptyTranscript")}
@@ -807,9 +817,18 @@ export default function HomePage() {
                           )}
                         </Button>
                       </div>
-                      <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                        {transcript}
-                      </div>
+                      {enableSpeakerDiarization && labeledSegments.length > 0 ? (
+                        <TranscriptView
+                          segments={labeledSegments}
+                          interimTranscript={showRecordingUI ? interimTranscript : ""}
+                          showSpeaker={enableSpeakerDiarization}
+                          isRecording={showRecordingUI}
+                        />
+                      ) : (
+                        <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                          {transcript}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {/* Issue #4: Follow toggle button for translation tab */}
