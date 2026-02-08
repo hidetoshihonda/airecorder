@@ -67,6 +67,17 @@ function main() {
   // CI環境かどうか（GitHub Actions は CI=true を設定する）
   const isCI = process.env.CI === "true";
 
+  // CI環境では環境変数がなくてもビルドを許可する（PR チェック等で secrets 未設定のため）
+  if (isCI) {
+    const anyMissing = REQUIRED_VARS.some((v) => !process.env[v.name]);
+    if (anyMissing) {
+      console.log("⚠️ CI環境: 一部の環境変数が未設定ですが、ビルドを続行します");
+      return;
+    }
+    console.log("✅ 環境変数チェック OK — 全ての必須変数が設定されています");
+    return;
+  }
+
   // .env.local の値を process.env にマージ（process.env が優先）
   if (!isCI) {
     const envFileVars = loadEnvFile();

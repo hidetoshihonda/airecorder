@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Save, Globe, Mic, Palette, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,6 +19,14 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function SettingsPage() {
   const { settings, updateSettings } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const t = useTranslations("SettingsPage");
+  const { locale: appLocale, setLocale } = useAppLocale();
+
+  const UI_LANGUAGES: { code: AppLocale; flag: string; name: string }[] = [
+    { code: "ja", flag: "🇯🇵", name: "日本語" },
+    { code: "en", flag: "🇺🇸", name: "English" },
+    { code: "es", flag: "🇪🇸", name: "Español" },
+  ];
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -29,8 +39,8 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">設定</h1>
-        <p className="mt-1 text-gray-600">アプリケーションの設定を変更</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
+        <p className="mt-1 text-gray-600">{t("description")}</p>
       </div>
 
       <div className="space-y-6">
@@ -39,16 +49,16 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Globe className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">言語設定</CardTitle>
+              <CardTitle className="text-lg">{t("languageSettings")}</CardTitle>
             </div>
             <CardDescription>
-              デフォルトの入力言語と翻訳先言語を設定
+              {t("languageSettingsDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                デフォルト入力言語
+                {t("defaultInputLang")}
               </label>
               <Select
                 value={settings.defaultSourceLanguage}
@@ -70,7 +80,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                デフォルト翻訳先言語
+                {t("defaultTargetLang")}
               </label>
               <Select
                 value={settings.defaultTargetLanguages[0] || "en-US"}
@@ -98,16 +108,16 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mic className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">録音設定</CardTitle>
+              <CardTitle className="text-lg">{t("recordingSettings")}</CardTitle>
             </div>
             <CardDescription>
-              音声品質と自動保存の設定
+              {t("recordingSettingsDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                音声品質
+                {t("audioQuality")}
               </label>
               <Select
                 value={settings.audioQuality}
@@ -119,17 +129,17 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">低 (32kbps)</SelectItem>
-                  <SelectItem value="medium">中 (128kbps)</SelectItem>
-                  <SelectItem value="high">高 (256kbps)</SelectItem>
+                  <SelectItem value="low">{t("qualityLow")}</SelectItem>
+                  <SelectItem value="medium">{t("qualityMedium")}</SelectItem>
+                  <SelectItem value="high">{t("qualityHigh")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">自動保存</p>
+                <p className="text-sm font-medium text-gray-700">{t("autoSave")}</p>
                 <p className="text-xs text-gray-500">
-                  録音完了後、自動的にクラウドに保存
+                  {t("autoSaveDesc")}
                 </p>
               </div>
               <label className="relative inline-flex cursor-pointer items-center">
@@ -152,18 +162,18 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">話者識別設定</CardTitle>
+              <CardTitle className="text-lg">{t("speakerDiarization")}</CardTitle>
             </div>
             <CardDescription>
-              複数人の発話を声紋で自動識別（Azure ConversationTranscriber）
+              {t("speakerDiarizationDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">話者識別（Speaker Diarization）</p>
+                <p className="text-sm font-medium text-gray-700">{t("speakerDiarizationToggle")}</p>
                 <p className="text-xs text-gray-500">
-                  有効にすると、複数人の発話を声紋で自動識別し色分け表示します
+                  {t("speakerDiarizationToggleDesc")}
                 </p>
               </div>
               <label className="relative inline-flex cursor-pointer items-center">
@@ -180,14 +190,44 @@ export default function SettingsPage() {
             </div>
             {(settings.enableSpeakerDiarization ?? false) && (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                <p className="font-medium mb-1">⚠️ 注意事項</p>
+                <p className="font-medium mb-1">⚠️ {t("speakerNotes")}</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>一時停止・再開時に話者番号がリセットされることがあります</li>
-                  <li>中間結果の話者は「Unknown」と表示される場合があります</li>
-                  <li>リージョンによっては利用できない場合があります</li>
+                  <li>{t("speakerNote1")}</li>
+                  <li>{t("speakerNote2")}</li>
+                  <li>{t("speakerNote3")}</li>
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* UI Language Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">{t("uiLanguage")}</CardTitle>
+            </div>
+            <CardDescription>
+              {t("uiLanguageDesc")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={appLocale}
+              onValueChange={(value) => setLocale(value as AppLocale)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {UI_LANGUAGES.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    {lang.flag} {lang.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
@@ -196,16 +236,16 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Palette className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">外観設定</CardTitle>
+              <CardTitle className="text-lg">{t("appearance")}</CardTitle>
             </div>
             <CardDescription>
-              テーマと表示の設定
+              {t("appearanceDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                テーマ
+                {t("theme")}
               </label>
               <Select
                 value={settings.theme}
@@ -217,9 +257,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="light">ライト</SelectItem>
-                  <SelectItem value="dark">ダーク</SelectItem>
-                  <SelectItem value="system">システム設定に従う</SelectItem>
+                  <SelectItem value="light">{t("themeLight")}</SelectItem>
+                  <SelectItem value="dark">{t("themeDark")}</SelectItem>
+                  <SelectItem value="system">{t("themeSystem")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -230,7 +270,7 @@ export default function SettingsPage() {
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isSaving} className="gap-2">
             <Save className="h-4 w-4" />
-            {isSaving ? "保存中..." : "設定を保存"}
+            {isSaving ? t("saving") : t("saveSettings")}
           </Button>
         </div>
       </div>

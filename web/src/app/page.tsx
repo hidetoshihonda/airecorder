@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -30,6 +32,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
   const { settings } = useAuth();
+  const t = useTranslations("HomePage");
+  const { locale: appLocale } = useAppLocale();
   const { requireAuth, isModalOpen, closeModal, blockedAction } = useAuthGate();
   
   const [sourceLanguage, setSourceLanguage] = useState(settings.defaultSourceLanguage);
@@ -238,7 +242,7 @@ export default function HomePage() {
 
   const handleStartRecording = async () => {
     // 認証ゲート: 未ログインならモーダル表示でブロック
-    if (!requireAuth("録音を開始")) return;
+    if (!requireAuth(t("startRecording"))) return;
     // FSM ガード: 遷移不可なら無視（連打防止）
     if (!canStart) return;
 
@@ -259,7 +263,7 @@ export default function HomePage() {
       await startAudioRecording();
       dispatch({ type: "START_SUCCESS" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "録音開始に失敗しました";
+      const message = err instanceof Error ? err.message : t("startRecordingFailed");
       dispatch({ type: "START_FAILURE", error: message });
     }
   };
@@ -292,14 +296,14 @@ export default function HomePage() {
   const handleGenerateSummary = async () => {
     if (!transcript) return;
     // 認証ゲート: 未ログインならモーダル表示でブロック
-    if (!requireAuth("議事録を生成")) return;
+    if (!requireAuth(t("generateMinutes"))) return;
 
     setIsGeneratingSummary(true);
     setSummaryError(null);
 
     // 話者識別有効時は話者ラベル付きフォーマットで送信
     const transcriptForSummary = enableSpeakerDiarization && segments.some((s) => s.speaker)
-      ? segments.map((s) => `[${s.speakerLabel || s.speaker || "不明"}] ${s.text}`).join("\n")
+      ? segments.map((s) => `[${s.speakerLabel || s.speaker || t("unknownSpeaker")}] ${s.text}`).join("\n")
       : transcript;
 
     const response = await summaryApi.generateSummary({
@@ -325,14 +329,15 @@ export default function HomePage() {
   const handleSave = async () => {
     if (!transcript) return;
     // 認証ゲート: 未ログインならモーダル表示でブロック
-    if (!requireAuth("録音を保存")) return;
+    if (!requireAuth(t("saveRecording"))) return;
 
     setIsSaving(true);
     setSaveSuccess(false);
 
     try {
       const now = new Date();
-      const title = `録音 ${now.toLocaleDateString("ja-JP")} ${now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}`;
+      const dateLocale = appLocale === "ja" ? "ja-JP" : appLocale === "es" ? "es-ES" : "en-US";
+      const title = t("recordingTitle", { date: now.toLocaleDateString(dateLocale), time: now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }) });
 
       // Upload audio file to Blob Storage if available
       let audioUrl: string | undefined;
@@ -348,10 +353,7 @@ export default function HomePage() {
         } else {
           console.warn("[Save] Audio upload failed:", uploadResponse.error);
           const continueWithout = confirm(
-            `音声ファイルのアップロードに失敗しました。\n` +
-            `エラー: ${uploadResponse.error}\n\n` +
-            `音声なしで保存を続けますか？\n` +
-            `「キャンセル」を押すと保存を中止します。`
+            t("uploadFailed", { error: uploadResponse.error || "Unknown" })
           );
           if (!continueWithout) {
             setIsSaving(false);
@@ -396,14 +398,14 @@ export default function HomePage() {
 
       if (response.error) {
         console.error("[Save] Error:", response.error);
-        alert(`保存に失敗しました: ${response.error}`);
+        alert(t("saveFailed", { error: response.error || "Unknown" }));
       } else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch (err) {
       console.error("[Save] Unexpected error:", err);
-      alert(`予期しないエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
+      alert(t("unexpectedError", { error: err instanceof Error ? err.message : String(err) }));
       setIsSaving(false);
     }
   };
@@ -426,7 +428,7 @@ export default function HomePage() {
           AI Voice Recorder
         </h1>
         <p className="mt-2 text-gray-600">
-          音声を録音して、リアルタイムで文字起こし＆翻訳
+          {t("heroSubtitle")}
         </p>
       </div>
 
@@ -435,9 +437,9 @@ export default function HomePage() {
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <div>
-            <p className="font-medium">API設定が必要です</p>
+            <p className="font-medium">{t("apiKeyWarningTitle")}</p>
             <p className="text-sm">
-              .env.local ファイルに Azure Speech Services と Translator の API キーを設定してください。
+              {t("apiKeyWarningDesc")}
             </p>
           </div>
         </div>
@@ -474,7 +476,7 @@ export default function HomePage() {
                         ? "bg-green-500 hover:bg-green-600"
                         : "bg-yellow-500 hover:bg-yellow-600"
                   )}
-                  title={fsmIsPaused ? "再開" : "一時停止"}
+                  title={fsmIsPaused ? t("resume") : t("pause")}
                 >
                   {fsmIsPaused ? (
                     <Play className="h-6 w-6 text-white" />
@@ -528,12 +530,12 @@ export default function HomePage() {
                 {fsmIsPaused ? (
                   <>
                     <Pause className="h-4 w-4" />
-                    一時停止中...
+                    {t("paused")}
                   </>
                 ) : isTransitioning ? (
                   <>
                     <Spinner className="h-4 w-4" />
-                    処理中...
+                    {t("transitioning")}
                   </>
                 ) : (
                   <>
@@ -541,7 +543,7 @@ export default function HomePage() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                     </span>
-                    リアルタイム文字起こし中...
+                    {t("liveTranscribing")}
                   </>
                 )}
               </div>
@@ -551,7 +553,7 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-center gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">
-                  入力言語:
+                  {t("inputLanguage")}
                 </label>
                 <Select 
                   value={sourceLanguage} 
@@ -575,7 +577,7 @@ export default function HomePage() {
 
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">
-                  翻訳先:
+                  {t("targetLanguage")}
                 </label>
                 <Select 
                   value={targetLanguage} 
@@ -609,13 +611,13 @@ export default function HomePage() {
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 <span className="ml-3 text-sm font-medium text-gray-700">
-                  リアルタイム翻訳
+                  {t("realtimeTranslation")}
                 </span>
               </label>
               {isRealtimeTranslation && showRecordingUI && isTranslating && (
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
-                  翻訳中...
+                  {t("translating")}
                 </span>
               )}
             </div>
@@ -628,22 +630,22 @@ export default function HomePage() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="transcript" className="gap-2">
             <FileText className="h-4 w-4" />
-            文字起こし
+            {t("transcriptTab")}
           </TabsTrigger>
           <TabsTrigger value="translation" className="gap-2">
             <Languages className="h-4 w-4" />
-            翻訳
+            {t("translationTab")}
           </TabsTrigger>
           <TabsTrigger value="minutes" className="gap-2">
             <FileText className="h-4 w-4" />
-            議事録
+            {t("minutesTab")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="transcript">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">文字起こし結果</CardTitle>
+              <CardTitle className="text-lg">{t("transcriptResult")}</CardTitle>
               <div className="flex items-center gap-2">
                 {transcript && !showRecordingUI && (
                   <Button
@@ -660,7 +662,7 @@ export default function HomePage() {
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    {saveSuccess ? "保存完了" : "保存"}
+                    {saveSuccess ? t("saved") : t("save")}
                   </Button>
                 )}
                 {transcript && (
@@ -675,7 +677,7 @@ export default function HomePage() {
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
-                    コピー
+                    {t("copy")}
                   </Button>
                 )}
               </div>
@@ -686,7 +688,7 @@ export default function HomePage() {
                 <div className="mb-3 rounded-md border border-gray-200 p-3">
                   <h4 className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    話者一覧
+                    {t("speakerList")}
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {Array.from(speakers.values()).map((speaker) => (
@@ -695,16 +697,16 @@ export default function HomePage() {
                         className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs bg-white"
                       >
                         <span className="font-bold text-gray-700">{speaker.label}</span>
-                        <span className="text-gray-400">({speaker.segmentCount}回)</span>
+                        <span className="text-gray-400">({t("speakerCount", { count: speaker.segmentCount })})</span>
                         <button
                           onClick={() => {
-                            const name = prompt("話者名を入力してください", speaker.label);
+                            const name = prompt(t("enterSpeakerName"), speaker.label);
                             if (name && name.trim()) {
                               renameSpeaker(speaker.id, name.trim());
                             }
                           }}
                           className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="名前を変更"
+                          title={t("renameSpeaker")}
                         >
                           ✏️
                         </button>
@@ -719,7 +721,7 @@ export default function HomePage() {
                   {segments.length === 0 && !interimTranscript ? (
                     <div className="flex items-center justify-center py-8">
                       <Spinner size="lg" />
-                      <span className="ml-2 text-gray-600">音声を待っています...</span>
+                      <span className="ml-2 text-gray-600">{t("waitingForAudio")}</span>
                     </div>
                   ) : (
                     <TranscriptView
@@ -736,7 +738,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  録音を開始すると、ここにリアルタイムで文字起こし結果が表示されます
+                  {t("emptyTranscript")}
                 </div>
               )}
             </CardContent>
@@ -746,7 +748,7 @@ export default function HomePage() {
         <TabsContent value="translation">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">翻訳結果</CardTitle>
+              <CardTitle className="text-lg">{t("translationResult")}</CardTitle>
               {translatedText && (
                 <Button
                   variant="ghost"
@@ -759,7 +761,7 @@ export default function HomePage() {
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                  コピー
+                  {t("copy")}
                 </Button>
               )}
             </CardHeader>
@@ -767,7 +769,7 @@ export default function HomePage() {
               {isTranslating && !translatedText && !showRecordingUI ? (
                 <div className="flex items-center justify-center py-8">
                   <Spinner size="lg" />
-                  <span className="ml-2 text-gray-600">翻訳中...</span>
+                  <span className="ml-2 text-gray-600">{t("translating")}</span>
                 </div>
               ) : translatedText ? (
                 <div className="relative">
@@ -778,7 +780,7 @@ export default function HomePage() {
                   >
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm text-gray-500">翻訳（{SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name}）:</p>
+                        <p className="text-sm text-gray-500">{t("translationLabel", { language: SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage)?.name || targetLanguage })}</p>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -799,7 +801,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm text-gray-500">原文（{SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name}）:</p>
+                        <p className="text-sm text-gray-500">{t("sourceLabel", { language: SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name || sourceLanguage })}</p>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -827,14 +829,14 @@ export default function HomePage() {
                         className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
                       >
                         <ArrowDown className="h-4 w-4" />
-                        最新に追従
+                        {t("followLatest")}
                       </button>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  録音完了後、自動的に翻訳されます
+                  {t("emptyTranslation")}
                 </div>
               )}
             </CardContent>
@@ -844,7 +846,7 @@ export default function HomePage() {
         <TabsContent value="minutes">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">議事録</CardTitle>
+              <CardTitle className="text-lg">{t("minutesTitle")}</CardTitle>
               {transcript && !showRecordingUI && !summary && (
                 <Button
                   variant="outline"
@@ -858,7 +860,7 @@ export default function HomePage() {
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  {isGeneratingSummary ? "生成中..." : "AIで議事録を生成"}
+                  {isGeneratingSummary ? t("generating") : t("generateWithAI")}
                 </Button>
               )}
             </CardHeader>
@@ -873,14 +875,14 @@ export default function HomePage() {
               {isGeneratingSummary ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Spinner size="lg" />
-                  <p className="mt-4 text-gray-600">AIが議事録を生成しています...</p>
-                  <p className="text-sm text-gray-500">数秒から数十秒かかる場合があります</p>
+                  <p className="mt-4 text-gray-600">{t("aiGenerating")}</p>
+                  <p className="text-sm text-gray-500">{t("generatingTime")}</p>
                 </div>
               ) : summary ? (
                 <div className="space-y-6">
                   {/* Overview */}
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">概要</h3>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">{t("overview")}</h3>
                     <div className="rounded-md bg-gray-50 p-4 text-gray-800">
                       {summary.overview}
                     </div>
@@ -889,7 +891,7 @@ export default function HomePage() {
                   {/* Key Points */}
                   {summary.keyPoints && summary.keyPoints.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">重要ポイント</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("keyPoints")}</h3>
                       <ul className="space-y-2">
                         {summary.keyPoints.map((point, index) => (
                           <li
@@ -907,7 +909,7 @@ export default function HomePage() {
                   {/* Action Items */}
                   {summary.actionItems && summary.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">アクションアイテム</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("actionItems")}</h3>
                       <ul className="space-y-2">
                         {summary.actionItems.map((item) => (
                           <li
@@ -917,10 +919,10 @@ export default function HomePage() {
                             <p className="text-gray-800">{item.description}</p>
                             <div className="mt-2 flex gap-4 text-sm text-gray-600">
                               {item.assignee && (
-                                <span>担当: {item.assignee}</span>
+                                <span>{t("assignee", { name: item.assignee })}</span>
                               )}
                               {item.dueDate && (
-                                <span>期限: {item.dueDate}</span>
+                                <span>{t("dueDate", { date: item.dueDate })}</span>
                               )}
                             </div>
                           </li>
@@ -939,19 +941,19 @@ export default function HomePage() {
                       className="gap-2"
                     >
                       <Sparkles className="h-4 w-4" />
-                      再生成
+                      {t("regenerate")}
                     </Button>
                   </div>
                 </div>
               ) : transcript && !showRecordingUI ? (
                 <div className="py-8 text-center text-gray-500">
                   <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                  <p>「AIで議事録を生成」ボタンをクリックして</p>
-                  <p>文字起こしから議事録を自動生成できます</p>
+                  <p>{t("emptyMinutesAction")}</p>
+                  <p>{t("emptyMinutesDesc")}</p>
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  録音完了後、AIが議事録を自動生成します
+                  {t("emptyMinutesRecording")}
                 </div>
               )}
             </CardContent>

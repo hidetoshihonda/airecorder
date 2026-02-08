@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState, memo } from "react";
 import { ArrowDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { LiveSegment } from "@/types";
 
 // ─── 話者カラーパレット ───
@@ -87,6 +88,7 @@ export function TranscriptView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const [autoFollow, setAutoFollow] = useState(true);
+  const t = useTranslations("TranscriptView");
 
   // Auto-scroll with rAF (segments.length 変化で発火)
   useEffect(() => {
@@ -102,6 +104,7 @@ export function TranscriptView({
   // Reset autoFollow when recording starts
   useEffect(() => {
     if (isRecording) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: reset scroll follow on recording start (one-time sync)
       setAutoFollow(true);
     }
   }, [isRecording]);
@@ -164,7 +167,7 @@ export function TranscriptView({
             className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
           >
             <ArrowDown className="h-4 w-4" />
-            最新に追従
+            {t("followLatest")}
           </button>
         </div>
       )}
