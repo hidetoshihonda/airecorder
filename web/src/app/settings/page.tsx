@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, Globe, Mic, Palette, Users } from "lucide-react";
+import { Save, Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,59 @@ import {
 } from "@/components/ui/select";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
 import { useAuth } from "@/contexts/AuthContext";
+import { CustomTemplate } from "@/types";
+import { loadCustomTemplates, addCustomTemplate, updateCustomTemplate, deleteCustomTemplate } from "@/lib/meetingTemplates";
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const t = useTranslations("SettingsPage");
   const { locale: appLocale, setLocale } = useAppLocale();
+
+  // Custom template state
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => loadCustomTemplates());
+  const [editingTemplate, setEditingTemplate] = useState<CustomTemplate | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [templateForm, setTemplateForm] = useState({ name: "", description: "", systemPrompt: "" });
+
+  const handleCreateTemplate = () => {
+    if (!templateForm.name || !templateForm.systemPrompt) return;
+    addCustomTemplate(templateForm);
+    setCustomTemplates(loadCustomTemplates());
+    setTemplateForm({ name: "", description: "", systemPrompt: "" });
+    setIsCreating(false);
+  };
+
+  const handleUpdateTemplate = () => {
+    if (!editingTemplate || !templateForm.name || !templateForm.systemPrompt) return;
+    updateCustomTemplate(editingTemplate.id, templateForm);
+    setCustomTemplates(loadCustomTemplates());
+    setEditingTemplate(null);
+    setTemplateForm({ name: "", description: "", systemPrompt: "" });
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    deleteCustomTemplate(id);
+    setCustomTemplates(loadCustomTemplates());
+  };
+
+  const startEditing = (tmpl: CustomTemplate) => {
+    setEditingTemplate(tmpl);
+    setTemplateForm({ name: tmpl.name, description: tmpl.description, systemPrompt: tmpl.systemPrompt });
+    setIsCreating(false);
+  };
+
+  const startCreating = () => {
+    setIsCreating(true);
+    setEditingTemplate(null);
+    setTemplateForm({ name: "", description: "", systemPrompt: "" });
+  };
+
+  const cancelForm = () => {
+    setIsCreating(false);
+    setEditingTemplate(null);
+    setTemplateForm({ name: "", description: "", systemPrompt: "" });
+  };
 
   const UI_LANGUAGES: { code: AppLocale; flag: string; name: string }[] = [
     { code: "ja", flag: "🇯🇵", name: "日本語" },
@@ -263,6 +310,112 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Custom Templates */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-lg">{t("customTemplates")}</CardTitle>
+              </div>
+              <Button variant="outline" size="sm" onClick={startCreating} className="gap-1">
+                <Plus className="h-4 w-4" />
+                {t("addTemplate")}
+              </Button>
+            </div>
+            <CardDescription>{t("customTemplatesDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 作成/編集フォーム */}
+            {(isCreating || editingTemplate) && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+                <h4 className="font-medium text-sm">
+                  {editingTemplate ? t("editTemplate") : t("newTemplate")}
+                </h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("templateName")}
+                  </label>
+                  <input
+                    type="text"
+                    value={templateForm.name}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder={t("templateNamePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("templateDescription")}
+                  </label>
+                  <input
+                    type="text"
+                    value={templateForm.description}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, description: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder={t("templateDescPlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("systemPrompt")}
+                  </label>
+                  <textarea
+                    value={templateForm.systemPrompt}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, systemPrompt: e.target.value }))}
+                    rows={5}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder={t("systemPromptPlaceholder")}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={cancelForm}>
+                    {t("cancel")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}
+                    disabled={!templateForm.name || !templateForm.systemPrompt}
+                  >
+                    {editingTemplate ? t("updateTemplate") : t("createTemplate")}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* テンプレート一覧 */}
+            {customTemplates.length === 0 && !isCreating ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                {t("noCustomTemplates")}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {customTemplates.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm">{tmpl.name}</div>
+                      {tmpl.description && (
+                        <div className="text-xs text-gray-500 truncate">{tmpl.description}</div>
+                      )}
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button variant="ghost" size="sm" onClick={() => startEditing(tmpl)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTemplate(tmpl.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

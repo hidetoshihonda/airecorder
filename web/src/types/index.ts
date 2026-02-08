@@ -74,6 +74,29 @@ export interface ActionItem {
   completed: boolean;
 }
 
+// ─── Meeting Template Types ───
+
+export type TemplateId = "general" | "regular" | "one-on-one" | "sales" | "dev-sprint" | "brainstorm" | string;
+
+export interface MeetingTemplate {
+  id: TemplateId;
+  nameKey: string;        // i18n key under "Templates" namespace
+  descriptionKey: string;  // i18n key
+  icon: string;           // Lucide icon name
+  systemPrompt: string;   // System prompt sent to AI
+  isPreset: boolean;      // true = built-in, false = user-created
+  category?: string;
+}
+
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;
