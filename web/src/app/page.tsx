@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,7 +20,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
+import { useSpeakerManager } from "@/hooks/useSpeakerManager";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
+import { TranscriptView } from "@/components/TranscriptView";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
 import { cn } from "@/lib/utils";
@@ -53,10 +55,9 @@ export default function HomePage() {
   const lastTranslatedTextRef = useRef<string>("");
   const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-scroll / follow control (Issue #4)
-  const [autoFollow, setAutoFollow] = useState(true);
-  const transcriptScrollRef = useRef<HTMLDivElement>(null);
+  // Translation scroll control
   const translationScrollRef = useRef<HTMLDivElement>(null);
+  const [translationAutoFollow, setTranslationAutoFollow] = useState(true);
 
   // Recording State Machine (BUG-1~7 の根本修正)
   const {
@@ -75,11 +76,12 @@ export default function HomePage() {
   } = useRecordingStateMachine();
 
   // Speech Recognition
+  const enableSpeakerDiarization = settings.enableSpeakerDiarization ?? false;
   const {
     isListening,
     isPaused,
     transcript,
-    // transcriptSegments, // Reserved for future use with detailed speaker view
+    segments,
     interimTranscript,
     error: speechError,
     startListening,
@@ -91,6 +93,7 @@ export default function HomePage() {
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
     language: sourceLanguage,
+    enableSpeakerDiarization,
   });
 
   // Audio Recording (for saving audio files)
@@ -129,6 +132,25 @@ export default function HomePage() {
   // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）
   const errors = [speechError, translationError, ttsError, audioError, fsmError].filter(Boolean) as string[];
   const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
+
+  // Speaker Manager (Issue #9: 話者ラベル管理)
+  const { speakers, renameSpeaker, getSpeakerLabel, updateFromSegments, resetSpeakers } = useSpeakerManager();
+
+  // segments が変わったら speaker 情報を同期
+  useEffect(() => {
+    if (enableSpeakerDiarization && segments.length > 0) {
+      updateFromSegments(segments);
+    }
+  }, [segments, enableSpeakerDiarization, updateFromSegments]);
+
+  // segments に speakerLabel を付与して TranscriptView に渡す
+  const labeledSegments = useMemo(() => {
+    if (!enableSpeakerDiarization) return segments;
+    return segments.map((seg) => ({
+      ...seg,
+      speakerLabel: seg.speaker ? getSpeakerLabel(seg.speaker) : undefined,
+    }));
+  }, [segments, enableSpeakerDiarization, getSpeakerLabel]);
 
   // FSM ベースの表示状態（isListening の代わりに使用）
   const showRecordingUI = fsmIsRecording || fsmIsPaused || isTransitioning;
@@ -188,29 +210,25 @@ export default function HomePage() {
     };
   }, [transcript, interimTranscript, showRecordingUI, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
 
-  // Issue #4: Auto-scroll to bottom when transcript/translation updates
+  // Issue #4: Auto-scroll for translation tab with rAF
   useEffect(() => {
-    if (autoFollow && transcriptScrollRef.current) {
-      const el = transcriptScrollRef.current;
-      el.scrollTop = el.scrollHeight;
+    if (translationAutoFollow && translationScrollRef.current) {
+      requestAnimationFrame(() => {
+        if (translationScrollRef.current) {
+          translationScrollRef.current.scrollTop = translationScrollRef.current.scrollHeight;
+        }
+      });
     }
-  }, [transcript, interimTranscript, autoFollow]);
+  }, [translatedText, translationAutoFollow]);
 
-  useEffect(() => {
-    if (autoFollow && translationScrollRef.current) {
-      const el = translationScrollRef.current;
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [translatedText, autoFollow]);
-
-  // Issue #4: Detect manual scroll to pause auto-follow
-  const handleScrollContainer = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  // Issue #4: Detect manual scroll on translation container
+  const handleTranslationScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    if (!isAtBottom && autoFollow) {
-      setAutoFollow(false);
+    if (!isAtBottom && translationAutoFollow) {
+      setTranslationAutoFollow(false);
     }
-  }, [autoFollow]);
+  }, [translationAutoFollow]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -230,8 +248,9 @@ export default function HomePage() {
     setSummary(null);
     setSummaryError(null);
     lastTranslatedTextRef.current = "";
-    setAutoFollow(true); // Issue #4: reset auto-follow on new recording
+    setTranslationAutoFollow(true);
     resetTranscript();
+    resetSpeakers();
     resetAudioRecording();
     
     try {
@@ -278,8 +297,13 @@ export default function HomePage() {
     setIsGeneratingSummary(true);
     setSummaryError(null);
 
+    // 話者識別有効時は話者ラベル付きフォーマットで送信
+    const transcriptForSummary = enableSpeakerDiarization && segments.some((s) => s.speaker)
+      ? segments.map((s) => `[${s.speakerLabel || s.speaker || "不明"}] ${s.text}`).join("\n")
+      : transcript;
+
     const response = await summaryApi.generateSummary({
-      transcript,
+      transcript: transcriptForSummary,
       language: sourceLanguage,
     });
 
@@ -343,12 +367,15 @@ export default function HomePage() {
         duration,
         audioUrl, // Include audio URL
         transcript: {
-          segments: [{
-            id: "1",
-            text: transcript,
-            startTime: 0,
-            endTime: duration,
-          }],
+          segments: labeledSegments.map((seg, i) => ({
+            id: seg.id,
+            speaker: seg.speakerLabel || seg.speaker,
+            text: seg.text,
+            startTime: seg.timestamp / 1000,
+            endTime: i < labeledSegments.length - 1
+              ? labeledSegments[i + 1].timestamp / 1000
+              : duration,
+          })),
           fullText: transcript,
         },
         translations: translatedText ? {
@@ -654,43 +681,55 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {showRecordingUI ? (
-                <div className="relative">
-                  <div
-                    ref={transcriptScrollRef}
-                    onScroll={handleScrollContainer}
-                    className="max-h-[400px] overflow-y-auto space-y-2 scroll-smooth"
-                  >
-                    {transcript && (
-                      <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                        {transcript}
-                      </div>
-                    )}
-                    {interimTranscript && (
-                      <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-blue-600 italic">
-                        {interimTranscript}
-                      </div>
-                    )}
-                    {!transcript && !interimTranscript && (
-                      <div className="flex items-center justify-center py-8">
-                        <Spinner size="lg" />
-                        <span className="ml-2 text-gray-600">音声を待っています...</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Issue #4: Follow toggle button */}
-                  {!autoFollow && (
-                    <div className="flex justify-center mt-2">
-                      <button
-                        onClick={() => setAutoFollow(true)}
-                        className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
+              {/* 話者一覧パネル（話者識別有効 & 話者検出時のみ表示） */}
+              {enableSpeakerDiarization && speakers.size > 0 && (
+                <div className="mb-3 rounded-md border border-gray-200 p-3">
+                  <h4 className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    話者一覧
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(speakers.values()).map((speaker) => (
+                      <div
+                        key={speaker.id}
+                        className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs bg-white"
                       >
-                        <ArrowDown className="h-4 w-4" />
-                        最新に追従
-                      </button>
-                    </div>
-                  )}
+                        <span className="font-bold text-gray-700">{speaker.label}</span>
+                        <span className="text-gray-400">({speaker.segmentCount}回)</span>
+                        <button
+                          onClick={() => {
+                            const name = prompt("話者名を入力してください", speaker.label);
+                            if (name && name.trim()) {
+                              renameSpeaker(speaker.id, name.trim());
+                            }
+                          }}
+                          className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="名前を変更"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {showRecordingUI ? (
+                <>
+                  {segments.length === 0 && !interimTranscript ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Spinner size="lg" />
+                      <span className="ml-2 text-gray-600">音声を待っています...</span>
+                    </div>
+                  ) : (
+                    <TranscriptView
+                      segments={labeledSegments}
+                      interimTranscript={interimTranscript}
+                      showSpeaker={enableSpeakerDiarization}
+                      isRecording={showRecordingUI}
+                    />
+                  )}
+                </>
               ) : transcript ? (
                 <div className="max-h-[600px] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                   {transcript}
@@ -734,8 +773,8 @@ export default function HomePage() {
                 <div className="relative">
                   <div
                     ref={translationScrollRef}
-                    onScroll={handleScrollContainer}
-                    className="max-h-[400px] overflow-y-auto space-y-4 scroll-smooth"
+                    onScroll={handleTranslationScroll}
+                    className="max-h-[400px] overflow-y-auto space-y-4"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -781,10 +820,10 @@ export default function HomePage() {
                     </div>
                   </div>
                   {/* Issue #4: Follow toggle button for translation tab */}
-                  {showRecordingUI && !autoFollow && (
+                  {showRecordingUI && !translationAutoFollow && (
                     <div className="flex justify-center mt-2">
                       <button
-                        onClick={() => setAutoFollow(true)}
+                        onClick={() => setTranslationAutoFollow(true)}
                         className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm text-white shadow-lg hover:bg-blue-700 transition-colors"
                       >
                         <ArrowDown className="h-4 w-4" />
