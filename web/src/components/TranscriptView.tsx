@@ -76,6 +76,8 @@ interface TranscriptViewProps {
   showSpeaker: boolean;
   isRecording: boolean;
   maxHeight?: string;
+  /** When true, fills available height via flex-1 instead of using maxHeight */
+  fillHeight?: boolean;
 }
 
 export function TranscriptView({
@@ -84,6 +86,7 @@ export function TranscriptView({
   showSpeaker,
   isRecording,
   maxHeight = "400px",
+  fillHeight = false,
 }: TranscriptViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -124,12 +127,12 @@ export function TranscriptView({
   const hasSpeakers = showSpeaker && segments.some((s) => s.speaker);
 
   return (
-    <div className="relative">
+    <div className={fillHeight ? "relative flex flex-col h-full min-h-0" : "relative"}>
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        style={{ maxHeight }}
-        className="overflow-y-auto"
+        style={fillHeight ? undefined : { maxHeight }}
+        className={fillHeight ? "flex-1 min-h-0 overflow-y-auto" : "overflow-y-auto"}
       >
         {segments.length > 0 && (
           <div

@@ -445,213 +445,173 @@ export default function HomePage() {
   // DESIGN-4 fix: エラーを配列で管理（全エラーを表示） — 定義は上方で行っている
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Hero Section */}
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-          AI Voice Recorder
-        </h1>
-        <p className="mt-2 text-gray-600">
-          {t("heroSubtitle")}
-        </p>
-      </div>
-
+    <div className="mx-auto flex h-[calc(100dvh-56px)] max-w-5xl flex-col px-4 py-2 sm:px-6 lg:px-8">
       {/* API Key Warning */}
       {!hasApiKeys && (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <div>
-            <p className="font-medium">{t("apiKeyWarningTitle")}</p>
-            <p className="text-sm">
-              {t("apiKeyWarningDesc")}
-            </p>
+            <span className="font-medium">{t("apiKeyWarningTitle")}</span>
+            {" — "}
+            <span>{t("apiKeyWarningDesc")}</span>
           </div>
         </div>
       )}
 
       {/* Error Display */}
       {errors.length > 0 && (
-        <div className="mb-6 space-y-2">
+        <div className="mb-2 space-y-1">
           {errors.map((err, index) => (
-            <div key={index} className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div key={index} className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <p>{err}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Recording Controls */}
-      <Card className="mb-6">
-        <CardContent className="py-8">
-          <div className="flex flex-col items-center gap-6">
-            {/* Recording Buttons */}
-            <div className="flex items-center gap-4">
-              {/* Pause/Resume Button (visible during recording) */}
-              {showRecordingUI && (
-                <button
-                  onClick={fsmIsPaused ? handleResumeRecording : handlePauseRecording}
-                  disabled={isTransitioning || (!canPause && !canResume)}
-                  className={cn(
-                    "flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200",
-                    isTransitioning
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : fsmIsPaused
-                        ? "bg-green-500 hover:bg-green-600"
-                        : "bg-yellow-500 hover:bg-yellow-600"
-                  )}
-                  title={fsmIsPaused ? t("resume") : t("pause")}
-                >
-                  {fsmIsPaused ? (
-                    <Play className="h-6 w-6 text-white" />
-                  ) : (
-                    <Pause className="h-6 w-6 text-white" />
-                  )}
-                </button>
-              )}
-
-              {/* Main Recording Button */}
-              <div className="relative">
-                <button
-                  onClick={showRecordingUI ? handleStopRecording : handleStartRecording}
-                  disabled={!hasApiKeys || isTransitioning}
-                  className={cn(
-                    "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
-                    isTransitioning
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : showRecordingUI
-                        ? fsmIsPaused 
-                          ? "bg-orange-500 hover:bg-orange-600"
-                          : "bg-red-500 hover:bg-red-600 animate-pulse"
-                        : hasApiKeys
-                          ? "bg-blue-600 hover:bg-blue-700"
-                          : "bg-gray-400 cursor-not-allowed"
-                  )}
-                >
-                  {showRecordingUI ? (
-                    <Square className="h-10 w-10 text-white" />
-                  ) : (
-                    <Mic className="h-10 w-10 text-white" />
-                  )}
-                </button>
-                {showRecordingUI && (
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700">
-                    {formatDuration(duration)}
-                  </span>
-                )}
-              </div>
-
-              {/* Spacer for symmetry when recording */}
-              {showRecordingUI && <div className="w-14" />}
-            </div>
-
-            {/* Status */}
-            {showRecordingUI && (
+      {/* ── Compact Recording Controls Bar ── */}
+      <div className="flex-none rounded-lg border border-gray-200 bg-white px-4 py-2 mb-2 shadow-sm">
+        {showRecordingUI ? (
+          /* ─── Recording in progress: status + controls ─── */
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Left: Recording status */}
+            <div className="flex items-center gap-3">
               <div className={cn(
-                "flex items-center gap-2 text-sm",
-                fsmIsPaused ? "text-yellow-600" : "text-green-600"
+                "flex items-center gap-2 text-sm font-medium",
+                fsmIsPaused ? "text-yellow-600" : "text-red-600"
               )}>
                 {fsmIsPaused ? (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    {t("paused")}
-                  </>
+                  <Pause className="h-4 w-4" />
                 ) : isTransitioning ? (
-                  <>
-                    <Spinner className="h-4 w-4" />
-                    {t("transitioning")}
-                  </>
+                  <Spinner className="h-4 w-4" />
                 ) : (
-                  <>
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    {t("liveTranscribing")}
-                  </>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                  </span>
                 )}
-              </div>
-            )}
-
-            {/* Language Selection */}
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  {t("inputLanguage")}
-                </label>
-                <Select 
-                  value={sourceLanguage} 
-                  onValueChange={setSourceLanguage}
-                  disabled={showRecordingUI}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Languages className="h-5 w-5 text-gray-400" />
-
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  {t("targetLanguage")}
-                </label>
-                <Select 
-                  value={targetLanguage} 
-                  onValueChange={setTargetLanguage}
-                  disabled={showRecordingUI}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_LANGUAGES.filter((l) => l.code !== sourceLanguage).map(
-                      (lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.flag} {lang.name}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Real-time Translation Toggle */}
-            <div className="flex items-center gap-3 mt-2">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isRealtimeTranslation}
-                  onChange={(e) => setIsRealtimeTranslation(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                <span className="ml-3 text-sm font-medium text-gray-700">
-                  {t("realtimeTranslation")}
+                <span className="tabular-nums">{formatDuration(duration)}</span>
+                <span className="hidden sm:inline text-xs text-gray-500">
+                  {fsmIsPaused ? t("paused") : isTransitioning ? t("transitioning") : t("liveTranscribing")}
                 </span>
-              </label>
-              {isRealtimeTranslation && showRecordingUI && isTranslating && (
+              </div>
+              {isRealtimeTranslation && isTranslating && (
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
                   {t("translating")}
                 </span>
               )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Results Tabs */}
-      <Tabs defaultValue="transcript" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+            {/* Right: Control buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fsmIsPaused ? handleResumeRecording : handlePauseRecording}
+                disabled={isTransitioning || (!canPause && !canResume)}
+                className={cn(
+                  "gap-1.5",
+                  fsmIsPaused
+                    ? "border-green-300 text-green-700 hover:bg-green-50"
+                    : "border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                )}
+              >
+                {fsmIsPaused ? (
+                  <Play className="h-4 w-4" />
+                ) : (
+                  <Pause className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{fsmIsPaused ? t("resume") : t("pause")}</span>
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleStopRecording}
+                disabled={!canStop || isTransitioning}
+                className="gap-1.5"
+              >
+                <Square className="h-4 w-4" />
+                <span className="hidden sm:inline">{t("stop")}</span>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* ─── Idle: language selectors + record button ─── */
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Left: Language selectors */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={sourceLanguage}
+                onValueChange={setSourceLanguage}
+              >
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Languages className="h-4 w-4 text-gray-400" />
+
+              <Select
+                value={targetLanguage}
+                onValueChange={setTargetLanguage}
+              >
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LANGUAGES.filter((l) => l.code !== sourceLanguage).map(
+                    (lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* Real-time Translation Toggle (inline) */}
+              <div className="flex items-center gap-1.5 ml-1">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isRealtimeTranslation}
+                    onChange={(e) => setIsRealtimeTranslation(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                  <span className="ml-1.5 text-xs text-gray-600 hidden sm:inline">
+                    {t("realtimeTranslation")}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right: Record button */}
+            <Button
+              onClick={handleStartRecording}
+              disabled={!hasApiKeys || isTransitioning}
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              <Mic className="h-4 w-4" />
+              {t("startRecording")}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Results Tabs (fills remaining viewport) ── */}
+      <Tabs defaultValue="transcript" className="flex min-h-0 flex-1 flex-col">
+        <TabsList className="grid w-full flex-none grid-cols-3">
           <TabsTrigger value="transcript" className="gap-2">
             <FileText className="h-4 w-4" />
             {t("transcriptTab")}
@@ -666,10 +626,10 @@ export default function HomePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="transcript">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">{t("transcriptResult")}</CardTitle>
+        <TabsContent value="transcript" className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+          <Card className="flex min-h-0 flex-1 flex-col">
+            <CardHeader className="flex flex-none flex-row items-center justify-between py-3">
+              <CardTitle className="text-base">{t("transcriptResult")}</CardTitle>
               <div className="flex items-center gap-2">
                 {transcript && !showRecordingUI && (
                   <Button
@@ -677,14 +637,14 @@ export default function HomePage() {
                     size="sm"
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="gap-2"
+                    className="gap-1.5 h-7 text-xs"
                   >
                     {isSaving ? (
                       <Spinner size="sm" />
                     ) : saveSuccess ? (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-3.5 w-3.5 text-green-600" />
                     ) : (
-                      <Save className="h-4 w-4" />
+                      <Save className="h-3.5 w-3.5" />
                     )}
                     {saveSuccess ? t("saved") : t("save")}
                   </Button>
@@ -694,23 +654,23 @@ export default function HomePage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopy(transcript, "transcript")}
-                    className="gap-2"
+                    className="gap-1.5 h-7 text-xs"
                   >
                     {copied === "transcript" ? (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-3.5 w-3.5 text-green-600" />
                     ) : (
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-3.5 w-3.5" />
                     )}
                     {t("copy")}
                   </Button>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
               {/* 話者一覧パネル（話者識別有効 & 話者検出時のみ表示） */}
               {enableSpeakerDiarization && speakers.size > 0 && (
-                <div className="mb-3 rounded-md border border-gray-200 p-3">
-                  <h4 className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
+                <div className="mb-2 flex-none rounded-md border border-gray-200 p-2">
+                  <h4 className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
                     <Users className="h-3 w-3" />
                     {t("speakerList")}
                   </h4>
@@ -741,7 +701,7 @@ export default function HomePage() {
               )}
 
               {showRecordingUI ? (
-                <>
+                <div className="min-h-0 flex-1">
                   {segments.length === 0 && !interimTranscript ? (
                     <div className="flex items-center justify-center py-8">
                       <Spinner size="lg" />
@@ -753,11 +713,12 @@ export default function HomePage() {
                       interimTranscript={interimTranscript}
                       showSpeaker={enableSpeakerDiarization}
                       isRecording={showRecordingUI}
+                      fillHeight
                     />
                   )}
-                </>
+                </div>
               ) : transcript ? (
-                <div className="max-h-[600px] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                   {transcript}
                 </div>
               ) : (
@@ -769,38 +730,38 @@ export default function HomePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="translation">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">{t("translationResult")}</CardTitle>
+        <TabsContent value="translation" className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+          <Card className="flex min-h-0 flex-1 flex-col">
+            <CardHeader className="flex flex-none flex-row items-center justify-between py-3">
+              <CardTitle className="text-base">{t("translationResult")}</CardTitle>
               {translatedText && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleCopy(translatedText, "translation")}
-                  className="gap-2"
+                  className="gap-1.5 h-7 text-xs"
                 >
                   {copied === "translation" ? (
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-3.5 w-3.5 text-green-600" />
                   ) : (
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3.5 w-3.5" />
                   )}
                   {t("copy")}
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
               {isTranslating && !translatedText && !showRecordingUI ? (
                 <div className="flex items-center justify-center py-8">
                   <Spinner size="lg" />
                   <span className="ml-2 text-gray-600">{t("translating")}</span>
                 </div>
               ) : translatedText ? (
-                <div className="relative">
+                <div className="relative flex min-h-0 flex-1 flex-col">
                   <div
                     ref={translationScrollRef}
                     onScroll={handleTranslationScroll}
-                    className="max-h-[400px] overflow-y-auto space-y-4"
+                    className="min-h-0 flex-1 overflow-y-auto space-y-4"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -867,28 +828,28 @@ export default function HomePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="minutes">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">{t("minutesTitle")}</CardTitle>
+        <TabsContent value="minutes" className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+          <Card className="flex min-h-0 flex-1 flex-col">
+            <CardHeader className="flex flex-none flex-row items-center justify-between py-3">
+              <CardTitle className="text-base">{t("minutesTitle")}</CardTitle>
               {transcript && !showRecordingUI && !summary && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleGenerateSummary}
                   disabled={isGeneratingSummary}
-                  className="gap-2"
+                  className="gap-1.5 h-7 text-xs"
                 >
                   {isGeneratingSummary ? (
                     <Spinner size="sm" />
                   ) : (
-                    <Sparkles className="h-4 w-4" />
+                    <Sparkles className="h-3.5 w-3.5" />
                   )}
                   {isGeneratingSummary ? t("generating") : t("generateWithAI")}
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
               {/* テンプレート選択 UI */}
               {transcript && !showRecordingUI && !isGeneratingSummary && (
                 <div className="mb-4">
@@ -901,7 +862,7 @@ export default function HomePage() {
                         key={tmpl.id}
                         onClick={() => setSelectedTemplateId(tmpl.id)}
                         className={cn(
-                          "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
+                          "flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors",
                           selectedTemplateId === tmpl.id
                             ? "border-blue-500 bg-blue-50 text-blue-800"
                             : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
@@ -909,7 +870,7 @@ export default function HomePage() {
                       >
                         {TEMPLATE_ICONS[tmpl.icon] || <FileText className="h-4 w-4" />}
                         <div className="min-w-0">
-                          <div className="font-medium truncate">
+                          <div className="font-medium truncate text-xs">
                             {tmpl.isPreset ? t(`template_${tmpl.nameKey}`) : tmpl.nameKey}
                           </div>
                           <div className="text-xs text-gray-500 truncate">
