@@ -1,6 +1,6 @@
 ---
 description: 'GitHub Issue に対して、関連コードを深掘り分析し、バグ・設計問題・依存関係・修正方針を網羅的にレビューするコード分析エージェント'
-tools: ['read_file', 'file_search', 'grep_search', 'semantic_search', 'list_dir', 'list_code_usages']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'gitkraken/*', 'agent', 'todo']
 ---
 
 # ReviewAAgent — コード深掘り分析レビューエージェント
