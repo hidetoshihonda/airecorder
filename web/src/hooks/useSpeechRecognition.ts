@@ -8,6 +8,8 @@ interface UseSpeechRecognitionOptions {
   region: string;
   language?: string;
   enableSpeakerDiarization?: boolean;
+  /** 共有 MediaStream（指定時はこのストリームを使用し、独自に getUserMedia を呼ばない） */
+  sharedStream?: MediaStream | null;
 }
 
 interface TranscriptSegment {
@@ -33,7 +35,7 @@ interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions
 ): UseSpeechRecognitionReturn {
-  const { subscriptionKey, region, language = "ja-JP", enableSpeakerDiarization = false } = options;
+  const { subscriptionKey, region, language = "ja-JP", enableSpeakerDiarization = false, sharedStream = null } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -44,6 +46,7 @@ export function useSpeechRecognition(
 
   const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null);
   const pausedTranscriptRef = useRef<string>("");
+  const isPausingRef = useRef(false);
   const startTimeRef = useRef<number>(0);
   const currentSpeakerRef = useRef<string>("話者1");
   const lastSpeechEndRef = useRef<number>(0);
@@ -70,6 +73,8 @@ export function useSpeechRecognition(
       );
       speechConfig.speechRecognitionLanguage = language;
 
+      // Azure Speech SDK は内部で独自にマイクアクセスを管理するため
+      // fromDefaultMicrophoneInput() を使用する
       const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
       const recognizer = new SpeechSDK.SpeechRecognizer(
         speechConfig,
@@ -140,7 +145,10 @@ export function useSpeechRecognition(
 
       // セッション終了
       recognizer.sessionStopped = () => {
-        setIsListening(false);
+        // pause 操作中はセッション終了でも isListening を維持する（BUG-2 fix）
+        if (!isPausingRef.current) {
+          setIsListening(false);
+        }
       };
 
       recognizerRef.current = recognizer;
@@ -161,6 +169,7 @@ export function useSpeechRecognition(
 
   const stopListening = useCallback(() => {
     if (recognizerRef.current) {
+      isPausingRef.current = false;
       recognizerRef.current.stopContinuousRecognitionAsync(
         () => {
           setIsListening(false);
@@ -178,14 +187,18 @@ export function useSpeechRecognition(
 
   const pauseListening = useCallback(() => {
     if (recognizerRef.current && isListening && !isPaused) {
+      // BUG-2 fix: isPausingRef で sessionStopped が isListening を消すのを防止
+      isPausingRef.current = true;
       // 現在のtranscriptを保存
       pausedTranscriptRef.current = transcript;
       recognizerRef.current.stopContinuousRecognitionAsync(
         () => {
           setIsPaused(true);
           setInterimTranscript("");
+          // isListening は維持する（pause なので）
         },
         (err) => {
+          isPausingRef.current = false;
           setError(`一時停止エラー: ${err}`);
         }
       );
@@ -193,9 +206,13 @@ export function useSpeechRecognition(
   }, [isListening, isPaused, transcript]);
 
   const resumeListening = useCallback(() => {
-    if (recognizerRef.current && isListening && isPaused) {
+    // BUG-3 fix: isListening のガードを削除（pause 中は isListening が
+    // sessionStopped で false になる可能性があるため isPaused のみでガード）
+    if (recognizerRef.current && isPaused) {
+      isPausingRef.current = false;
       recognizerRef.current.startContinuousRecognitionAsync(
         () => {
+          setIsListening(true);
           setIsPaused(false);
         },
         (err) => {
@@ -203,7 +220,7 @@ export function useSpeechRecognition(
         }
       );
     }
-  }, [isListening, isPaused]);
+  }, [isPaused]);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");

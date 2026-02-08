@@ -19,6 +19,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useAuthGate } from "@/hooks/useAuthGate";
+import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary } from "@/types";
@@ -52,6 +53,22 @@ export default function HomePage() {
   const lastTranslatedTextRef = useRef<string>("");
   const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Recording State Machine (BUG-1~7 の根本修正)
+  const {
+    recordingState,
+    fsmError,
+    dispatch,
+    isIdle,
+    isRecording: fsmIsRecording,
+    isPaused: fsmIsPaused,
+    isStopped,
+    isTransitioning,
+    canStart,
+    canPause,
+    canResume,
+    canStop,
+  } = useRecordingStateMachine();
+
   // Speech Recognition
   const {
     isListening,
@@ -73,7 +90,9 @@ export default function HomePage() {
 
   // Audio Recording (for saving audio files)
   const {
+    duration,
     audioBlob,
+    error: audioError,
     startRecording: startAudioRecording,
     stopRecording: stopAudioRecording,
     pauseRecording: pauseAudioRecording,
@@ -102,17 +121,24 @@ export default function HomePage() {
     region: speechConfig.region,
   });
 
-  // Duration counter (pauses when isPaused)
-  const [duration, setDuration] = useState(0);
+  // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）
+  const errors = [speechError, translationError, ttsError, audioError, fsmError].filter(Boolean) as string[];
+  const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
+
+  // FSM ベースの表示状態（isListening の代わりに使用）
+  const showRecordingUI = fsmIsRecording || fsmIsPaused || isTransitioning;
+
+  // BUG-7 fix: Duration は useAudioRecorder 内部で管理（isListening 依存を排除）
+  // 録音中のページ離脱防止（beforeunload）
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isListening && !isPaused) {
-      interval = setInterval(() => {
-        setDuration((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isListening, isPaused]);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (fsmIsRecording || fsmIsPaused) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [fsmIsRecording, fsmIsPaused]);
 
   // Auto-translate when transcript changes (real-time translation)
   useEffect(() => {
@@ -129,7 +155,7 @@ export default function HomePage() {
     }
 
     // If recording stopped, translate immediately
-    if (!isListening && transcript) {
+    if (!showRecordingUI && transcript) {
       lastTranslatedTextRef.current = transcript;
       translate(transcript, sourceLanguage, targetLanguage).then((result) => {
         if (result) {
@@ -140,7 +166,7 @@ export default function HomePage() {
     }
 
     // Real-time translation with debounce (500ms delay to avoid too many API calls)
-    if (isListening && isRealtimeTranslation && textToTranslate) {
+    if (showRecordingUI && isRealtimeTranslation && textToTranslate) {
       translationTimeoutRef.current = setTimeout(async () => {
         lastTranslatedTextRef.current = textToTranslate;
         const result = await translate(textToTranslate, sourceLanguage, targetLanguage);
@@ -155,7 +181,7 @@ export default function HomePage() {
         clearTimeout(translationTimeoutRef.current);
       }
     };
-  }, [transcript, interimTranscript, isListening, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
+  }, [transcript, interimTranscript, showRecordingUI, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -166,8 +192,10 @@ export default function HomePage() {
   const handleStartRecording = async () => {
     // 認証ゲート: 未ログインならモーダル表示でブロック
     if (!requireAuth("録音を開始")) return;
+    // FSM ガード: 遷移不可なら無視（連打防止）
+    if (!canStart) return;
 
-    setDuration(0);
+    dispatch({ type: "START" });
     setTranslatedText("");
     setSaveSuccess(false);
     setSummary(null);
@@ -176,24 +204,40 @@ export default function HomePage() {
     resetTranscript();
     resetAudioRecording();
     
-    // Start both speech recognition and audio recording
-    startListening();
-    await startAudioRecording();
+    try {
+      // Start both speech recognition and audio recording
+      startListening();
+      await startAudioRecording();
+      dispatch({ type: "START_SUCCESS" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "録音開始に失敗しました";
+      dispatch({ type: "START_FAILURE", error: message });
+    }
   };
 
+  // BUG-4 fix: stopListening → stopAudioRecording を順序保証
   const handleStopRecording = () => {
+    if (!canStop) return;
+    dispatch({ type: "STOP" });
     stopListening();
     stopAudioRecording();
+    dispatch({ type: "STOP_SUCCESS" });
   };
 
   const handlePauseRecording = () => {
+    if (!canPause) return;
+    dispatch({ type: "PAUSE" });
     pauseListening();
     pauseAudioRecording();
+    dispatch({ type: "PAUSE_SUCCESS" });
   };
 
   const handleResumeRecording = () => {
+    if (!canResume) return;
+    dispatch({ type: "RESUME" });
     resumeListening();
     resumeAudioRecording();
+    dispatch({ type: "RESUME_SUCCESS" });
   };
 
   const handleGenerateSummary = async () => {
@@ -303,8 +347,7 @@ export default function HomePage() {
     }
   };
 
-  const error = speechError || translationError || ttsError;
-  const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
+  // DESIGN-4 fix: エラーを配列で管理（全エラーを表示） — 定義は上方で行っている
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -332,10 +375,14 @@ export default function HomePage() {
       )}
 
       {/* Error Display */}
-      {error && (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p>{error}</p>
+      {errors.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {errors.map((err, index) => (
+            <div key={index} className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <p>{err}</p>
+            </div>
+          ))}
         </div>
       )}
 
@@ -346,18 +393,21 @@ export default function HomePage() {
             {/* Recording Buttons */}
             <div className="flex items-center gap-4">
               {/* Pause/Resume Button (visible during recording) */}
-              {isListening && (
+              {showRecordingUI && (
                 <button
-                  onClick={isPaused ? handleResumeRecording : handlePauseRecording}
+                  onClick={fsmIsPaused ? handleResumeRecording : handlePauseRecording}
+                  disabled={isTransitioning || (!canPause && !canResume)}
                   className={cn(
                     "flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200",
-                    isPaused
-                      ? "bg-green-500 hover:bg-green-600"
-                      : "bg-yellow-500 hover:bg-yellow-600"
+                    isTransitioning
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : fsmIsPaused
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-yellow-500 hover:bg-yellow-600"
                   )}
-                  title={isPaused ? "再開" : "一時停止"}
+                  title={fsmIsPaused ? "再開" : "一時停止"}
                 >
-                  {isPaused ? (
+                  {fsmIsPaused ? (
                     <Play className="h-6 w-6 text-white" />
                   ) : (
                     <Pause className="h-6 w-6 text-white" />
@@ -368,26 +418,28 @@ export default function HomePage() {
               {/* Main Recording Button */}
               <div className="relative">
                 <button
-                  onClick={isListening ? handleStopRecording : handleStartRecording}
-                  disabled={!hasApiKeys}
+                  onClick={showRecordingUI ? handleStopRecording : handleStartRecording}
+                  disabled={!hasApiKeys || isTransitioning}
                   className={cn(
                     "flex h-24 w-24 items-center justify-center rounded-full transition-all duration-200",
-                    isListening
-                      ? isPaused 
-                        ? "bg-orange-500 hover:bg-orange-600"
-                        : "bg-red-500 hover:bg-red-600 animate-pulse"
-                      : hasApiKeys
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-gray-400 cursor-not-allowed"
+                    isTransitioning
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : showRecordingUI
+                        ? fsmIsPaused 
+                          ? "bg-orange-500 hover:bg-orange-600"
+                          : "bg-red-500 hover:bg-red-600 animate-pulse"
+                        : hasApiKeys
+                          ? "bg-blue-600 hover:bg-blue-700"
+                          : "bg-gray-400 cursor-not-allowed"
                   )}
                 >
-                  {isListening ? (
+                  {showRecordingUI ? (
                     <Square className="h-10 w-10 text-white" />
                   ) : (
                     <Mic className="h-10 w-10 text-white" />
                   )}
                 </button>
-                {isListening && (
+                {showRecordingUI && (
                   <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700">
                     {formatDuration(duration)}
                   </span>
@@ -395,19 +447,24 @@ export default function HomePage() {
               </div>
 
               {/* Spacer for symmetry when recording */}
-              {isListening && <div className="w-14" />}
+              {showRecordingUI && <div className="w-14" />}
             </div>
 
             {/* Status */}
-            {isListening && (
+            {showRecordingUI && (
               <div className={cn(
                 "flex items-center gap-2 text-sm",
-                isPaused ? "text-yellow-600" : "text-green-600"
+                fsmIsPaused ? "text-yellow-600" : "text-green-600"
               )}>
-                {isPaused ? (
+                {fsmIsPaused ? (
                   <>
                     <Pause className="h-4 w-4" />
                     一時停止中...
+                  </>
+                ) : isTransitioning ? (
+                  <>
+                    <Spinner className="h-4 w-4" />
+                    処理中...
                   </>
                 ) : (
                   <>
@@ -430,7 +487,7 @@ export default function HomePage() {
                 <Select 
                   value={sourceLanguage} 
                   onValueChange={setSourceLanguage}
-                  disabled={isListening}
+                  disabled={showRecordingUI}
                 >
                   <SelectTrigger className="w-40">
                     <SelectValue />
@@ -454,7 +511,7 @@ export default function HomePage() {
                 <Select 
                   value={targetLanguage} 
                   onValueChange={setTargetLanguage}
-                  disabled={isListening}
+                  disabled={showRecordingUI}
                 >
                   <SelectTrigger className="w-40">
                     <SelectValue />
@@ -486,7 +543,7 @@ export default function HomePage() {
                   リアルタイム翻訳
                 </span>
               </label>
-              {isRealtimeTranslation && isListening && isTranslating && (
+              {isRealtimeTranslation && showRecordingUI && isTranslating && (
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
                   翻訳中...
@@ -519,7 +576,7 @@ export default function HomePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">文字起こし結果</CardTitle>
               <div className="flex items-center gap-2">
-                {transcript && !isListening && (
+                {transcript && !showRecordingUI && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -555,7 +612,7 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {isListening ? (
+              {showRecordingUI ? (
                 <div className="space-y-2">
                   {transcript && (
                     <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
@@ -671,7 +728,7 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">議事録</CardTitle>
-              {transcript && !isListening && !summary && (
+              {transcript && !showRecordingUI && !summary && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -769,7 +826,7 @@ export default function HomePage() {
                     </Button>
                   </div>
                 </div>
-              ) : transcript && !isListening ? (
+              ) : transcript && !showRecordingUI ? (
                 <div className="py-8 text-center text-gray-500">
                   <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                   <p>「AIで議事録を生成」ボタンをクリックして</p>

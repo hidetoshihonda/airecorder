@@ -1,13 +1,19 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
+
+interface UseAudioRecorderOptions {
+  /** 共有 MediaStream（指定時はこのストリームを使用し、独自に getUserMedia を呼ばない） */
+  sharedStream?: MediaStream | null;
+}
 
 interface UseAudioRecorderReturn {
   isRecording: boolean;
   isPaused: boolean;
+  duration: number;
   audioBlob: Blob | null;
   audioUrl: string | null;
-  startRecording: () => Promise<void>;
+  startRecording: (stream?: MediaStream) => Promise<void>;
   stopRecording: () => void;
   pauseRecording: () => void;
   resumeRecording: () => void;
@@ -15,9 +21,14 @@ interface UseAudioRecorderReturn {
   error: string | null;
 }
 
-export function useAudioRecorder(): UseAudioRecorderReturn {
+export function useAudioRecorder(
+  options: UseAudioRecorderOptions = {}
+): UseAudioRecorderReturn {
+  const { sharedStream = null } = options;
+
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,27 +36,68 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // BUG-6 fix: Ref ベースのガードで stale closure を防止
+  const isRecordingRef = useRef(false);
+  const ownsStreamRef = useRef(false); // 自前で getUserMedia したか
 
-  const startRecording = useCallback(async () => {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      // 自前で取得したストリームのみ停止
+      if (ownsStreamRef.current && streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
+  const startRecording = useCallback(async (stream?: MediaStream) => {
     try {
       setError(null);
       setAudioBlob(null);
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
       setAudioUrl(null);
+      setDuration(0);
       chunksRef.current = [];
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      // 共有ストリーム → 引数ストリーム → 自前で getUserMedia の優先順位
+      let audioStream: MediaStream;
+      if (sharedStream) {
+        audioStream = sharedStream;
+        ownsStreamRef.current = false;
+      } else if (stream) {
+        audioStream = stream;
+        ownsStreamRef.current = false;
+      } else {
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 48000,
+          },
+        });
+        ownsStreamRef.current = true;
+      }
+      streamRef.current = audioStream;
 
-      // Check for supported MIME types
+      // MIME タイプのフォールバック（DESIGN-3 から統合）
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
-        : "audio/wav";
+          ? "audio/webm"
+          : MediaRecorder.isTypeSupported("audio/mp4")
+            ? "audio/mp4"
+            : "audio/wav";
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -59,46 +111,72 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-        
-        // Stop all tracks
-        stream.getTracks().forEach((track) => track.stop());
+
+        // 自前で取得したストリームのみ停止
+        if (ownsStreamRef.current && streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
       };
 
       mediaRecorder.onerror = (event) => {
         setError(`録音エラー: ${event}`);
         setIsRecording(false);
+        isRecordingRef.current = false;
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorder.start(1000);
       setIsRecording(true);
+      isRecordingRef.current = true;
       setIsPaused(false);
+
+      // Duration タイマー（useRecorder から統合）
+      timerRef.current = setInterval(() => {
+        setDuration((prev) => prev + 1);
+      }, 1000);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`マイクへのアクセスに失敗しました: ${message}`);
     }
-  }, []);
+  }, [sharedStream, audioUrl]);
 
+  // BUG-6 fix: Ref ベースのガードで stale closure を防止
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      isRecordingRef.current = false;
       setIsPaused(false);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
-  }, [isRecording]);
+  }, []);
 
   const pauseRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording && !isPaused) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
-  }, [isRecording, isPaused]);
+  }, []);
 
   const resumeRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording && isPaused) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
+
+      timerRef.current = setInterval(() => {
+        setDuration((prev) => prev + 1);
+      }, 1000);
     }
-  }, [isRecording, isPaused]);
+  }, []);
 
   const resetRecording = useCallback(() => {
     if (audioUrl) {
@@ -106,6 +184,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     }
     setAudioBlob(null);
     setAudioUrl(null);
+    setDuration(0);
     chunksRef.current = [];
     setError(null);
   }, [audioUrl]);
@@ -113,6 +192,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   return {
     isRecording,
     isPaused,
+    duration,
     audioBlob,
     audioUrl,
     startRecording,
