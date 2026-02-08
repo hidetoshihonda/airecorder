@@ -16,9 +16,6 @@ import {
   Sparkles,
   AlertCircle,
   FileDown,
-  Play,
-  Pause,
-  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,8 +71,6 @@ function RecordingDetailContent() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -110,34 +105,6 @@ function RecordingDetailContent() {
     };
     fetchData();
   }, [id]);
-
-  // Audio playback handlers
-  const handlePlayPause = () => {
-    if (!audioElement && audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.onended = () => setIsPlaying(false);
-      audio.onpause = () => setIsPlaying(false);
-      audio.onplay = () => setIsPlaying(true);
-      setAudioElement(audio);
-      audio.play();
-    } else if (audioElement) {
-      if (isPlaying) {
-        audioElement.pause();
-      } else {
-        audioElement.play();
-      }
-    }
-  };
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.src = "";
-      }
-    };
-  }, [audioElement]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -278,54 +245,53 @@ function RecordingDetailContent() {
             {langName || recording.sourceLanguage}
           </span>
         </div>
-        
-        {/* Audio Player */}
-        {recording.audioUrl && (
-          <div className="mt-4 flex items-center gap-4 rounded-lg bg-gray-50 p-4">
-            <button
-              onClick={handlePlayPause}
-              disabled={isLoadingAudio || !audioUrl}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoadingAudio ? (
-                <Spinner size="sm" className="text-white" />
-              ) : isPlaying ? (
-                <Pause className="h-5 w-5" />
-              ) : (
-                <Play className="h-5 w-5 ml-0.5" />
-              )}
-            </button>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Volume2 className="h-4 w-4" />
-              <span>
-                {isLoadingAudio
-                  ? "音声を読み込み中..."
-                  : audioUrl
-                  ? isPlaying
-                    ? "再生中"
-                    : "再生可能"
-                  : "音声ファイルを読み込めませんでした"}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Audio Player */}
+      {/* Unified Audio Player (BUG-2 fix: SAS 付き URL を使用) */}
       {recording.audioUrl && (
         <Card className="mb-6">
           <CardContent className="py-4">
-            <div className="flex items-center gap-4">
-              <audio controls className="flex-1" src={recording.audioUrl}>
-                お使いのブラウザは音声再生をサポートしていません。
-              </audio>
-              <Button variant="outline" size="sm" asChild>
-                <a href={recording.audioUrl} download>
+            {isLoadingAudio ? (
+              <div className="flex items-center gap-2">
+                <Spinner size="sm" />
+                <span className="text-sm text-gray-600">音声を読み込み中...</span>
+              </div>
+            ) : audioUrl ? (
+              <div className="flex items-center gap-4">
+                <audio controls className="flex-1" src={audioUrl}>
+                  お使いのブラウザは音声再生をサポートしていません。
+                </audio>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(audioUrl);
+                      const blob = await response.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      const ext = blob.type.includes('mp4') ? '.m4a' : blob.type.includes('wav') ? '.wav' : '.webm';
+                      a.download = `${recording.title}${ext}`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      alert('ダウンロードに失敗しました');
+                    }
+                  }}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   ダウンロード
-                </a>
-              </Button>
-            </div>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-yellow-700">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">音声ファイルを読み込めませんでした</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
