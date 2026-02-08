@@ -31,6 +31,10 @@
     "termsOfService": "Términos de servicio"
   },
   "HomePage": {
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "copy": "Copiar",
     "heroSubtitle": "Graba audio con transcripción y traducción en tiempo real",
     "apiKeyWarningTitle": "Se requiere configuración de API",
     "apiKeyWarningDesc": "Configure las claves de API de Azure Speech Services y Translator en el archivo .env.local.",

@@ -31,6 +31,10 @@
     "termsOfService": "利用規約"
   },
   "HomePage": {
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "保存完了",
+    "copy": "コピー",
     "heroSubtitle": "音声を録音して、リアルタイムで文字起こし＆翻訳",
     "apiKeyWarningTitle": "API設定が必要です",
     "apiKeyWarningDesc": ".env.local ファイルに Azure Speech Services と Translator の API キーを設定してください。",
