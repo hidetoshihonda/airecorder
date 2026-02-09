@@ -15,6 +15,15 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/config";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -57,6 +66,10 @@ export default function HomePage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
   const [summaryLanguage, setSummaryLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
+  
+  // Save dialog state
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [recordingTitle, setRecordingTitle] = useState("");
   
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
@@ -351,18 +364,35 @@ export default function HomePage() {
     setTimeout(() => setCopied(null), 2000);
   }, []);
 
-  const handleSave = async () => {
+  // デフォルトタイトルを生成
+  const generateDefaultTitle = useCallback(() => {
+    const now = new Date();
+    const dateLocale = appLocale === "ja" ? "ja-JP" : appLocale === "es" ? "es-ES" : "en-US";
+    return t("recordingTitle", {
+      date: now.toLocaleDateString(dateLocale),
+      time: now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }),
+    });
+  }, [appLocale, t]);
+
+  // 保存ダイアログを開く
+  const openSaveDialog = useCallback(() => {
     if (!transcript) return;
     // 認証ゲート: 未ログインならモーダル表示でブロック
     if (!requireAuth(t("saveRecording"))) return;
+    
+    setRecordingTitle(generateDefaultTitle());
+    setIsSaveDialogOpen(true);
+  }, [transcript, requireAuth, t, generateDefaultTitle]);
 
+  // 実際の保存処理
+  const handleSaveWithTitle = async (customTitle: string) => {
+    setIsSaveDialogOpen(false);
     setIsSaving(true);
     setSaveSuccess(false);
 
     try {
       const now = new Date();
-      const dateLocale = appLocale === "ja" ? "ja-JP" : appLocale === "es" ? "es-ES" : "en-US";
-      const title = t("recordingTitle", { date: now.toLocaleDateString(dateLocale), time: now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }) });
+      const title = customTitle.trim() || generateDefaultTitle();
 
       // Upload audio file to Blob Storage if available
       let audioUrl: string | undefined;
@@ -641,7 +671,7 @@ export default function HomePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSave}
+                    onClick={openSaveDialog}
                     disabled={isSaving}
                     className="gap-1.5 h-7 text-xs"
                   >
@@ -1124,6 +1154,48 @@ export default function HomePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 保存タイトル入力ダイアログ */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("saveDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("saveDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                {t("recordingNameLabel")}
+              </label>
+              <Input
+                value={recordingTitle}
+                onChange={(e) => setRecordingTitle(e.target.value)}
+                placeholder={t("recordingNamePlaceholder")}
+                maxLength={100}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveWithTitle(recordingTitle);
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">{t("titleMaxLength")}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={() => handleSaveWithTitle(recordingTitle)}
+              disabled={isSaving}
+            >
+              {isSaving ? <Spinner size="sm" /> : <Save className="h-4 w-4 mr-1" />}
+              {t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 認証ゲートモーダル */}
       <AuthGateModal

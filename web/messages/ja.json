@@ -100,7 +100,13 @@
     "emptyMinutesDesc": "文字起こしから議事録を自動生成できます",
     "emptyMinutesRecording": "録音完了後、AIが議事録を自動生成します",
     "stop": "停止",
-    "readAloud": "読み上げ"
+    "readAloud": "読み上げ",
+    "saveDialogTitle": "録音を保存",
+    "saveDialogDescription": "録音にタイトルを付けてください",
+    "recordingNameLabel": "録音タイトル",
+    "recordingNamePlaceholder": "例: 定例ミーティング 2月8日",
+    "titleMaxLength": "タイトルは100文字以内で入力してください",
+    "cancel": "キャンセル"
   },
   "HistoryPage": {
     "title": "録音履歴",
