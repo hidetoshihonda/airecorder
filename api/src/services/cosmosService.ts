@@ -3,6 +3,7 @@ import { CosmosClient, Container, Database } from "@azure/cosmos";
 let client: CosmosClient | null = null;
 let database: Database | null = null;
 let recordingsContainer: Container | null = null;
+let userSettingsContainer: Container | null = null;
 
 const connectionString = process.env.COSMOS_CONNECTION_STRING || "";
 const databaseName = process.env.COSMOS_DATABASE_NAME || "airecorder";
@@ -39,4 +40,16 @@ export async function getRecordingsContainer(): Promise<Container> {
     recordingsContainer = container;
   }
   return recordingsContainer;
+}
+
+export async function getUserSettingsContainer(): Promise<Container> {
+  if (!userSettingsContainer) {
+    const db = await getDatabase();
+    const { container } = await db.containers.createIfNotExists({
+      id: "userSettings",
+      partitionKey: { paths: ["/userId"] },
+    });
+    userSettingsContainer = container;
+  }
+  return userSettingsContainer;
 }

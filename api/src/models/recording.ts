@@ -83,3 +83,22 @@ export interface PaginatedResponse<T> {
   limit: number;
   hasMore: boolean;
 }
+
+// User Settings model
+export interface UserSettings {
+  defaultSourceLanguage: string;
+  defaultTargetLanguages: string[];
+  theme: "light" | "dark" | "system";
+  autoSaveRecordings: boolean;
+  audioQuality: "low" | "medium" | "high";
+  noiseSuppression: boolean;
+  enableSpeakerDiarization: boolean;
+}
+
+export interface UserSettingsDocument {
+  id: string;           // = userId
+  userId: string;       // パーティションキー
+  settings: UserSettings;
+  updatedAt: string;    // ISO 8601
+  createdAt: string;    // ISO 8601
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
 import { User, UserSettings } from "@/types";
+import { fetchUserSettings, saveUserSettings } from "@/services/settingsApi";
 
 interface AuthContextType {
   // User state
@@ -90,6 +91,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // クライアントサイドでuseEffectを使ってlocalStorageから読み込む
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  
+  // デバウンス用のタイマーRef (Issue #44)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // クライアントサイドでのみlocalStorageから設定を読み込む (Issue #41 修正)
   useEffect(() => {
@@ -106,6 +110,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettingsLoaded(true);
   }, []);
+
+  // ログイン時にAPIから設定を取得してマージ (Issue #44 クロスデバイス対応)
+  useEffect(() => {
+    if (!user?.id || !settingsLoaded) return;
+    
+    let cancelled = false;
+    (async () => {
+      try {
+        const remoteSettings = await fetchUserSettings(user.id);
+        if (!cancelled && remoteSettings) {
+          // APIの設定で上書き（クロスデバイス同期）
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSettings(remoteSettings.settings);
+          // localStorageもキャッシュとして更新
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(remoteSettings.settings));
+        }
+      } catch (error) {
+        console.error("Failed to fetch remote settings:", error);
+        // エラー時はlocalStorageの設定をそのまま使用
+      }
+    })();
+    
+    return () => { cancelled = true; };
+  }, [user?.id, settingsLoaded]);
 
   // Fetch SWA auth info on mount
   useEffect(() => {
@@ -134,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
-      // Save to localStorage
+      // Save to localStorage (オフライン対応)
       try {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
       } catch (error) {
@@ -142,6 +170,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       return updated;
     });
+    
+    // ログイン中ならAPIにも保存（デバウンス: 500ms）(Issue #44)
+    if (user?.id) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await saveUserSettings(user.id, newSettings);
+        } catch (error) {
+          console.error("Failed to save settings to API:", error);
+        }
+      }, 500);
+    }
+  }, [user?.id]);
+
+  // クリーンアップ: コンポーネントアンマウント時にタイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   // SWA built-in auth: redirect to GitHub login
