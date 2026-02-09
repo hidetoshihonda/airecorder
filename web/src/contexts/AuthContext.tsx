@@ -13,6 +13,7 @@ interface AuthContextType {
   
   // User settings
   settings: UserSettings;
+  settingsLoaded: boolean; // 設定がlocalStorageから読み込まれたかどうか
   updateSettings: (settings: Partial<UserSettings>) => void;
   
   // Auth actions (to be implemented with MSAL)
@@ -84,21 +85,27 @@ async function fetchSwaAuthInfo(): Promise<User | null> {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [settings, setSettings] = useState<UserSettings>(() => {
-    // Load settings from localStorage on initial render (client-side only)
-    if (typeof window !== "undefined") {
-      try {
-        const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          return { ...defaultSettings, ...parsed };
-        }
-      } catch (error) {
-        console.error("Failed to load settings from localStorage:", error);
+  
+  // 修正: SSRハイドレーション問題を回避するため、初期値はdefaultSettingsで固定
+  // クライアントサイドでuseEffectを使ってlocalStorageから読み込む
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // クライアントサイドでのみlocalStorageから設定を読み込む (Issue #41 修正)
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSettings((prev) => ({ ...prev, ...parsed }));
       }
+    } catch (error) {
+      console.error("Failed to load settings from localStorage:", error);
     }
-    return defaultSettings;
-  });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSettingsLoaded(true);
+  }, []);
 
   // Fetch SWA auth info on mount
   useEffect(() => {
@@ -157,6 +164,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     setIsLoading,
     settings,
+    settingsLoaded,
     updateSettings,
     login,
     logout,
