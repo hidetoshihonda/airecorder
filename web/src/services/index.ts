@@ -8,3 +8,6 @@ export { summaryApi } from "./summaryApi";
 export type { GenerateSummaryInput } from "./summaryApi";
 
 export { blobApi } from "./blobApi";
+
+export { fetchUserSettings, saveUserSettings } from "./settingsApi";
+export type { UserSettingsResponse } from "./settingsApi";
