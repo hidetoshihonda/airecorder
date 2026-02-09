@@ -120,6 +120,26 @@ function RecordingDetailContent() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  // 話者ラベル付きテキストを生成
+  const getTranscriptWithSpeakerLabels = () => {
+    if (!recording?.transcript?.segments || recording.transcript.segments.length === 0) {
+      return recording?.transcript?.fullText || "";
+    }
+    
+    // segments に speaker 情報があるか確認
+    const hasSpeakerInfo = recording.transcript.segments.some(seg => seg.speaker);
+    if (!hasSpeakerInfo) {
+      return recording.transcript.fullText;
+    }
+
+    return recording.transcript.segments
+      .map((seg) => {
+        const label = seg.speaker || "不明";
+        return `[${label}] ${seg.text}`;
+      })
+      .join("\n");
+  };
+
   const handleDelete = async () => {
     if (!id || !confirm("この録音を削除しますか？この操作は取り消せません。")) {
       return;
@@ -411,7 +431,7 @@ function RecordingDetailContent() {
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    handleCopy(recording.transcript!.fullText, "transcript")
+                    handleCopy(getTranscriptWithSpeakerLabels(), "transcript")
                   }
                   className="gap-2"
                 >

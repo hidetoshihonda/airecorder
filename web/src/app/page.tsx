@@ -358,11 +358,26 @@ export default function HomePage() {
     }
   };
 
+  // 話者ラベル付きテキストを生成
+  const getTranscriptWithSpeakerLabels = useCallback(() => {
+    if (!enableSpeakerDiarization || labeledSegments.length === 0) {
+      return transcript;
+    }
+    return labeledSegments
+      .map((seg) => {
+        const label = seg.speakerLabel || seg.speaker || t("unknownSpeaker");
+        return `[${label}] ${seg.text}`;
+      })
+      .join("\n");
+  }, [enableSpeakerDiarization, labeledSegments, transcript, t]);
+
   const handleCopy = useCallback(async (text: string, type: "transcript" | "translation") => {
-    await navigator.clipboard.writeText(text);
+    // 文字起こしの場合、話者ラベル付きテキストを使用
+    const textToCopy = type === "transcript" ? getTranscriptWithSpeakerLabels() : text;
+    await navigator.clipboard.writeText(textToCopy);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
-  }, []);
+  }, [getTranscriptWithSpeakerLabels]);
 
   // デフォルトタイトルを生成
   const generateDefaultTitle = useCallback(() => {
