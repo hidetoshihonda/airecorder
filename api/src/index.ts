@@ -3,3 +3,4 @@ import "./functions/recordings";
 import "./functions/health";
 import "./functions/summary";
 import "./functions/blob";
+import "./functions/settings";
