@@ -436,63 +436,157 @@ function RecordingDetailContent() {
                 </div>
               ) : recording.summary ? (
                 <div className="space-y-6">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      概要
-                    </h3>
-                    <div className="rounded-md bg-gray-50 p-4 text-gray-800">
-                      {recording.summary.overview}
+                  {/* 注意書き */}
+                  {recording.summary.caution && (
+                    <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
+                      <p className="font-medium">⚠️ 注意事項</p>
+                      <p className="text-sm mt-1">{recording.summary.caution}</p>
                     </div>
-                  </div>
+                  )}
 
-                  {recording.summary.keyPoints &&
-                    recording.summary.keyPoints.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-2">
-                          重要ポイント
-                        </h3>
-                        <ul className="space-y-2">
-                          {recording.summary.keyPoints.map((point, index) => (
-                            <li
-                              key={index}
-                              className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800"
-                            >
-                              <span className="text-blue-600 font-medium">
-                                {index + 1}.
-                              </span>
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
+                  {/* 1. 会議情報 */}
+                  {recording.summary.meetingInfo && (
+                    <div className="rounded-md bg-gray-50 p-4">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">1. 会議情報</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{recording.summary.meetingInfo.title}</span></div>
+                        <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{recording.summary.meetingInfo.datetime}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">参加者:</span> <span className="text-gray-800">{recording.summary.meetingInfo.participants.join(", ") || "不明"}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">目的:</span> <span className="text-gray-800">{recording.summary.meetingInfo.purpose}</span></div>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                  {recording.summary.actionItems &&
-                    recording.summary.actionItems.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-2">
-                          アクションアイテム
-                        </h3>
-                        <ul className="space-y-2">
-                          {recording.summary.actionItems.map((item) => (
-                            <li
-                              key={item.id}
-                              className="rounded-md border border-green-200 bg-green-50 p-3"
-                            >
-                              <p className="text-gray-800">{item.description}</p>
-                              <div className="mt-2 flex gap-4 text-sm text-gray-600">
-                                {item.assignee && (
-                                  <span>担当: {item.assignee}</span>
-                                )}
-                                {item.dueDate && (
-                                  <span>期限: {item.dueDate}</span>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
+                  {/* 2. アジェンダ一覧 */}
+                  {recording.summary.agenda && recording.summary.agenda.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">2. アジェンダ一覧</h3>
+                      <ul className="space-y-1">
+                        {recording.summary.agenda.map((item, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-gray-800">
+                            <span className="text-blue-600 font-medium">{index + 1}.</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 3. 議題別の詳細 */}
+                  {recording.summary.topics && recording.summary.topics.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">3. 議題別の詳細</h3>
+                      <div className="space-y-4">
+                        {recording.summary.topics.map((topic, index) => (
+                          <div key={index} className="rounded-md border border-gray-200 p-4">
+                            <h4 className="font-medium text-gray-800 mb-3">3.{index + 1}. {topic.title}</h4>
+                            <div className="space-y-2 text-sm">
+                              {topic.background && (
+                                <div><span className="text-gray-500 font-medium">背景・前提:</span> <span className="text-gray-700">{topic.background}</span></div>
+                              )}
+                              {topic.currentStatus && (
+                                <div><span className="text-gray-500 font-medium">現状共有:</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
+                              )}
+                              {topic.issues && (
+                                <div><span className="text-gray-500 font-medium">課題/懸念:</span> <span className="text-gray-700">{topic.issues}</span></div>
+                              )}
+                              {topic.discussion && (
+                                <div><span className="text-gray-500 font-medium">議論の要点:</span> <span className="text-gray-700">{topic.discussion}</span></div>
+                              )}
+                              {topic.examples && (
+                                <div><span className="text-gray-500 font-medium">具体例:</span> <span className="text-gray-700">{topic.examples}</span></div>
+                              )}
+                              {topic.nextActions && (
+                                <div><span className="text-gray-500 font-medium">次アクション:</span> <span className="text-gray-700">{topic.nextActions}</span></div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
+
+                  {/* 4. 決定事項 */}
+                  {recording.summary.decisions && recording.summary.decisions.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">4. 決定事項</h3>
+                      <ul className="space-y-2">
+                        {recording.summary.decisions.map((decision, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-gray-800 text-sm">
+                            <span className="text-green-600">✓</span>
+                            <span>{decision}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 5. ToDo / アクションアイテム */}
+                  {recording.summary.actionItems && recording.summary.actionItems.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">5. ToDo / アクションアイテム</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">ToDo</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">担当</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">期限</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">関連背景</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {recording.summary.actionItems.map((item) => (
+                              <tr key={item.id} className="hover:bg-gray-50">
+                                <td className="border border-gray-200 px-3 py-2 text-gray-800">{item.task || item.description}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || "未定"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || "未定"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 6. 重要メモ */}
+                  {recording.summary.importantNotes && recording.summary.importantNotes.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">6. 重要メモ</h3>
+                      <ul className="space-y-2">
+                        {recording.summary.importantNotes.map((note, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
+                            <span className="text-purple-600">📌</span>
+                            <span>{note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 後方互換: 旧形式の overview/keyPoints があれば表示 */}
+                  {!recording.summary.meetingInfo && recording.summary.overview && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">概要</h3>
+                      <div className="rounded-md bg-gray-50 p-4 text-gray-800">
+                        {recording.summary.overview}
+                      </div>
+                    </div>
+                  )}
+                  {!recording.summary.agenda && recording.summary.keyPoints && recording.summary.keyPoints.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">重要ポイント</h3>
+                      <ul className="space-y-2">
+                        {recording.summary.keyPoints.map((point, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800">
+                            <span className="text-blue-600 font-medium">{index + 1}.</span>
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div className="flex justify-center pt-4">
                     <Button
