@@ -118,22 +118,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let cancelled = false;
     (async () => {
       try {
+        console.log("[Settings] Fetching remote settings for user:", user.id);
         const remoteSettings = await fetchUserSettings(user.id);
-        if (!cancelled && remoteSettings) {
-          // APIの設定で上書き（クロスデバイス同期）
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setSettings(remoteSettings.settings);
-          // localStorageもキャッシュとして更新
-          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(remoteSettings.settings));
+        if (!cancelled) {
+          if (remoteSettings?.settings) {
+            console.log("[Settings] Got remote settings:", remoteSettings.settings);
+            // APIの設定で上書き（クロスデバイス同期）
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setSettings(remoteSettings.settings);
+            // localStorageもキャッシュとして更新
+            localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(remoteSettings.settings));
+          } else {
+            // APIに設定がない場合、現在のローカル設定をAPIに保存
+            console.log("[Settings] No remote settings found, uploading local settings");
+            await saveUserSettings(user.id, settings);
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch remote settings:", error);
+        console.error("[Settings] Failed to fetch remote settings:", error);
         // エラー時はlocalStorageの設定をそのまま使用
       }
     })();
     
     return () => { cancelled = true; };
-  }, [user?.id, settingsLoaded]);
+  }, [user?.id, settingsLoaded]); // settings を依存に入れるとループするので注意
 
   // Fetch SWA auth info on mount
   useEffect(() => {
