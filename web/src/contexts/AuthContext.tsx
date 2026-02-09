@@ -47,23 +47,29 @@ let authCache: { user: User | null; timestamp: number } | null = null;
 async function fetchSwaAuthInfo(): Promise<User | null> {
   // Return cached result if still valid
   if (authCache && Date.now() - authCache.timestamp < AUTH_CACHE_TTL) {
+    console.log("[Auth] Using cached auth info:", authCache.user?.id);
     return authCache.user;
   }
 
   try {
     const response = await fetch("/.auth/me");
     if (!response.ok) {
+      console.log("[Auth] /.auth/me returned not ok:", response.status);
       authCache = { user: null, timestamp: Date.now() };
       return null;
     }
 
     const data = await response.json();
+    console.log("[Auth] /.auth/me response:", JSON.stringify(data, null, 2));
     const principal = data?.clientPrincipal;
 
     if (!principal || !principal.userId) {
+      console.log("[Auth] No clientPrincipal or userId");
       authCache = { user: null, timestamp: Date.now() };
       return null;
     }
+
+    console.log("[Auth] clientPrincipal:", JSON.stringify(principal, null, 2));
 
     const user: User = {
       id: principal.userId,
@@ -74,6 +80,7 @@ async function fetchSwaAuthInfo(): Promise<User | null> {
       updatedAt: new Date().toISOString(),
     };
 
+    console.log("[Auth] Created user with id:", user.id);
     authCache = { user, timestamp: Date.now() };
     return user;
   } catch (error) {
