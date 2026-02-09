@@ -100,7 +100,13 @@
     "emptyMinutesDesc": "auto-generate minutes from the transcript",
     "emptyMinutesRecording": "AI will auto-generate minutes after recording",
     "stop": "Stop",
-    "readAloud": "Read aloud"
+    "readAloud": "Read Aloud",
+    "saveDialogTitle": "Save Recording",
+    "saveDialogDescription": "Give your recording a title",
+    "recordingNameLabel": "Recording Title",
+    "recordingNamePlaceholder": "e.g. Weekly Meeting Feb 8",
+    "titleMaxLength": "Title must be 100 characters or less",
+    "cancel": "Cancel"
   },
   "HistoryPage": {
     "title": "Recording History",

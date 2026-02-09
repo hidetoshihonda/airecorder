@@ -16,6 +16,8 @@ import {
   Sparkles,
   AlertCircle,
   FileDown,
+  PenSquare,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 import { Recording } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
@@ -71,6 +74,11 @@ function RecordingDetailContent() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,6 +134,43 @@ function RecordingDetailContent() {
     } else {
       router.push("/history");
     }
+  };
+
+  // Title editing handlers
+  const handleTitleEdit = () => {
+    if (recording) {
+      setEditedTitle(recording.title);
+      setIsEditingTitle(true);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    if (!id || !recording) return;
+    
+    const trimmed = editedTitle.trim();
+    if (!trimmed || trimmed === recording.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    setIsUpdatingTitle(true);
+    const response = await recordingsApi.updateRecording(id, { title: trimmed });
+    setIsUpdatingTitle(false);
+    
+    if (response.error) {
+      alert(`タイトル更新に失敗しました: ${response.error}`);
+      return;
+    }
+    
+    if (response.data) {
+      setRecording(response.data);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleCancel = () => {
+    setIsEditingTitle(false);
+    setEditedTitle("");
   };
 
   const handleGenerateSummary = async () => {
@@ -231,7 +276,50 @@ function RecordingDetailContent() {
 
       {/* Title & Meta */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
+        {isEditingTitle ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              className="text-xl font-bold max-w-md"
+              maxLength={100}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleTitleSave();
+                if (e.key === "Escape") handleTitleCancel();
+              }}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleSave}
+              disabled={isUpdatingTitle}
+              className="text-green-600 hover:bg-green-50"
+            >
+              {isUpdatingTitle ? <Spinner size="sm" /> : <Check className="h-4 w-4" />}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleCancel}
+              className="text-gray-500 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleEdit}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <PenSquare className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
