@@ -506,7 +506,7 @@ function RecordingDetailContent() {
             </CardHeader>
             <CardContent>
               {recording.transcript?.fullText ? (
-                <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                   {recording.transcript.fullText}
                 </div>
               ) : (
@@ -527,7 +527,7 @@ function RecordingDetailContent() {
             <CardContent>
               {recording.translations &&
               Object.keys(recording.translations).length > 0 ? (
-                <div className="space-y-4">
+                <div className="max-h-[60vh] overflow-y-auto space-y-4">
                   {Object.entries(recording.translations).map(
                     ([langCode, translation]) => {
                       const lang = SUPPORTED_LANGUAGES.find(
@@ -603,7 +603,7 @@ function RecordingDetailContent() {
                   </p>
                 </div>
               ) : recording.summary ? (
-                <div className="space-y-6">
+                <div className="max-h-[60vh] overflow-y-auto space-y-6">
                   {/* 注意書き */}
                   {recording.summary.caution && (
                     <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
