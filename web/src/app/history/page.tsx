@@ -129,7 +129,6 @@ export default function HistoryPage() {
         const items = Array.isArray(responseData)
           ? responseData as Recording[]
           : (responseData as Record<string, unknown>).items as Recording[] || [];
-        console.log('[History] Loaded recordings:', items.length);
         setRecordings(items);
       }
 
@@ -162,7 +161,6 @@ export default function HistoryPage() {
       const items = Array.isArray(responseData)
         ? responseData as Recording[]
         : (responseData as Record<string, unknown>).items as Recording[] || [];
-      console.log('[History] Refreshed recordings:', items.length);
       setRecordings(items);
     }
 

@@ -1,0 +1,78 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Main Lint",
+			"type": "shell",
+			"command": "cd web; npm run lint 2>&1",
+			"group": "build"
+		},
+		{
+			"label": "Diff Auth Context",
+			"type": "shell",
+			"command": "git diff main fix/lint-console-log -- web/src/contexts/AuthContext.tsx",
+			"group": "build"
+		},
+		{
+			"label": "Admin Merge PR 59",
+			"type": "shell",
+			"command": "gh pr merge 59 --repo hidetoshihonda/airecorder --merge --admin",
+			"group": "build"
+		},
+		{
+			"label": "Check Main Deploy",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 30; gh run list --repo hidetoshihonda/airecorder --branch main --limit 5",
+			"group": "build"
+		},
+		{
+			"label": "Main Runs Now",
+			"type": "shell",
+			"command": "gh run list --repo hidetoshihonda/airecorder --branch main --limit 5",
+			"group": "build"
+		},
+		{
+			"label": "Wait Deploy Complete",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 120; gh run list --repo hidetoshihonda/airecorder --branch main --limit 3",
+			"group": "build"
+		},
+		{
+			"label": "Final Deploy Status",
+			"type": "shell",
+			"command": "gh run list --repo hidetoshihonda/airecorder --branch main --limit 3",
+			"group": "build"
+		},
+		{
+			"label": "Check Error",
+			"type": "shell",
+			"command": "gh run view 21863346727 --repo hidetoshihonda/airecorder --log-failed 2>&1 | findstr /i 'error'",
+			"group": "build"
+		},
+		{
+			"label": "Lint Check",
+			"type": "shell",
+			"command": "cd web; npm run lint"
+		},
+		{
+			"label": "Check File",
+			"type": "shell",
+			"command": "Get-Content 'web/src/app/recording/page.tsx' | Select-Object -Index (138..146)"
+		},
+		{
+			"label": "Lint Check 2",
+			"type": "shell",
+			"command": "cd web; npm run lint 2>&1 | Select-String -Pattern 'error|Error|problems' | Select-Object -First 5"
+		},
+		{
+			"label": "Lint Check 3",
+			"type": "shell",
+			"command": "cd web; npm run lint"
+		},
+		{
+			"label": "Git Push",
+			"type": "shell",
+			"command": "git add -A; git commit --amend -m 'fix: add eslint-disable for setState in effect in recording/page.tsx'; git push -f origin fix/lint-setstate-error"
+		}
+	]
+}
