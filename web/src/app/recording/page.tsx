@@ -139,6 +139,7 @@ function RecordingDetailContent() {
   useEffect(() => {
     // 認証チェック中または未認証の場合はデータ取得しない（Issue #57 セキュリティ修正）
     if (authLoading || !isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false);
       return;
     }
