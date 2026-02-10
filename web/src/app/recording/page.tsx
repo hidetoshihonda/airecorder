@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,6 +18,11 @@ import {
   FileDown,
   PenSquare,
   X,
+  Users,
+  CalendarCheck,
+  Handshake,
+  Code,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +33,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
-import { Recording } from "@/types";
+import { Recording, TemplateId } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
+import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
+import { cn } from "@/lib/utils";
 import {
   downloadAsText,
   downloadAsMarkdown,
@@ -80,6 +94,45 @@ function RecordingDetailContent() {
   const [editedTitle, setEditedTitle] = useState("");
   const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
 
+  // Template selection state (Issue #38)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
+  const [summaryLanguage, setSummaryLanguage] = useState("ja-JP");
+
+  // Template list and icons (Issue #38)
+  const allTemplates = useMemo(() => {
+    const customs = loadCustomTemplates().map(customToMeetingTemplate);
+    return [...PRESET_TEMPLATES, ...customs];
+  }, []);
+
+  const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
+    FileText: <FileText className="h-4 w-4" />,
+    CalendarCheck: <CalendarCheck className="h-4 w-4" />,
+    Users: <Users className="h-4 w-4" />,
+    Handshake: <Handshake className="h-4 w-4" />,
+    Code: <Code className="h-4 w-4" />,
+    Lightbulb: <Lightbulb className="h-4 w-4" />,
+    PenSquare: <PenSquare className="h-4 w-4" />,
+  }), []);
+
+  // Template name mapping for display (プリセットテンプレートの日本語表示)
+  const TEMPLATE_NAMES: Record<string, string> = useMemo(() => ({
+    general: "一般",
+    regular: "定例会議",
+    "one-on-one": "1on1",
+    sales: "商談・営業",
+    technical: "技術レビュー",
+    brainstorm: "ブレスト",
+  }), []);
+
+  const TEMPLATE_DESCRIPTIONS: Record<string, string> = useMemo(() => ({
+    general: "汎用的な議事録",
+    regular: "進捗確認・定例",
+    "one-on-one": "個人面談・1on1",
+    sales: "商談・提案",
+    technical: "技術検討・レビュー",
+    brainstorm: "アイデア出し",
+  }), []);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!id) {
@@ -97,6 +150,8 @@ function RecordingDetailContent() {
         setError(response.error);
       } else if (response.data) {
         setRecording(response.data);
+        // Sync summaryLanguage with recording's source language (Issue #38)
+        setSummaryLanguage(response.data.sourceLanguage);
         
         // Load audio URL if available
         if (response.data.audioUrl) {
@@ -198,9 +253,14 @@ function RecordingDetailContent() {
 
     setIsGeneratingSummary(true);
 
+    // Issue #38: templateId, customPrompt, languageを送信
     const response = await summaryApi.generateSummary({
       transcript: recording.transcript.fullText,
-      language: recording.sourceLanguage,
+      language: summaryLanguage,
+      templateId: selectedTemplateId,
+      ...(selectedTemplateId.startsWith("custom-")
+        ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
+        : {}),
     });
 
     setIsGeneratingSummary(false);
@@ -713,6 +773,59 @@ function RecordingDetailContent() {
                 <div className="py-8 text-center text-gray-500">
                   {recording.transcript?.fullText ? (
                     <>
+                      {/* Issue #38: テンプレート選択UI */}
+                      <div className="mb-6 space-y-4 text-left">
+                        {/* 出力言語 */}
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                            出力言語
+                          </label>
+                          <Select value={summaryLanguage} onValueChange={setSummaryLanguage}>
+                            <SelectTrigger className="h-8 w-44 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SUPPORTED_LANGUAGES.map((lang) => (
+                                <SelectItem key={lang.code} value={lang.code}>
+                                  {lang.flag} {lang.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* テンプレート選択グリッド */}
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            テンプレート
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {allTemplates.map((tmpl) => (
+                              <button
+                                key={tmpl.id}
+                                onClick={() => setSelectedTemplateId(tmpl.id)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors",
+                                  selectedTemplateId === tmpl.id
+                                    ? "border-blue-500 bg-blue-50 text-blue-800"
+                                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                                )}
+                              >
+                                {TEMPLATE_ICONS[tmpl.icon] || <FileText className="h-4 w-4" />}
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate text-xs">
+                                    {tmpl.isPreset ? (TEMPLATE_NAMES[tmpl.id] || tmpl.nameKey) : tmpl.nameKey}
+                                  </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {tmpl.isPreset ? (TEMPLATE_DESCRIPTIONS[tmpl.id] || tmpl.descriptionKey) : tmpl.descriptionKey}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
                       <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                       <p>「AIで生成」ボタンをクリックして議事録を作成できます</p>
                     </>
