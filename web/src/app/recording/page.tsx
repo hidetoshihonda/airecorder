@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Download,
@@ -90,6 +91,7 @@ function RecordingDetailContent() {
   const router = useRouter();
   const id = searchParams.get("id");
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const t = useTranslations("HomePage");
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +210,87 @@ function RecordingDetailContent() {
     await navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  // 議事録をMarkdown形式に変換してコピー
+  const handleCopySummary = async () => {
+    if (!recording?.summary) return;
+    const summary = recording.summary;
+    
+    const lines: string[] = [];
+    
+    // 会議情報
+    if (summary.meetingInfo) {
+      lines.push(`# ${t("meetingInfo")}`);
+      lines.push(`- **会議名:** ${summary.meetingInfo.title}`);
+      lines.push(`- **日時:** ${summary.meetingInfo.datetime}`);
+      lines.push(`- **参加者:** ${summary.meetingInfo.participants.join(", ") || t("undecided")}`);
+      lines.push(`- **目的:** ${summary.meetingInfo.purpose}`);
+      lines.push("");
+    }
+    
+    // アジェンダ
+    if (summary.agenda && summary.agenda.length > 0) {
+      lines.push(`## ${t("agendaList")}`);
+      summary.agenda.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+      lines.push("");
+    }
+    
+    // 議題別詳細
+    if (summary.topics && summary.topics.length > 0) {
+      lines.push(`## ${t("topicDetails")}`);
+      summary.topics.forEach((topic, i) => {
+        lines.push(`### ${i + 1}. ${topic.title}`);
+        if (topic.background) lines.push(`- **背景:** ${topic.background}`);
+        if (topic.currentStatus) lines.push(`- **現状:** ${topic.currentStatus}`);
+        if (topic.issues) lines.push(`- **課題:** ${topic.issues}`);
+        if (topic.discussion) lines.push(`- **議論:** ${topic.discussion}`);
+        if (topic.nextActions) lines.push(`- **次アクション:** ${topic.nextActions}`);
+        lines.push("");
+      });
+    }
+    
+    // 決定事項
+    if (summary.decisions && summary.decisions.length > 0) {
+      lines.push(`## ${t("decisions")}`);
+      summary.decisions.forEach(d => lines.push(`- ✓ ${d}`));
+      lines.push("");
+    }
+    
+    // アクションアイテム
+    if (summary.actionItems && summary.actionItems.length > 0) {
+      lines.push(`## ${t("todoActionItems")}`);
+      lines.push(`| ${t("todoHeader")} | ${t("assigneeHeader")} | ${t("dueDateHeader")} |`);
+      lines.push("|---|---|---|");
+      summary.actionItems.forEach(item => {
+        const task = item.task || item.description;
+        const assignee = item.assignee || t("undecided");
+        const due = item.dueDate || t("undecided");
+        lines.push(`| ${task} | ${assignee} | ${due} |`);
+      });
+      lines.push("");
+    }
+    
+    // 重要メモ
+    if (summary.importantNotes && summary.importantNotes.length > 0) {
+      lines.push(`## ${t("importantNotes")}`);
+      summary.importantNotes.forEach(n => lines.push(`- 📌 ${n}`));
+      lines.push("");
+    }
+    
+    // 旧形式のoverview/keyPoints
+    if (!summary.meetingInfo && summary.overview) {
+      lines.push(`## ${t("overview")}`);
+      lines.push(summary.overview);
+      lines.push("");
+    }
+    if (!summary.agenda && summary.keyPoints && summary.keyPoints.length > 0) {
+      lines.push(`## ${t("keyPoints")}`);
+      summary.keyPoints.forEach((p, i) => lines.push(`${i + 1}. ${p}`));
+      lines.push("");
+    }
+    
+    await handleCopy(lines.join("\n"), "summary");
   };
 
   // 話者ラベル付きテキストを生成
@@ -667,30 +750,47 @@ function RecordingDetailContent() {
         <TabsContent value="summary">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">議事録</CardTitle>
-              {recording.transcript?.fullText && !recording.summary && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleGenerateSummary()}
-                  disabled={isGeneratingSummary}
-                  className="gap-2"
-                >
-                  {isGeneratingSummary ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  {isGeneratingSummary ? "生成中..." : "AIで生成"}
-                </Button>
-              )}
+              <CardTitle className="text-lg">{t("minutesTitle")}</CardTitle>
+              <div className="flex items-center gap-2">
+                {recording.summary && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopySummary}
+                    className="gap-2"
+                  >
+                    {copied === "summary" ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    {copied === "summary" ? t("summaryCopied") : t("copySummary")}
+                  </Button>
+                )}
+                {recording.transcript?.fullText && !recording.summary && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleGenerateSummary()}
+                    disabled={isGeneratingSummary}
+                    className="gap-2"
+                  >
+                    {isGeneratingSummary ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    {isGeneratingSummary ? t("generating") : t("generateWithAI")}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isGeneratingSummary ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Spinner size="lg" />
                   <p className="mt-4 text-gray-600">
-                    AIが議事録を生成しています...
+                    {t("aiGenerating")}
                   </p>
                 </div>
               ) : recording.summary ? (
@@ -706,7 +806,7 @@ function RecordingDetailContent() {
                   {/* 1. 会議情報 */}
                   {recording.summary.meetingInfo && (
                     <div className="rounded-md bg-gray-50 p-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">1. 会議情報</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("meetingInfo")}</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{recording.summary.meetingInfo.title}</span></div>
                         <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{recording.summary.meetingInfo.datetime}</span></div>
@@ -719,7 +819,7 @@ function RecordingDetailContent() {
                   {/* 2. アジェンダ一覧 */}
                   {recording.summary.agenda && recording.summary.agenda.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">2. アジェンダ一覧</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("agendaList")}</h3>
                       <ul className="space-y-1">
                         {recording.summary.agenda.map((item, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm text-gray-800">
@@ -734,7 +834,7 @@ function RecordingDetailContent() {
                   {/* 3. 議題別の詳細 */}
                   {recording.summary.topics && recording.summary.topics.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">3. 議題別の詳細</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("topicDetails")}</h3>
                       <div className="space-y-4">
                         {recording.summary.topics.map((topic, index) => (
                           <div key={index} className="rounded-md border border-gray-200 p-4">
@@ -768,7 +868,7 @@ function RecordingDetailContent() {
                   {/* 4. 決定事項 */}
                   {recording.summary.decisions && recording.summary.decisions.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">4. 決定事項</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("decisions")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.decisions.map((decision, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-gray-800 text-sm">
@@ -783,24 +883,24 @@ function RecordingDetailContent() {
                   {/* 5. ToDo / アクションアイテム */}
                   {recording.summary.actionItems && recording.summary.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">5. ToDo / アクションアイテム</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("todoActionItems")}</h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">ToDo</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">担当</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">期限</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">関連背景</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("todoHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">{t("assigneeHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">{t("dueDateHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("contextHeader")}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {recording.summary.actionItems.map((item) => (
                               <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="border border-gray-200 px-3 py-2 text-gray-800">{item.task || item.description}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || "未定"}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || "未定"}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || "-"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || t("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || t("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || t("noData")}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -812,7 +912,7 @@ function RecordingDetailContent() {
                   {/* 6. 重要メモ */}
                   {recording.summary.importantNotes && recording.summary.importantNotes.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">6. 重要メモ</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("importantNotes")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.importantNotes.map((note, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
@@ -827,7 +927,7 @@ function RecordingDetailContent() {
                   {/* 後方互換: 旧形式の overview/keyPoints があれば表示 */}
                   {!recording.summary.meetingInfo && recording.summary.overview && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">概要</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("overview")}</h3>
                       <div className="rounded-md bg-gray-50 p-4 text-gray-800">
                         {recording.summary.overview}
                       </div>
@@ -835,7 +935,7 @@ function RecordingDetailContent() {
                   )}
                   {!recording.summary.agenda && recording.summary.keyPoints && recording.summary.keyPoints.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">重要ポイント</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("keyPoints")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.keyPoints.map((point, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800">

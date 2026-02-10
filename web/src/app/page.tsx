@@ -57,7 +57,7 @@ export default function HomePage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [settings.defaultSourceLanguage, settings.defaultTargetLanguages]);
   const [translatedText, setTranslatedText] = useState("");
-  const [copied, setCopied] = useState<"transcript" | "translation" | null>(null);
+  const [copied, setCopied] = useState<"transcript" | "translation" | "summary" | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -395,13 +395,93 @@ export default function HomePage() {
       .join("\n");
   }, [enableSpeakerDiarization, labeledSegments, transcript, t]);
 
-  const handleCopy = useCallback(async (text: string, type: "transcript" | "translation") => {
+  const handleCopy = useCallback(async (text: string, type: "transcript" | "translation" | "summary") => {
     // 文字起こしの場合、話者ラベル付きテキストを使用
     const textToCopy = type === "transcript" ? getTranscriptWithSpeakerLabels() : text;
     await navigator.clipboard.writeText(textToCopy);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   }, [getTranscriptWithSpeakerLabels]);
+
+  // 議事録をMarkdown形式に変換してコピー
+  const handleCopySummary = useCallback(async () => {
+    if (!summary) return;
+    
+    const lines: string[] = [];
+    
+    // 会議情報
+    if (summary.meetingInfo) {
+      lines.push(`# ${t("meetingInfo")}`);
+      lines.push(`- **${t("meetingName") || "会議名"}:** ${summary.meetingInfo.title}`);
+      lines.push(`- **${t("datetime") || "日時"}:** ${summary.meetingInfo.datetime}`);
+      lines.push(`- **${t("participants") || "参加者"}:** ${summary.meetingInfo.participants.join(", ") || t("undecided")}`);
+      lines.push(`- **${t("purpose") || "目的"}:** ${summary.meetingInfo.purpose}`);
+      lines.push("");
+    }
+    
+    // アジェンダ
+    if (summary.agenda && summary.agenda.length > 0) {
+      lines.push(`## ${t("agendaList")}`);
+      summary.agenda.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+      lines.push("");
+    }
+    
+    // 議題別詳細
+    if (summary.topics && summary.topics.length > 0) {
+      lines.push(`## ${t("topicDetails")}`);
+      summary.topics.forEach((topic, i) => {
+        lines.push(`### ${i + 1}. ${topic.title}`);
+        if (topic.background) lines.push(`- **背景:** ${topic.background}`);
+        if (topic.currentStatus) lines.push(`- **現状:** ${topic.currentStatus}`);
+        if (topic.issues) lines.push(`- **課題:** ${topic.issues}`);
+        if (topic.discussion) lines.push(`- **議論:** ${topic.discussion}`);
+        if (topic.nextActions) lines.push(`- **次アクション:** ${topic.nextActions}`);
+        lines.push("");
+      });
+    }
+    
+    // 決定事項
+    if (summary.decisions && summary.decisions.length > 0) {
+      lines.push(`## ${t("decisions")}`);
+      summary.decisions.forEach(d => lines.push(`- ✓ ${d}`));
+      lines.push("");
+    }
+    
+    // アクションアイテム
+    if (summary.actionItems && summary.actionItems.length > 0) {
+      lines.push(`## ${t("todoActionItems")}`);
+      lines.push(`| ${t("todoHeader")} | ${t("assigneeHeader")} | ${t("dueDateHeader")} |`);
+      lines.push("|---|---|---|");
+      summary.actionItems.forEach(item => {
+        const task = item.task || item.description;
+        const assignee = item.assignee || t("undecided");
+        const due = item.dueDate || t("undecided");
+        lines.push(`| ${task} | ${assignee} | ${due} |`);
+      });
+      lines.push("");
+    }
+    
+    // 重要メモ
+    if (summary.importantNotes && summary.importantNotes.length > 0) {
+      lines.push(`## ${t("importantNotes")}`);
+      summary.importantNotes.forEach(n => lines.push(`- 📌 ${n}`));
+      lines.push("");
+    }
+    
+    // 旧形式のoverview/keyPoints
+    if (!summary.meetingInfo && summary.overview) {
+      lines.push(`## ${t("overview")}`);
+      lines.push(summary.overview);
+      lines.push("");
+    }
+    if (!summary.agenda && summary.keyPoints && summary.keyPoints.length > 0) {
+      lines.push(`## ${t("keyPoints")}`);
+      summary.keyPoints.forEach((p, i) => lines.push(`${i + 1}. ${p}`));
+      lines.push("");
+    }
+    
+    await handleCopy(lines.join("\n"), "summary");
+  }, [summary, t, handleCopy]);
 
   // デフォルトタイトルを生成
   const generateDefaultTitle = useCallback(() => {
@@ -921,22 +1001,39 @@ export default function HomePage() {
           <Card className="flex min-h-0 flex-1 flex-col">
             <CardHeader className="flex flex-none flex-row items-center justify-between py-3">
               <CardTitle className="text-base">{t("minutesTitle")}</CardTitle>
-              {transcript && !showRecordingUI && !summary && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleGenerateSummary()}
-                  disabled={isGeneratingSummary}
-                  className="gap-1.5 h-7 text-xs"
-                >
-                  {isGeneratingSummary ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
-                  )}
-                  {isGeneratingSummary ? t("generating") : t("generateWithAI")}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {summary && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopySummary}
+                    className="gap-1.5 h-7 text-xs"
+                  >
+                    {copied === "summary" ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {copied === "summary" ? t("summaryCopied") : t("copySummary")}
+                  </Button>
+                )}
+                {transcript && !showRecordingUI && !summary && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleGenerateSummary()}
+                    disabled={isGeneratingSummary}
+                    className="gap-1.5 h-7 text-xs"
+                  >
+                    {isGeneratingSummary ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {isGeneratingSummary ? t("generating") : t("generateWithAI")}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
               {/* テンプレート選択 & 出力言語 */}
@@ -1018,7 +1115,7 @@ export default function HomePage() {
                   {/* 1. 会議情報 */}
                   {summary.meetingInfo && (
                     <div className="rounded-md bg-gray-50 p-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">1. 会議情報</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("meetingInfo")}</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{summary.meetingInfo.title}</span></div>
                         <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{summary.meetingInfo.datetime}</span></div>
@@ -1031,7 +1128,7 @@ export default function HomePage() {
                   {/* 2. アジェンダ一覧 */}
                   {summary.agenda && summary.agenda.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">2. アジェンダ一覧</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("agendaList")}</h3>
                       <ul className="space-y-1">
                         {summary.agenda.map((item, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm text-gray-800">
@@ -1046,7 +1143,7 @@ export default function HomePage() {
                   {/* 3. 議題別の詳細 */}
                   {summary.topics && summary.topics.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">3. 議題別の詳細</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("topicDetails")}</h3>
                       <div className="space-y-4">
                         {summary.topics.map((topic, index) => (
                           <div key={index} className="rounded-md border border-gray-200 p-4">
@@ -1080,7 +1177,7 @@ export default function HomePage() {
                   {/* 4. 決定事項 */}
                   {summary.decisions && summary.decisions.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">4. 決定事項</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("decisions")}</h3>
                       <ul className="space-y-2">
                         {summary.decisions.map((decision, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-gray-800 text-sm">
@@ -1095,24 +1192,24 @@ export default function HomePage() {
                   {/* 5. ToDo / アクションアイテム */}
                   {summary.actionItems && summary.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">5. ToDo / アクションアイテム</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("todoActionItems")}</h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">ToDo</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">担当</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">期限</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">関連背景</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("todoHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">{t("assigneeHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">{t("dueDateHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("contextHeader")}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {summary.actionItems.map((item) => (
                               <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="border border-gray-200 px-3 py-2 text-gray-800">{item.task || item.description}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || "未定"}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || "未定"}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || "-"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || t("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || t("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || t("noData")}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1124,7 +1221,7 @@ export default function HomePage() {
                   {/* 6. 重要メモ */}
                   {summary.importantNotes && summary.importantNotes.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">6. 重要メモ</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("importantNotes")}</h3>
                       <ul className="space-y-2">
                         {summary.importantNotes.map((note, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
