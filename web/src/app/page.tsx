@@ -71,6 +71,11 @@ export default function HomePage() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [recordingTitle, setRecordingTitle] = useState("");
   
+  // Regenerate dialog state
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("summary");
+  const [regenerateLanguage, setRegenerateLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
+  
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
   const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -327,10 +332,13 @@ export default function HomePage() {
     dispatch({ type: "RESUME_SUCCESS" });
   };
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateSummary = async (overrideTemplateId?: TemplateId, overrideLanguage?: string) => {
     if (!transcript) return;
     // 認証ゲート: 未ログインならモーダル表示でブロック
     if (!requireAuth(t("generateMinutes"))) return;
+
+    const templateToUse = overrideTemplateId || selectedTemplateId;
+    const languageToUse = overrideLanguage || summaryLanguage;
 
     setIsGeneratingSummary(true);
     setSummaryError(null);
@@ -342,10 +350,10 @@ export default function HomePage() {
 
     const response = await summaryApi.generateSummary({
       transcript: transcriptForSummary,
-      language: summaryLanguage,
-      templateId: selectedTemplateId,
-      ...(selectedTemplateId.startsWith("custom-")
-        ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
+      language: languageToUse,
+      templateId: templateToUse,
+      ...(templateToUse.startsWith("custom-")
+        ? { customPrompt: getTemplateById(templateToUse)?.systemPrompt }
         : {}),
     });
 
@@ -356,6 +364,22 @@ export default function HomePage() {
     } else if (response.data) {
       setSummary(response.data);
     }
+  };
+
+  // 再生成ダイアログを開く
+  const handleOpenRegenerateDialog = () => {
+    setRegenerateTemplateId(selectedTemplateId);
+    setRegenerateLanguage(summaryLanguage);
+    setIsRegenerateDialogOpen(true);
+  };
+
+  // 再生成を実行
+  const handleRegenerate = async () => {
+    setIsRegenerateDialogOpen(false);
+    // 選択したテンプレートと言語をメイン設定にも反映
+    setSelectedTemplateId(regenerateTemplateId);
+    setSummaryLanguage(regenerateLanguage);
+    await handleGenerateSummary(regenerateTemplateId, regenerateLanguage);
   };
 
   // 話者ラベル付きテキストを生成
@@ -901,7 +925,7 @@ export default function HomePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleGenerateSummary}
+                  onClick={() => handleGenerateSummary()}
                   disabled={isGeneratingSummary}
                   className="gap-1.5 h-7 text-xs"
                 >
@@ -1140,7 +1164,7 @@ export default function HomePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleGenerateSummary}
+                      onClick={handleOpenRegenerateDialog}
                       disabled={isGeneratingSummary}
                       className="gap-2"
                     >
@@ -1202,6 +1226,83 @@ export default function HomePage() {
             >
               {isSaving ? <Spinner size="sm" /> : <Save className="h-4 w-4 mr-1" />}
               {t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 再生成ダイアログ */}
+      <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("regenerateDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("regenerateDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* 出力言語選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                {t("summaryLanguageLabel")}
+              </label>
+              <Select value={regenerateLanguage} onValueChange={setRegenerateLanguage}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* テンプレート選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                {t("templateLabel")}
+              </label>
+              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                {allTemplates.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => setRegenerateTemplateId(tmpl.id)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors",
+                      regenerateTemplateId === tmpl.id
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    )}
+                  >
+                    {tmpl.icon === "FileText" && <FileText className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "ClipboardList" && <FileText className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "CalendarCheck" && <CalendarCheck className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "Users" && <Users className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "Handshake" && <Handshake className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "Code" && <Code className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "Lightbulb" && <Lightbulb className="h-4 w-4 shrink-0" />}
+                    {tmpl.icon === "PenSquare" && <PenSquare className="h-4 w-4 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">
+                        {tmpl.isPreset ? t(`template_${tmpl.nameKey}`) : tmpl.nameKey}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {tmpl.isPreset ? t(`template_${tmpl.descriptionKey}`) : tmpl.descriptionKey}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
+              {t("cancel")}
+            </Button>
+            <Button onClick={handleRegenerate} disabled={isGeneratingSummary}>
+              {isGeneratingSummary ? <Spinner size="sm" /> : <Sparkles className="h-4 w-4 mr-1" />}
+              {t("regenerateButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
