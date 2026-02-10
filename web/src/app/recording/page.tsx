@@ -23,6 +23,7 @@ import {
   Handshake,
   Code,
   Lightbulb,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Recording, TemplateId } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
+import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
 import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
@@ -79,6 +81,7 @@ function RecordingDetailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get("id");
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,6 +137,12 @@ function RecordingDetailContent() {
   }), []);
 
   useEffect(() => {
+    // 認証チェック中または未認証の場合はデータ取得しない（Issue #57 セキュリティ修正）
+    if (authLoading || !isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       if (!id) {
         setError("録音IDが指定されていません");
@@ -167,7 +176,7 @@ function RecordingDetailContent() {
       setIsLoading(false);
     };
     fetchData();
-  }, [id]);
+  }, [id, isAuthenticated, authLoading]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -277,6 +286,44 @@ function RecordingDetailContent() {
       }
     }
   };
+
+  // 認証ローディング中
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // 未認証時のログイン誘導UI（Issue #57 セキュリティ修正）
+  if (!isAuthenticated) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex min-h-[400px] flex-col items-center justify-center space-y-6">
+          <div className="rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
+            <LogIn className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              ログインが必要です
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              録音の詳細を表示するにはログインしてください。
+            </p>
+          </div>
+          <Button
+            onClick={login}
+            size="lg"
+            className="mt-4"
+          >
+            <LogIn className="mr-2 h-5 w-5" />
+            ログイン
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

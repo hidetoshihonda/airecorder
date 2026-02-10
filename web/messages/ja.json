@@ -129,7 +129,10 @@
     "audioLoadFailed": "音声ファイルを読み込めませんでした",
     "audioFetchError": "音声ファイルの取得中にエラーが発生しました",
     "downloadFailed": "音声ファイルをダウンロードできませんでした",
-    "downloadError": "ダウンロード中にエラーが発生しました"
+    "downloadError": "ダウンロード中にエラーが発生しました",
+    "loginRequired": "ログインが必要です",
+    "loginRequiredDescription": "録音履歴を表示するにはログインしてください。",
+    "loginButton": "ログイン"
   },
   "SettingsPage": {
     "title": "設定",

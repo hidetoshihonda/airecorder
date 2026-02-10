@@ -129,7 +129,10 @@
     "audioLoadFailed": "Failed to load audio file",
     "audioFetchError": "Error fetching audio file",
     "downloadFailed": "Failed to download audio file",
-    "downloadError": "Error during download"
+    "downloadError": "Error during download",
+    "loginRequired": "Login Required",
+    "loginRequiredDescription": "Please log in to view your recording history.",
+    "loginButton": "Log In"
   },
   "SettingsPage": {
     "title": "Settings",

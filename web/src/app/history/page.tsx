@@ -11,6 +11,7 @@ import {
   Clock,
   RefreshCw,
   AlertCircle,
+  LogIn,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Recording } from "@/types";
 import { recordingsApi, blobApi } from "@/services";
 
@@ -53,6 +55,7 @@ export default function HistoryPage() {
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const t = useTranslations("HistoryPage");
   const { locale: appLocale } = useAppLocale();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
 
   // BUG-1 fix: SAS 付き URL を取得してから再生・DL する
   const handlePlay = async (recording: Recording) => {
@@ -101,6 +104,12 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
+    // 認証チェック中または未認証の場合はデータ取得しない（Issue #57 セキュリティ修正）
+    if (authLoading || !isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
@@ -127,9 +136,14 @@ export default function HistoryPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [searchQuery]);
+  }, [searchQuery, isAuthenticated, authLoading]);
 
   const fetchRecordings = useCallback(async () => {
+    // 未認証の場合は取得しない（Issue #57 セキュリティ修正）
+    if (!isAuthenticated) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -153,7 +167,7 @@ export default function HistoryPage() {
     }
 
     setIsLoading(false);
-  }, [searchQuery]);
+  }, [searchQuery, isAuthenticated]);
 
   const handleDelete = async (id: string) => {
     if (!confirm(t("deleteConfirm"))) {
@@ -176,6 +190,46 @@ export default function HistoryPage() {
     e.preventDefault();
     fetchRecordings();
   };
+
+  // 認証ローディング中
+  if (authLoading) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  // 未認証時のログイン誘導UI
+  if (!isAuthenticated) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex min-h-[400px] flex-col items-center justify-center space-y-6">
+          <div className="rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
+            <LogIn className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t("loginRequired")}
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              {t("loginRequiredDescription")}
+            </p>
+          </div>
+          <Button
+            onClick={login}
+            size="lg"
+            className="mt-4"
+          >
+            <LogIn className="mr-2 h-5 w-5" />
+            {t("loginButton")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

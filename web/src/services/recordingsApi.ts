@@ -12,9 +12,6 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://func-airecorder-dev.azurewebsites.net/api";
 
-// Temporary user ID for development (will be replaced with auth)
-const TEMP_USER_ID = "temp-user-001";
-
 export interface CreateRecordingInput {
   title: string;
   sourceLanguage: string;
@@ -35,15 +32,36 @@ export interface UpdateRecordingInput {
 
 class RecordingsApiService {
   private baseUrl: string;
-  private userId: string;
+  private userId: string | null = null;
 
   constructor() {
     this.baseUrl = API_BASE_URL;
-    this.userId = TEMP_USER_ID;
   }
 
-  setUserId(userId: string) {
+  setUserId(userId: string | null) {
     this.userId = userId;
+  }
+
+  getUserId(): string | null {
+    return this.userId;
+  }
+
+  /**
+   * 認証済みかどうかを確認
+   * @returns userId が設定されている場合 true
+   */
+  isAuthenticated(): boolean {
+    return this.userId !== null && this.userId.length > 0;
+  }
+
+  /**
+   * 認証が必要な操作の前にuserIdを確認し、未設定ならエラーを返す
+   */
+  private requireAuth<T>(): ApiResponse<T> | null {
+    if (!this.isAuthenticated()) {
+      return { error: "認証が必要です。ログインしてください。" };
+    }
+    return null;
   }
 
   private async request<T>(
@@ -96,8 +114,11 @@ class RecordingsApiService {
     limit: number = 20,
     search?: string
   ): Promise<ApiResponse<PaginatedResponse<Recording>>> {
+    const authError = this.requireAuth<PaginatedResponse<Recording>>();
+    if (authError) return authError;
+
     const params = new URLSearchParams({
-      userId: this.userId,
+      userId: this.userId!,
       page: page.toString(),
       limit: limit.toString(),
     });
@@ -112,17 +133,23 @@ class RecordingsApiService {
   }
 
   async getRecording(id: string): Promise<ApiResponse<Recording>> {
-    const params = new URLSearchParams({ userId: this.userId });
+    const authError = this.requireAuth<Recording>();
+    if (authError) return authError;
+
+    const params = new URLSearchParams({ userId: this.userId! });
     return this.request<Recording>(`/recordings/${id}?${params.toString()}`);
   }
 
   async createRecording(
     input: CreateRecordingInput
   ): Promise<ApiResponse<Recording>> {
+    const authError = this.requireAuth<Recording>();
+    if (authError) return authError;
+
     return this.request<Recording>("/recordings", {
       method: "POST",
       body: JSON.stringify({
-        userId: this.userId,
+        userId: this.userId!,
         ...input,
       }),
     });
@@ -132,17 +159,23 @@ class RecordingsApiService {
     id: string,
     input: UpdateRecordingInput
   ): Promise<ApiResponse<Recording>> {
+    const authError = this.requireAuth<Recording>();
+    if (authError) return authError;
+
     return this.request<Recording>(`/recordings/${id}`, {
       method: "PUT",
       body: JSON.stringify({
-        userId: this.userId,
+        userId: this.userId!,
         ...input,
       }),
     });
   }
 
   async deleteRecording(id: string): Promise<ApiResponse<void>> {
-    const params = new URLSearchParams({ userId: this.userId });
+    const authError = this.requireAuth<void>();
+    if (authError) return authError;
+
+    const params = new URLSearchParams({ userId: this.userId! });
     return this.request<void>(`/recordings/${id}?${params.toString()}`, {
       method: "DELETE",
     });

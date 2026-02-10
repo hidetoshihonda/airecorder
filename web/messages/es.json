@@ -129,7 +129,10 @@
     "audioLoadFailed": "No se pudo cargar el archivo de audio",
     "audioFetchError": "Error al obtener el archivo de audio",
     "downloadFailed": "No se pudo descargar el archivo de audio",
-    "downloadError": "Error durante la descarga"
+    "downloadError": "Error durante la descarga",
+    "loginRequired": "Se requiere inicio de sesión",
+    "loginRequiredDescription": "Inicie sesión para ver su historial de grabaciones.",
+    "loginButton": "Iniciar sesión"
   },
   "SettingsPage": {
     "title": "Ajustes",
