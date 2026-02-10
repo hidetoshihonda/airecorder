@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Create Lint Fix Branch",
+			"type": "shell",
+			"command": "git checkout -b fix/lint-console-log; git cherry-pick 42668bd; git push origin fix/lint-console-log",
+			"group": "build"
+		},
+		{
+			"label": "Commit and Push Lint Fix",
+			"type": "shell",
+			"command": "git add -A; git commit -m 'fix: remove all console.log statements to fix lint errors'; git push origin fix/lint-console-log",
+			"group": "build"
+		}
+	]
+}
