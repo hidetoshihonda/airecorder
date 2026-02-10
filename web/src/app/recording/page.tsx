@@ -132,15 +132,27 @@ function RecordingDetailContent() {
 
   // Template name mapping for display (プリセットテンプレートの日本語表示)
   const TEMPLATE_NAMES: Record<string, string> = useMemo(() => ({
+    summary: "要約",
+    meeting: "会議",
+    oneOnOne: "1on1",
+    sales: "商談・営業",
+    devSprint: "開発MTG",
+    brainstorm: "ブレスト",
+    // 後方互換性のため古いキーも残す
     general: "一般",
     regular: "定例会議",
     "one-on-one": "1on1",
-    sales: "商談・営業",
     technical: "技術レビュー",
-    brainstorm: "ブレスト",
   }), []);
 
   const TEMPLATE_DESCRIPTIONS: Record<string, string> = useMemo(() => ({
+    summaryDesc: "シンプルな要約",
+    meetingDesc: "詳細な議事録",
+    oneOnOneDesc: "1on1ミーティング向け",
+    salesDesc: "商談・営業会議向け",
+    devSprintDesc: "スプリントレビュー向け",
+    brainstormDesc: "アイデア出し・ブレスト向け",
+    // 後方互換性のため古いキーも残す
     general: "汎用的な議事録",
     regular: "進捗確認・定例",
     "one-on-one": "個人面談・1on1",
