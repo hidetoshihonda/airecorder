@@ -412,12 +412,10 @@ export default function HomePage() {
       // Upload audio file to Blob Storage if available
       let audioUrl: string | undefined;
       if (audioBlob) {
-        console.log("[Save] Uploading audio blob...");
         // DESIGN-4 fix: MIME タイプに応じた拡張子を使用
         const ext = audioBlob.type.includes('mp4') ? '.m4a' : audioBlob.type.includes('wav') ? '.wav' : '.webm';
         const fileName = `recording-${now.getTime()}${ext}`;
         const uploadResponse = await blobApi.uploadAudio(audioBlob, fileName);
-        console.log("[Save] Upload response:", uploadResponse);
         if (uploadResponse.success && uploadResponse.data) {
           audioUrl = uploadResponse.data.blobUrl;
         } else {
@@ -432,7 +430,6 @@ export default function HomePage() {
         }
       }
 
-      console.log("[Save] Creating recording...", { title, sourceLanguage, duration, audioUrl });
       const response = await recordingsApi.createRecording({
         title,
         sourceLanguage,
@@ -461,8 +458,6 @@ export default function HomePage() {
           },
         } : undefined,
       });
-
-      console.log("[Save] Create recording response:", response);
 
       setIsSaving(false);
 
