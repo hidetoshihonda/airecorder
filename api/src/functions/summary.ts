@@ -14,15 +14,44 @@ interface SummaryRequest {
 }
 
 interface SummaryResponse {
-  overview: string;
-  keyPoints: string[];
+  // 注意書き（センシティブ情報がある場合）
+  caution?: string;
+  // 1. 会議情報
+  meetingInfo: {
+    title: string;
+    participants: string[];
+    datetime: string;
+    purpose: string;
+  };
+  // 2. アジェンダ一覧
+  agenda: string[];
+  // 3. 議題別の詳細
+  topics: Array<{
+    title: string;
+    background: string;
+    currentStatus: string;
+    issues: string;
+    discussion: string;
+    examples: string;
+    nextActions: string;
+  }>;
+  // 4. 決定事項
+  decisions: string[];
+  // 5. ToDo / アクションアイテム
   actionItems: Array<{
     id: string;
-    description: string;
-    assignee?: string;
-    dueDate?: string;
+    task: string;
+    assignee: string;
+    dueDate: string;
+    context: string;
   }>;
+  // 6. 重要メモ
+  importantNotes: string[];
+  // メタ情報
   generatedAt: string;
+  // 後方互換性のため残す
+  overview?: string;
+  keyPoints?: string[];
 }
 
 // Helper function to create JSON response
@@ -42,142 +71,153 @@ function jsonResponse<T>(
   };
 }
 
-// ─── JSON出力フォーマット（改善版 Issue #42）───
+// ─── JSON出力フォーマット（詳細版 Issue #42 v2）───
 const JSON_FORMAT = `出力は必ず以下のJSON形式で返してください：
 {
-  "overview": "会議の詳細な概要（300-500字）。以下を必ず含める：
-    ・会議の目的と背景
-    ・参加者の役割（推測可能な場合）
-    ・議論された主な議題の一覧
-    ・最終的な結論・決定事項の要約",
-  "keyPoints": [
-    "【議題1: タイトル】背景: ... / 議論: ... / 結論: ...",
-    "【議題2: タイトル】背景: ... / 議論: ... / 結論: ...",
-    "【決定事項】...",
-    "【懸念・リスク】...",
-    "【持ち越し事項】..."
+  "caution": "【注意書き】センシティブな情報（顧客名、人事評価、内部メモ等）が含まれる場合のみ記載。なければnull",
+  
+  "meetingInfo": {
+    "title": "会議名（不明なら「チーム定例（仮）」等）",
+    "participants": ["参加者1", "参加者2"],
+    "datetime": "実施日時（不明なら「不明」）",
+    "purpose": "会議の目的・背景を1-2文で"
+  },
+  
+  "agenda": [
+    "議題1のタイトル",
+    "議題2のタイトル",
+    "議題3のタイトル"
   ],
+  
+  "topics": [
+    {
+      "title": "議題のタイトル",
+      "background": "背景・前提（なぜこの議題が上がったか）",
+      "currentStatus": "現状共有（事実ベースで）",
+      "issues": "課題/懸念（温度感も含める。例：「〇〇さんは強く懸念を示した」）",
+      "discussion": "議論の要点（論点→結論/未決の順）",
+      "examples": "具体例・発言で出たケース",
+      "nextActions": "次アクション候補（決定していなくても候補として明記）"
+    }
+  ],
+  
+  "decisions": [
+    "決定事項1（決まったことだけ、箇条書き）",
+    "決定事項2"
+  ],
+  
   "actionItems": [
     {
       "id": "1",
-      "description": "【カテゴリ】具体的なタスク内容（誰が何をするか明確に）",
-      "assignee": "担当者名",
-      "dueDate": "YYYY-MM-DD"
+      "task": "具体的なToDoの内容",
+      "assignee": "担当者名（不明なら「未定」）",
+      "dueDate": "期限（YYYY-MM-DD または「未定」「次回定例まで」等）",
+      "context": "関連背景・なぜこのタスクが必要か"
     }
+  ],
+  
+  "importantNotes": [
+    "運用上の注意事項",
+    "共有すべきリスク",
+    "ナレッジ化ポイント",
+    "今後の再発防止策"
   ]
 }
 
-構造化の指示：
-1. keyPointsは議題ごとに「背景→議論→結論」の3段階で整理
-2. 【決定事項】【懸念・リスク】【持ち越し事項】は個別のkeyPointとして追加
-3. 話者の発言は「〇〇さんは〜と述べた」形式で記録
-4. actionItemsは以下のカテゴリで分類:
-   - 【フォローアップ】確認・調査タスク
-   - 【作成・準備】資料作成・準備タスク
-   - 【連絡・調整】コミュニケーションタスク
-   - 【実施】実行タスク
-5. 担当者や期限が不明な場合はnull
-6. 必ず有効なJSONで出力`;
+【書き方のルール】
+1. 文字起こしの内容に忠実に。推測で事実を増やさない（不明点は「不明」「推定」など明記）
+2. 読みやすさのために話題を整理して再構成してよい（会話順のままにしなくて良い）
+3. 重要なニュアンス（懸念・温度感・言い回しの意図）は落とさない
+4. 固有名詞（人名/顧客名/チーム名/ツール名）や数値（件数/評価/日付/週数）を漏らさず拾う
+5. 誰の発言かわかるものは「（〇〇さん）」のように補足
+6. 長い会話は「要旨→詳細」の順に圧縮
+7. 誤字っぽい箇所は意味が通る範囲で自然な日本語に整える
+8. 数字は可能な限り原文に忠実に
+9. 必ず有効なJSONで出力`;
 
-// ─── プリセットテンプレートのシステムプロンプト（改善版 Issue #42）───
+// ─── プリセットテンプレートのシステムプロンプト（詳細版 Issue #42 v2）───
 const TEMPLATE_PROMPTS: Record<string, string> = {
-  general: `あなたは会議の議事録を作成する専門家です。
-与えられた文字起こしテキストから、会議に参加していなかった人でも内容を理解できる詳細な議事録を作成してください。
+  general: `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、社内共有に耐える"かなり詳細な議事録"を作成してください。
 
 ${JSON_FORMAT}
 
-一般会議の議事録作成指示：
-- 複数の議題がある場合は、それぞれ独立したkeyPointとして記述
-- 発言者が特定できる場合は「〇〇さん」と明記
-- 議論の経緯（問題提起→意見交換→結論）を追える構成に
-- 数値やデータが言及された場合は必ず含める
-- 未解決の課題や今後の検討事項も漏れなく記録`,
+【一般会議の追加指示】
+- 複数の議題がある場合は、3〜8項目程度のagendaにまとめる
+- 各topicは必ず6項目（background〜nextActions）すべて埋める（該当なしなら「特になし」）
+- 発言者が特定できる場合は「（〇〇さん）」と明記
+- 議論の経緯（問題提起→意見交換→結論）を追える構成に`,
 
-  regular: `あなたは定例会議の議事録を作成する専門家です。
-与えられた文字起こしテキストから、チームメンバーが進捗を追跡できる詳細な議事録を作成してください。
+  regular: `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、定例会議の詳細な議事録を作成してください。
 
 ${JSON_FORMAT}
 
-定例会議に特化した指示：
-- overviewに「前回からの主な進捗」「今回の主要議題」「次回までの重点事項」を含める
-- keyPointsは以下の構造で整理:
-  【進捗報告】担当者: 報告内容 / 状況: 順調or遅延orブロック
-  【課題共有】課題内容 / 影響範囲 / 対応方針
-  【決定事項】決定内容 / 理由
-  【持ち越し】内容 / 次回確認予定
+【定例会議の追加指示】
+- meetingInfo.titleは「〇〇チーム定例」「週次MTG」など具体的に
+- agendaに「前回からの進捗確認」「今週の課題共有」「次週の予定」を含める
+- topicsの各項目で、前回定例からの変化を意識して記述
 - actionItemsは「次回定例まで」「今週中」「今月中」等の時間軸で整理
-- KPIや数値目標への言及があれば必ず記録`,
+- importantNotesにKPIや数値目標への言及があれば必ず記録`,
 
-  "one-on-one": `あなたは1on1ミーティングの議事録を作成する専門家です。
-与えられた文字起こしテキストから、両者の合意事項と成長支援に役立つ議事録を作成してください。
-
-${JSON_FORMAT}
-
-1on1に特化した指示：
-- overviewに「今回のメインテーマ」「全体的な雰囲気・状態」「主な合意事項」を含める
-- keyPointsは以下のカテゴリで整理:
-  【業務相談】課題内容 / アドバイス / 合意した対応
-  【キャリア】話題 / 本人の考え / フィードバック
-  【モチベーション】状態 / 背景 / サポート内容
-  【FB（フィードバック）】具体的なフィードバック内容
-  【称賛】良かった点の具体例
-- 感情面の話題も「〇〇について不安を感じている」等、適切に要約
-- プライバシーに配慮し、センシティブな固有名詞は一般化
-- actionItemsは上司/部下の両方のコミットメントを明記`,
-
-  sales: `あなたは商談・営業会議の議事録を作成する専門家です。
-与えられた文字起こしテキストから、商談の進捗管理とネクストアクションが明確な議事録を作成してください。
+  "one-on-one": `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、1on1ミーティングの詳細な議事録を作成してください。
 
 ${JSON_FORMAT}
 
-商談に特化した指示：
-- overviewに「顧客名・案件名」「商談フェーズ」「顧客の温度感」「主な結論」を含める
-- keyPointsは以下の構造で整理:
-  【ニーズ・課題】顧客が抱える課題、要望
-  【提案内容】自社からの提案、デモ内容
-  【顧客反応】ポジティブ/ネガティブな反応、質問
-  【競合情報】言及された競合、比較ポイント
-  【価格・条件】価格交渉、条件面の議論
-  【懸念・障壁】導入の障壁、社内調整の課題
-  【決定事項】合意した内容
-- actionItemsは「【提案】」「【見積】」「【フォロー】」「【社内調整】」で分類
-- 次回アポイントの日時が決まっていれば必ず記録`,
+【1on1の追加指示】
+- cautionに「1on1の内容。共有範囲に注意」を記載
+- topicsのissuesには感情面（モチベーション、不安、悩み）も含める
+- 上司からのフィードバック内容は具体的に記録
+- キャリアや成長に関する話題は独立したtopicとして記載
+- actionItemsは上司/部下の両方のコミットメントを明記
+- プライバシーに配慮し、第三者の評価は一般化`,
 
-  "dev-sprint": `あなたは開発チームのミーティング議事録を作成する専門家です。
-与えられた文字起こしテキストから、スプリントの状況とブロッカーが明確な議事録を作成してください。
+  sales: `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、商談・営業会議の詳細な議事録を作成してください。
 
 ${JSON_FORMAT}
 
-開発MTGに特化した指示：
-- overviewに「スプリント番号/期間」「完了予定のゴール」「現在のステータス」「主要なブロッカー」を含める
-- keyPointsは以下の構造で整理:
-  【完了】タスク名(チケット番号) / 担当者 / 成果
-  【進行中】タスク名 / 進捗% / 残作業
-  【ブロッカー】内容 / 影響 / 対応策
-  【技術議論】議題 / 検討した選択肢 / 決定
-  【バグ報告】内容 / 優先度 / 担当
-  【設計判断】決定内容 / 理由 / トレードオフ
+【商談の追加指示】
+- cautionに顧客名など社外秘情報が含まれる旨を記載
+- meetingInfo.purposeに商談フェーズ（初回訪問/提案/クロージング等）を含める
+- topicsに以下を必ず含める：
+  - 顧客のニーズ・課題
+  - 提案内容と顧客反応
+  - 競合情報（言及があれば）
+  - 価格・条件の議論
+  - 導入の障壁
+- actionItemsは「見積作成」「提案書修正」「社内調整」「フォローアップ連絡」で分類
+- importantNotesに次回アポイント日時、顧客の温度感を記録`,
+
+  "dev-sprint": `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、開発ミーティング/スプリントレビューの詳細な議事録を作成してください。
+
+${JSON_FORMAT}
+
+【開発MTGの追加指示】
+- meetingInfo.titleに「Sprint XX レビュー」「デイリースクラム」等を含める
+- topicsは以下のカテゴリで整理：
+  - 完了タスク（チケット番号があれば含める）
+  - 進行中タスク（進捗%、残作業）
+  - ブロッカー（影響、対応策）
+  - 技術的議論（選択肢、決定、トレードオフ）
+  - バグ報告（優先度）
 - 技術用語、API名、ライブラリ名はそのまま残す
-- actionItemsにはチケット番号があれば含める
-- 依存関係やマイルストーンへの影響を明記`,
+- importantNotesに技術的負債、マイルストーン影響を記録`,
 
-  brainstorm: `あなたはブレインストーミングセッションの議事録を作成する専門家です。
-与えられた文字起こしテキストから、アイデアの全体像と今後の方向性がわかる議事録を作成してください。
+  brainstorm: `あなたは社内向け議事録作成のプロ編集者です。
+与えられた文字起こしから、ブレインストーミングセッションの詳細な議事録を作成してください。
 
 ${JSON_FORMAT}
 
-ブレストに特化した指示：
-- overviewに「ブレストのテーマ」「到達した方向性」「特に有望なアイデア」を含める
-- keyPointsは以下の構造で整理:
-  【アイデア: カテゴリA】
-    - アイデア1: 概要 / 発案者 / 評価コメント
-    - アイデア2: 概要 / 発案者 / 評価コメント
-  【アイデア: カテゴリB】...
-  【却下されたアイデア】内容 / 却下理由
-  【深堀りが必要】内容 / 検証ポイント
-  【融合アイデア】複数アイデアの組み合わせ
-- アイデアの実現可能性（高/中/低）を可能な範囲で評価
-- actionItemsは「【検証】」「【リサーチ】」「【プロトタイプ】」「【関係者確認】」で分類`,
+【ブレストの追加指示】
+- meetingInfo.purposeに「〇〇についてのアイデア出し」と明記
+- topicsはアイデアのカテゴリごとに分ける
+- 各topicのexamplesに出たアイデアをすべて列挙（却下されたものも含む）
+- decisionsには「有望なアイデアTOP3」「検証するアイデア」を記載
+- actionItemsは「検証」「リサーチ」「プロトタイプ作成」「関係者確認」で分類
+- importantNotesにアイデア評価の基準、融合アイデアを記録`,
 };
 
 /** テンプレート ID またはカスタムプロンプトからシステムプロンプトを解決 */
@@ -253,7 +293,7 @@ app.http("generateSummary", {
           },
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_tokens: 4000,
         response_format: { type: "json_object" },
       });
 
@@ -267,18 +307,56 @@ app.http("generateSummary", {
 
       const parsedSummary = JSON.parse(content);
 
+      // 新フォーマットのレスポンスを構築
       const summary: SummaryResponse = {
-        overview: parsedSummary.overview || "",
-        keyPoints: parsedSummary.keyPoints || [],
+        // 注意書き
+        caution: parsedSummary.caution || undefined,
+        // 1. 会議情報
+        meetingInfo: {
+          title: parsedSummary.meetingInfo?.title || "会議（タイトル不明）",
+          participants: parsedSummary.meetingInfo?.participants || [],
+          datetime: parsedSummary.meetingInfo?.datetime || "不明",
+          purpose: parsedSummary.meetingInfo?.purpose || "",
+        },
+        // 2. アジェンダ一覧
+        agenda: parsedSummary.agenda || [],
+        // 3. 議題別の詳細
+        topics: (parsedSummary.topics || []).map((topic: {
+          title?: string;
+          background?: string;
+          currentStatus?: string;
+          issues?: string;
+          discussion?: string;
+          examples?: string;
+          nextActions?: string;
+        }) => ({
+          title: topic.title || "",
+          background: topic.background || "",
+          currentStatus: topic.currentStatus || "",
+          issues: topic.issues || "",
+          discussion: topic.discussion || "",
+          examples: topic.examples || "",
+          nextActions: topic.nextActions || "",
+        })),
+        // 4. 決定事項
+        decisions: parsedSummary.decisions || [],
+        // 5. ToDo / アクションアイテム
         actionItems: (parsedSummary.actionItems || []).map(
-          (item: { description?: string; assignee?: string; dueDate?: string }, index: number) => ({
+          (item: { task?: string; assignee?: string; dueDate?: string; context?: string }, index: number) => ({
             id: String(index + 1),
-            description: item.description || "",
-            assignee: item.assignee || undefined,
-            dueDate: item.dueDate || undefined,
+            task: item.task || "",
+            assignee: item.assignee || "未定",
+            dueDate: item.dueDate || "未定",
+            context: item.context || "",
           })
         ),
+        // 6. 重要メモ
+        importantNotes: parsedSummary.importantNotes || [],
+        // メタ情報
         generatedAt: new Date().toISOString(),
+        // 後方互換性（旧形式のフィールドも含める）
+        overview: parsedSummary.meetingInfo?.purpose || parsedSummary.overview || "",
+        keyPoints: parsedSummary.agenda || parsedSummary.keyPoints || [],
       };
 
       return jsonResponse<SummaryResponse>({ success: true, data: summary });

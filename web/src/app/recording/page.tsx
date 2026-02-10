@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,6 +16,13 @@ import {
   Sparkles,
   AlertCircle,
   FileDown,
+  PenSquare,
+  X,
+  Users,
+  CalendarCheck,
+  Handshake,
+  Code,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,10 +33,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Recording } from "@/types";
+import { Input } from "@/components/ui/input";
+import { Recording, TemplateId } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
+import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
+import { cn } from "@/lib/utils";
 import {
   downloadAsText,
   downloadAsMarkdown,
@@ -71,6 +88,50 @@ function RecordingDetailContent() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+
+  // Template selection state (Issue #38)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
+  const [summaryLanguage, setSummaryLanguage] = useState("ja-JP");
+
+  // Template list and icons (Issue #38)
+  const allTemplates = useMemo(() => {
+    const customs = loadCustomTemplates().map(customToMeetingTemplate);
+    return [...PRESET_TEMPLATES, ...customs];
+  }, []);
+
+  const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
+    FileText: <FileText className="h-4 w-4" />,
+    CalendarCheck: <CalendarCheck className="h-4 w-4" />,
+    Users: <Users className="h-4 w-4" />,
+    Handshake: <Handshake className="h-4 w-4" />,
+    Code: <Code className="h-4 w-4" />,
+    Lightbulb: <Lightbulb className="h-4 w-4" />,
+    PenSquare: <PenSquare className="h-4 w-4" />,
+  }), []);
+
+  // Template name mapping for display (プリセットテンプレートの日本語表示)
+  const TEMPLATE_NAMES: Record<string, string> = useMemo(() => ({
+    general: "一般",
+    regular: "定例会議",
+    "one-on-one": "1on1",
+    sales: "商談・営業",
+    technical: "技術レビュー",
+    brainstorm: "ブレスト",
+  }), []);
+
+  const TEMPLATE_DESCRIPTIONS: Record<string, string> = useMemo(() => ({
+    general: "汎用的な議事録",
+    regular: "進捗確認・定例",
+    "one-on-one": "個人面談・1on1",
+    sales: "商談・提案",
+    technical: "技術検討・レビュー",
+    brainstorm: "アイデア出し",
+  }), []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,6 +150,8 @@ function RecordingDetailContent() {
         setError(response.error);
       } else if (response.data) {
         setRecording(response.data);
+        // Sync summaryLanguage with recording's source language (Issue #38)
+        setSummaryLanguage(response.data.sourceLanguage);
         
         // Load audio URL if available
         if (response.data.audioUrl) {
@@ -112,6 +175,26 @@ function RecordingDetailContent() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  // 話者ラベル付きテキストを生成
+  const getTranscriptWithSpeakerLabels = () => {
+    if (!recording?.transcript?.segments || recording.transcript.segments.length === 0) {
+      return recording?.transcript?.fullText || "";
+    }
+    
+    // segments に speaker 情報があるか確認
+    const hasSpeakerInfo = recording.transcript.segments.some(seg => seg.speaker);
+    if (!hasSpeakerInfo) {
+      return recording.transcript.fullText;
+    }
+
+    return recording.transcript.segments
+      .map((seg) => {
+        const label = seg.speaker || "不明";
+        return `[${label}] ${seg.text}`;
+      })
+      .join("\n");
+  };
+
   const handleDelete = async () => {
     if (!id || !confirm("この録音を削除しますか？この操作は取り消せません。")) {
       return;
@@ -128,14 +211,56 @@ function RecordingDetailContent() {
     }
   };
 
+  // Title editing handlers
+  const handleTitleEdit = () => {
+    if (recording) {
+      setEditedTitle(recording.title);
+      setIsEditingTitle(true);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    if (!id || !recording) return;
+    
+    const trimmed = editedTitle.trim();
+    if (!trimmed || trimmed === recording.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    setIsUpdatingTitle(true);
+    const response = await recordingsApi.updateRecording(id, { title: trimmed });
+    setIsUpdatingTitle(false);
+    
+    if (response.error) {
+      alert(`タイトル更新に失敗しました: ${response.error}`);
+      return;
+    }
+    
+    if (response.data) {
+      setRecording(response.data);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleCancel = () => {
+    setIsEditingTitle(false);
+    setEditedTitle("");
+  };
+
   const handleGenerateSummary = async () => {
     if (!id || !recording?.transcript?.fullText) return;
 
     setIsGeneratingSummary(true);
 
+    // Issue #38: templateId, customPrompt, languageを送信
     const response = await summaryApi.generateSummary({
       transcript: recording.transcript.fullText,
-      language: recording.sourceLanguage,
+      language: summaryLanguage,
+      templateId: selectedTemplateId,
+      ...(selectedTemplateId.startsWith("custom-")
+        ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
+        : {}),
     });
 
     setIsGeneratingSummary(false);
@@ -231,7 +356,50 @@ function RecordingDetailContent() {
 
       {/* Title & Meta */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
+        {isEditingTitle ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              className="text-xl font-bold max-w-md"
+              maxLength={100}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleTitleSave();
+                if (e.key === "Escape") handleTitleCancel();
+              }}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleSave}
+              disabled={isUpdatingTitle}
+              className="text-green-600 hover:bg-green-50"
+            >
+              {isUpdatingTitle ? <Spinner size="sm" /> : <Check className="h-4 w-4" />}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleCancel}
+              className="text-gray-500 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTitleEdit}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <PenSquare className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
@@ -323,7 +491,7 @@ function RecordingDetailContent() {
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    handleCopy(recording.transcript!.fullText, "transcript")
+                    handleCopy(getTranscriptWithSpeakerLabels(), "transcript")
                   }
                   className="gap-2"
                 >
@@ -338,7 +506,7 @@ function RecordingDetailContent() {
             </CardHeader>
             <CardContent>
               {recording.transcript?.fullText ? (
-                <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
                   {recording.transcript.fullText}
                 </div>
               ) : (
@@ -359,7 +527,7 @@ function RecordingDetailContent() {
             <CardContent>
               {recording.translations &&
               Object.keys(recording.translations).length > 0 ? (
-                <div className="space-y-4">
+                <div className="max-h-[60vh] overflow-y-auto space-y-4">
                   {Object.entries(recording.translations).map(
                     ([langCode, translation]) => {
                       const lang = SUPPORTED_LANGUAGES.find(
@@ -435,7 +603,7 @@ function RecordingDetailContent() {
                   </p>
                 </div>
               ) : recording.summary ? (
-                <div className="space-y-6">
+                <div className="max-h-[60vh] overflow-y-auto space-y-6">
                   {/* 注意書き */}
                   {recording.summary.caution && (
                     <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
@@ -605,6 +773,59 @@ function RecordingDetailContent() {
                 <div className="py-8 text-center text-gray-500">
                   {recording.transcript?.fullText ? (
                     <>
+                      {/* Issue #38: テンプレート選択UI */}
+                      <div className="mb-6 space-y-4 text-left">
+                        {/* 出力言語 */}
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                            出力言語
+                          </label>
+                          <Select value={summaryLanguage} onValueChange={setSummaryLanguage}>
+                            <SelectTrigger className="h-8 w-44 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SUPPORTED_LANGUAGES.map((lang) => (
+                                <SelectItem key={lang.code} value={lang.code}>
+                                  {lang.flag} {lang.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* テンプレート選択グリッド */}
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            テンプレート
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {allTemplates.map((tmpl) => (
+                              <button
+                                key={tmpl.id}
+                                onClick={() => setSelectedTemplateId(tmpl.id)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors",
+                                  selectedTemplateId === tmpl.id
+                                    ? "border-blue-500 bg-blue-50 text-blue-800"
+                                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                                )}
+                              >
+                                {TEMPLATE_ICONS[tmpl.icon] || <FileText className="h-4 w-4" />}
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate text-xs">
+                                    {tmpl.isPreset ? (TEMPLATE_NAMES[tmpl.id] || tmpl.nameKey) : tmpl.nameKey}
+                                  </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {tmpl.isPreset ? (TEMPLATE_DESCRIPTIONS[tmpl.id] || tmpl.descriptionKey) : tmpl.descriptionKey}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
                       <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                       <p>「AIで生成」ボタンをクリックして議事録を作成できます</p>
                     </>

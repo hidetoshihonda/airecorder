@@ -57,10 +57,38 @@ export interface TranslationSegment {
 }
 
 export interface Summary {
-  overview: string;
-  keyPoints: string[];
+  // 注意書き（センシティブ情報がある場合）
+  caution?: string;
+  // 1. 会議情報
+  meetingInfo?: {
+    title: string;
+    participants: string[];
+    datetime: string;
+    purpose: string;
+  };
+  // 2. アジェンダ一覧
+  agenda?: string[];
+  // 3. 議題別の詳細
+  topics?: Array<{
+    title: string;
+    background: string;
+    currentStatus: string;
+    issues: string;
+    discussion: string;
+    examples: string;
+    nextActions: string;
+  }>;
+  // 4. 決定事項
+  decisions?: string[];
+  // 5. ToDo / アクションアイテム（新形式）
   actionItems: ActionItem[];
+  // 6. 重要メモ
+  importantNotes?: string[];
+  // メタ情報
   generatedAt: string;
+  // 後方互換性のため残す（旧形式）
+  overview?: string;
+  keyPoints?: string[];
 }
 
 // Alias for backward compatibility
@@ -68,10 +96,14 @@ export type MeetingMinutes = Summary;
 
 export interface ActionItem {
   id: string;
-  description: string;
+  // 新形式
+  task?: string;
+  context?: string;
+  // 旧形式（後方互換性）
+  description?: string;
   assignee?: string;
   dueDate?: string;
-  completed: boolean;
+  completed?: boolean;
 }
 
 // ─── Meeting Template Types ───

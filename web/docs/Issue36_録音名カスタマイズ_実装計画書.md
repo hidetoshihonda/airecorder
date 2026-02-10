@@ -184,7 +184,106 @@ const handleSave = async (customTitle: string) => {
 | Dialog コンポーネントの import 追加忘れ | Low | 既存の dialog.tsx をそのまま使用 |
 | Enter キーでフォーム送信される可能性 | Low | onKeyDown で明示的にハンドリング |
 
-## 8. 備考
+## 8. 履歴詳細画面でのタイトル編集（追加機能）
 
-- 履歴詳細画面（`recording/page.tsx`）でのタイトル編集は本 Issue のスコープ外（将来の Issue として検討可能）
+Issue の記述に「後で変更できる機能」が含まれているため、履歴詳細画面でもタイトル編集を可能にする。
+
+### 8.1 UI 設計
+```
+[タイトル表示] + [✏️ 編集アイコン]
+       ↓ クリック
+[Input 編集モード] + [✓ 保存] [✕ キャンセル]
+       ↓ 保存 or Enter
+[API 更新] → [タイトル表示に戻る]
+```
+
+### 8.2 変更対象
+| ファイル | 変更内容 |
+|---------|---------|
+| `web/src/app/recording/page.tsx` | インライン編集UI追加 |
+
+### 8.3 実装詳細
+
+#### 新規 state 追加
+```typescript
+const [isEditingTitle, setIsEditingTitle] = useState(false);
+const [editedTitle, setEditedTitle] = useState("");
+const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+```
+
+#### タイトル表示エリアの変更
+```tsx
+{/* Title & Meta */}
+<div className="mb-6">
+  {isEditingTitle ? (
+    <div className="flex items-center gap-2">
+      <Input
+        value={editedTitle}
+        onChange={(e) => setEditedTitle(e.target.value)}
+        className="text-xl font-bold"
+        maxLength={100}
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleTitleSave();
+          if (e.key === "Escape") setIsEditingTitle(false);
+        }}
+      />
+      <Button size="sm" variant="ghost" onClick={handleTitleSave} disabled={isUpdatingTitle}>
+        {isUpdatingTitle ? <Spinner size="sm" /> : <Check className="h-4 w-4" />}
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setIsEditingTitle(false)}>
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <h1 className="text-2xl font-bold text-gray-900">{recording.title}</h1>
+      <Button size="sm" variant="ghost" onClick={handleTitleEdit}>
+        <PenSquare className="h-4 w-4" />
+      </Button>
+    </div>
+  )}
+  {/* 日時・長さなど既存のメタ情報 */}
+</div>
+```
+
+#### ハンドラ関数
+```typescript
+const handleTitleEdit = () => {
+  setEditedTitle(recording.title);
+  setIsEditingTitle(true);
+};
+
+const handleTitleSave = async () => {
+  const trimmed = editedTitle.trim();
+  if (!trimmed || trimmed === recording.title) {
+    setIsEditingTitle(false);
+    return;
+  }
+  
+  setIsUpdatingTitle(true);
+  const response = await recordingsApi.updateRecording(recording.id, { title: trimmed });
+  setIsUpdatingTitle(false);
+  
+  if (response.error) {
+    alert(`タイトル更新に失敗しました: ${response.error}`);
+    return;
+  }
+  
+  // recording state を更新
+  setRecording({ ...recording, title: trimmed });
+  setIsEditingTitle(false);
+};
+```
+
+### 8.4 追加見積もり
+| 作業 | 見積もり |
+|------|---------|
+| recording/page.tsx 編集機能 | 20 分 |
+
+**合計見積もり（全体）**: **1 時間 20 分**
+
+## 9. 備考
+
+- 既存 API (`recordingsApi.updateRecording`) を使用するため、バックエンド変更なし
 - コスト影響: なし（フロントエンドのみの変更）

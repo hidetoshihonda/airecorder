@@ -15,6 +15,15 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/config";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -57,6 +66,10 @@ export default function HomePage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
   const [summaryLanguage, setSummaryLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
   const [isRealtimeTranslation, setIsRealtimeTranslation] = useState(true);
+  
+  // Save dialog state
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [recordingTitle, setRecordingTitle] = useState("");
   
   // Ref to track last translated text to avoid redundant translations
   const lastTranslatedTextRef = useRef<string>("");
@@ -345,24 +358,56 @@ export default function HomePage() {
     }
   };
 
+  // 話者ラベル付きテキストを生成
+  const getTranscriptWithSpeakerLabels = useCallback(() => {
+    if (!enableSpeakerDiarization || labeledSegments.length === 0) {
+      return transcript;
+    }
+    return labeledSegments
+      .map((seg) => {
+        const label = seg.speakerLabel || seg.speaker || t("unknownSpeaker");
+        return `[${label}] ${seg.text}`;
+      })
+      .join("\n");
+  }, [enableSpeakerDiarization, labeledSegments, transcript, t]);
+
   const handleCopy = useCallback(async (text: string, type: "transcript" | "translation") => {
-    await navigator.clipboard.writeText(text);
+    // 文字起こしの場合、話者ラベル付きテキストを使用
+    const textToCopy = type === "transcript" ? getTranscriptWithSpeakerLabels() : text;
+    await navigator.clipboard.writeText(textToCopy);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
-  }, []);
+  }, [getTranscriptWithSpeakerLabels]);
 
-  const handleSave = async () => {
+  // デフォルトタイトルを生成
+  const generateDefaultTitle = useCallback(() => {
+    const now = new Date();
+    const dateLocale = appLocale === "ja" ? "ja-JP" : appLocale === "es" ? "es-ES" : "en-US";
+    return t("recordingTitle", {
+      date: now.toLocaleDateString(dateLocale),
+      time: now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }),
+    });
+  }, [appLocale, t]);
+
+  // 保存ダイアログを開く
+  const openSaveDialog = useCallback(() => {
     if (!transcript) return;
     // 認証ゲート: 未ログインならモーダル表示でブロック
     if (!requireAuth(t("saveRecording"))) return;
+    
+    setRecordingTitle(generateDefaultTitle());
+    setIsSaveDialogOpen(true);
+  }, [transcript, requireAuth, t, generateDefaultTitle]);
 
+  // 実際の保存処理
+  const handleSaveWithTitle = async (customTitle: string) => {
+    setIsSaveDialogOpen(false);
     setIsSaving(true);
     setSaveSuccess(false);
 
     try {
       const now = new Date();
-      const dateLocale = appLocale === "ja" ? "ja-JP" : appLocale === "es" ? "es-ES" : "en-US";
-      const title = t("recordingTitle", { date: now.toLocaleDateString(dateLocale), time: now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }) });
+      const title = customTitle.trim() || generateDefaultTitle();
 
       // Upload audio file to Blob Storage if available
       let audioUrl: string | undefined;
@@ -641,7 +686,7 @@ export default function HomePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSave}
+                    onClick={openSaveDialog}
                     disabled={isSaving}
                     className="gap-1.5 h-7 text-xs"
                   >
@@ -943,51 +988,152 @@ export default function HomePage() {
                 </div>
               ) : summary ? (
                 <div className="space-y-6">
-                  {/* Overview */}
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">{t("overview")}</h3>
-                    <div className="rounded-md bg-gray-50 p-4 text-gray-800">
-                      {summary.overview}
+                  {/* 注意書き */}
+                  {summary.caution && (
+                    <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
+                      <p className="font-medium">⚠️ 注意事項</p>
+                      <p className="text-sm mt-1">{summary.caution}</p>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Key Points */}
-                  {summary.keyPoints && summary.keyPoints.length > 0 && (
+                  {/* 1. 会議情報 */}
+                  {summary.meetingInfo && (
+                    <div className="rounded-md bg-gray-50 p-4">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">1. 会議情報</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{summary.meetingInfo.title}</span></div>
+                        <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{summary.meetingInfo.datetime}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">参加者:</span> <span className="text-gray-800">{summary.meetingInfo.participants.join(", ") || "不明"}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">目的:</span> <span className="text-gray-800">{summary.meetingInfo.purpose}</span></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. アジェンダ一覧 */}
+                  {summary.agenda && summary.agenda.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("keyPoints")}</h3>
-                      <ul className="space-y-2">
-                        {summary.keyPoints.map((point, index) => (
-                          <li
-                            key={index}
-                            className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800"
-                          >
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">2. アジェンダ一覧</h3>
+                      <ul className="space-y-1">
+                        {summary.agenda.map((item, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-gray-800">
                             <span className="text-blue-600 font-medium">{index + 1}.</span>
-                            <span>{point}</span>
+                            <span>{item}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {/* Action Items */}
-                  {summary.actionItems && summary.actionItems.length > 0 && (
+                  {/* 3. 議題別の詳細 */}
+                  {summary.topics && summary.topics.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("actionItems")}</h3>
-                      <ul className="space-y-2">
-                        {summary.actionItems.map((item) => (
-                          <li
-                            key={item.id}
-                            className="rounded-md border border-green-200 bg-green-50 p-3"
-                          >
-                            <p className="text-gray-800">{item.description}</p>
-                            <div className="mt-2 flex gap-4 text-sm text-gray-600">
-                              {item.assignee && (
-                                <span>{t("assignee", { name: item.assignee })}</span>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">3. 議題別の詳細</h3>
+                      <div className="space-y-4">
+                        {summary.topics.map((topic, index) => (
+                          <div key={index} className="rounded-md border border-gray-200 p-4">
+                            <h4 className="font-medium text-gray-800 mb-3">3.{index + 1}. {topic.title}</h4>
+                            <div className="space-y-2 text-sm">
+                              {topic.background && (
+                                <div><span className="text-gray-500 font-medium">背景・前提:</span> <span className="text-gray-700">{topic.background}</span></div>
                               )}
-                              {item.dueDate && (
-                                <span>{t("dueDate", { date: item.dueDate })}</span>
+                              {topic.currentStatus && (
+                                <div><span className="text-gray-500 font-medium">現状共有:</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
+                              )}
+                              {topic.issues && (
+                                <div><span className="text-gray-500 font-medium">課題/懸念:</span> <span className="text-gray-700">{topic.issues}</span></div>
+                              )}
+                              {topic.discussion && (
+                                <div><span className="text-gray-500 font-medium">議論の要点:</span> <span className="text-gray-700">{topic.discussion}</span></div>
+                              )}
+                              {topic.examples && (
+                                <div><span className="text-gray-500 font-medium">具体例:</span> <span className="text-gray-700">{topic.examples}</span></div>
+                              )}
+                              {topic.nextActions && (
+                                <div><span className="text-gray-500 font-medium">次アクション:</span> <span className="text-gray-700">{topic.nextActions}</span></div>
                               )}
                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. 決定事項 */}
+                  {summary.decisions && summary.decisions.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">4. 決定事項</h3>
+                      <ul className="space-y-2">
+                        {summary.decisions.map((decision, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-gray-800 text-sm">
+                            <span className="text-green-600">✓</span>
+                            <span>{decision}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 5. ToDo / アクションアイテム */}
+                  {summary.actionItems && summary.actionItems.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">5. ToDo / アクションアイテム</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">ToDo</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">担当</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">期限</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">関連背景</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {summary.actionItems.map((item) => (
+                              <tr key={item.id} className="hover:bg-gray-50">
+                                <td className="border border-gray-200 px-3 py-2 text-gray-800">{item.task || item.description}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || "未定"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || "未定"}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 6. 重要メモ */}
+                  {summary.importantNotes && summary.importantNotes.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">6. 重要メモ</h3>
+                      <ul className="space-y-2">
+                        {summary.importantNotes.map((note, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
+                            <span className="text-purple-600">📌</span>
+                            <span>{note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 後方互換: 旧形式の overview/keyPoints があれば表示 */}
+                  {!summary.meetingInfo && summary.overview && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("overview")}</h3>
+                      <div className="rounded-md bg-gray-50 p-4 text-gray-800">
+                        {summary.overview}
+                      </div>
+                    </div>
+                  )}
+                  {!summary.agenda && summary.keyPoints && summary.keyPoints.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("keyPoints")}</h3>
+                      <ul className="space-y-2">
+                        {summary.keyPoints.map((point, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800">
+                            <span className="text-blue-600 font-medium">{index + 1}.</span>
+                            <span>{point}</span>
                           </li>
                         ))}
                       </ul>
@@ -1023,6 +1169,48 @@ export default function HomePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 保存タイトル入力ダイアログ */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("saveDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("saveDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                {t("recordingNameLabel")}
+              </label>
+              <Input
+                value={recordingTitle}
+                onChange={(e) => setRecordingTitle(e.target.value)}
+                placeholder={t("recordingNamePlaceholder")}
+                maxLength={100}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveWithTitle(recordingTitle);
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">{t("titleMaxLength")}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={() => handleSaveWithTitle(recordingTitle)}
+              disabled={isSaving}
+            >
+              {isSaving ? <Spinner size="sm" /> : <Save className="h-4 w-4 mr-1" />}
+              {t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 認証ゲートモーダル */}
       <AuthGateModal

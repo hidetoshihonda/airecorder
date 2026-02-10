@@ -100,7 +100,13 @@
     "emptyMinutesDesc": "generar automáticamente el acta desde la transcripción",
     "emptyMinutesRecording": "La IA generará el acta automáticamente después de grabar",
     "stop": "Detener",
-    "readAloud": "Leer en voz alta"
+    "readAloud": "Leer en voz alta",
+    "saveDialogTitle": "Guardar grabación",
+    "saveDialogDescription": "Dale un título a tu grabación",
+    "recordingNameLabel": "Título de la grabación",
+    "recordingNamePlaceholder": "Ej: Reunión semanal 8 de feb",
+    "titleMaxLength": "El título debe tener 100 caracteres o menos",
+    "cancel": "Cancelar"
   },
   "HistoryPage": {
     "title": "Historial de grabaciones",
