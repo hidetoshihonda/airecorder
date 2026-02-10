@@ -1,0 +1,21 @@
+{
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.env.windows": {
+    "GIT_PAGER": "",
+    "AZURE_CORE_PAGER": "",
+    "LESS": "-F -X -R",
+    "GH_PAGER": ""
+  },
+  "terminal.integrated.env.linux": {
+    "GIT_PAGER": "",
+    "AZURE_CORE_PAGER": "",
+    "LESS": "-F -X -R",
+    "GH_PAGER": ""
+  },
+  "terminal.integrated.env.osx": {
+    "GIT_PAGER": "",
+    "AZURE_CORE_PAGER": "",
+    "LESS": "-F -X -R",
+    "GH_PAGER": ""
+  }
+}
