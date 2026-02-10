@@ -37,48 +37,55 @@ const JSON_FORMAT = `出力は必ず以下のJSON形式で返してください�
 5. 担当者や期限が不明な場合はnull
 6. 必ず有効なJSONで出力`;
 
-// ─── プリセットテンプレート（改善版 Issue #42）───
+// ─── プリセットテンプレート（改善版 Issue #42, #62）───
 
 export const PRESET_TEMPLATES: MeetingTemplate[] = [
   {
-    id: "general",
-    nameKey: "general",
-    descriptionKey: "generalDesc",
+    id: "summary",
+    nameKey: "summary",
+    descriptionKey: "summaryDesc",
     icon: "FileText",
     isPreset: true,
+    systemPrompt: `あなたは文字起こしを簡潔に要約する専門家です。
+与えられた文字起こしテキストから、短く分かりやすい要約を作成してください。
+
+出力は必ず以下のJSON形式で返してください：
+{
+  "overview": "内容の要約（100-200字程度）。何について話されたかを簡潔にまとめる",
+  "keyPoints": [
+    "重要なポイント1",
+    "重要なポイント2",
+    "重要なポイント3"
+  ],
+  "actionItems": []
+}
+
+要約作成の指示：
+- 詳細な議事録ではなく、短い要約を作成
+- keyPointsは3-5個程度に絞る
+- 箇条書きは簡潔に（各20-50字程度）
+- actionItemsは空配列でOK
+- 必ず有効なJSONで出力`,
+  },
+  {
+    id: "meeting",
+    nameKey: "meeting",
+    descriptionKey: "meetingDesc",
+    icon: "ClipboardList",
+    isPreset: true,
+    category: "business",
     systemPrompt: `あなたは会議の議事録を作成する専門家です。
 与えられた文字起こしテキストから、会議に参加していなかった人でも内容を理解できる詳細な議事録を作成してください。
 
 ${JSON_FORMAT}
 
-一般会議の議事録作成指示：
+会議の議事録作成指示：
 - 複数の議題がある場合は、それぞれ独立したkeyPointとして記述
 - 発言者が特定できる場合は「〇〇さん」と明記
 - 議論の経緯（問題提起→意見交換→結論）を追える構成に
 - 数値やデータが言及された場合は必ず含める
-- 未解決の課題や今後の検討事項も漏れなく記録`,
-  },
-  {
-    id: "regular",
-    nameKey: "regular",
-    descriptionKey: "regularDesc",
-    icon: "CalendarCheck",
-    isPreset: true,
-    category: "business",
-    systemPrompt: `あなたは定例会議の議事録を作成する専門家です。
-与えられた文字起こしテキストから、チームメンバーが進捗を追跡できる詳細な議事録を作成してください。
-
-${JSON_FORMAT}
-
-定例会議に特化した指示：
-- overviewに「前回からの主な進捗」「今回の主要議題」「次回までの重点事項」を含める
-- keyPointsは以下の構造で整理:
-  【進捗報告】担当者: 報告内容 / 状況: 順調or遅延orブロック
-  【課題共有】課題内容 / 影響範囲 / 対応方針
-  【決定事項】決定内容 / 理由
-  【持ち越し】内容 / 次回確認予定
-- actionItemsは「次回定例まで」「今週中」「今月中」等の時間軸で整理
-- KPIや数値目標への言及があれば必ず記録`,
+- 未解決の課題や今後の検討事項も漏れなく記録
+- 決定事項とアクションアイテムを明確に`,
   },
   {
     id: "one-on-one",
