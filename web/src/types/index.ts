@@ -61,6 +61,26 @@ export interface Summary {
   keyPoints: string[];
   actionItems: ActionItem[];
   generatedAt: string;
+  // Extended fields (Issue #42: 議事録フォーマット品質改善)
+  caution?: string;
+  meetingInfo?: {
+    title: string;
+    datetime: string;
+    participants: string[];
+    purpose: string;
+  };
+  agenda?: string[];
+  topics?: {
+    title: string;
+    background?: string;
+    currentStatus?: string;
+    issues?: string;
+    discussion?: string;
+    examples?: string;
+    nextActions?: string;
+  }[];
+  decisions?: string[];
+  importantNotes?: string[];
 }
 
 // Alias for backward compatibility
@@ -72,6 +92,9 @@ export interface ActionItem {
   assignee?: string;
   dueDate?: string;
   completed: boolean;
+  // Extended fields
+  task?: string;
+  context?: string;
 }
 
 // ─── Meeting Template Types ───
