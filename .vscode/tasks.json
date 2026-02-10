@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Git Merge and Push",
+			"type": "shell",
+			"command": "git checkout main && git merge fix/security-auth-check --no-edit && git push origin main",
+			"group": "build"
+		},
+		{
+			"label": "Git Merge Push Security Fix",
+			"type": "shell",
+			"command": "git checkout main; git merge fix/security-auth-check --no-edit; git push origin main",
+			"group": "build"
+		},
+		{
+			"label": "Git Commit and Push Lint Fix",
+			"type": "shell",
+			"command": "git add -A; git commit -m 'fix: remove remaining console.log statements'; git push origin main",
+			"group": "build"
+		},
+		{
+			"label": "Git Update Branch and Push",
+			"type": "shell",
+			"command": "git checkout fix/security-auth-check; git merge main --no-edit; git push origin fix/security-auth-check",
+			"group": "build"
+		},
+		{
+			"label": "Git Stash Switch Commit Push",
+			"type": "shell",
+			"command": "git stash; git checkout fix/security-auth-check; git stash pop; git add -A; git commit -m 'fix: remove remaining console.log statements for lint'; git push origin fix/security-auth-check",
+			"group": "build"
+		}
+	]
+}
