@@ -41,6 +41,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Recording, TemplateId } from "@/types";
@@ -98,8 +106,13 @@ function RecordingDetailContent() {
   const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
 
   // Template selection state (Issue #38)
-  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("summary");
   const [summaryLanguage, setSummaryLanguage] = useState("ja-JP");
+  
+  // Regenerate dialog state (Issue #64)
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("summary");
+  const [regenerateLanguage, setRegenerateLanguage] = useState("ja-JP");
 
   // Template list and icons (Issue #38)
   const allTemplates = useMemo(() => {
@@ -258,18 +271,21 @@ function RecordingDetailContent() {
     setEditedTitle("");
   };
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateSummary = async (overrideTemplateId?: TemplateId, overrideLanguage?: string) => {
     if (!id || !recording?.transcript?.fullText) return;
+
+    const templateToUse = overrideTemplateId || selectedTemplateId;
+    const languageToUse = overrideLanguage || summaryLanguage;
 
     setIsGeneratingSummary(true);
 
     // Issue #38: templateId, customPrompt, languageを送信
     const response = await summaryApi.generateSummary({
       transcript: recording.transcript.fullText,
-      language: summaryLanguage,
-      templateId: selectedTemplateId,
-      ...(selectedTemplateId.startsWith("custom-")
-        ? { customPrompt: getTemplateById(selectedTemplateId)?.systemPrompt }
+      language: languageToUse,
+      templateId: templateToUse,
+      ...(templateToUse.startsWith("custom-")
+        ? { customPrompt: getTemplateById(templateToUse)?.systemPrompt }
         : {}),
     });
 
@@ -286,6 +302,21 @@ function RecordingDetailContent() {
         setRecording(updateResponse.data);
       }
     }
+  };
+
+  // Issue #64: 再生成ダイアログを開く
+  const handleOpenRegenerateDialog = () => {
+    setRegenerateTemplateId(selectedTemplateId);
+    setRegenerateLanguage(summaryLanguage);
+    setIsRegenerateDialogOpen(true);
+  };
+
+  // Issue #64: 再生成を実行
+  const handleRegenerate = async () => {
+    setIsRegenerateDialogOpen(false);
+    setSelectedTemplateId(regenerateTemplateId);
+    setSummaryLanguage(regenerateLanguage);
+    await handleGenerateSummary(regenerateTemplateId, regenerateLanguage);
   };
 
   // 認証ローディング中
@@ -629,7 +660,7 @@ function RecordingDetailContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleGenerateSummary}
+                  onClick={() => handleGenerateSummary()}
                   disabled={isGeneratingSummary}
                   className="gap-2"
                 >
@@ -808,7 +839,7 @@ function RecordingDetailContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleGenerateSummary}
+                      onClick={handleOpenRegenerateDialog}
                       disabled={isGeneratingSummary}
                       className="gap-2"
                     >
@@ -886,6 +917,76 @@ function RecordingDetailContent() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 再生成ダイアログ (Issue #64) */}
+      <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>議事録を再生成</DialogTitle>
+            <DialogDescription>テンプレートと出力言語を選択してください</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* 出力言語選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                出力言語
+              </label>
+              <Select value={regenerateLanguage} onValueChange={setRegenerateLanguage}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* テンプレート選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                テンプレートを選択
+              </label>
+              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                {allTemplates.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => setRegenerateTemplateId(tmpl.id)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors",
+                      regenerateTemplateId === tmpl.id
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    )}
+                  >
+                    {TEMPLATE_ICONS[tmpl.icon] || <FileText className="h-4 w-4 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">
+                        {tmpl.isPreset ? (TEMPLATE_NAMES[tmpl.nameKey] || tmpl.nameKey) : tmpl.nameKey}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {tmpl.isPreset ? (TEMPLATE_DESCRIPTIONS[tmpl.descriptionKey] || tmpl.descriptionKey) : tmpl.descriptionKey}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
+              キャンセル
+            </Button>
+            <Button onClick={handleRegenerate} disabled={isGeneratingSummary}>
+              {isGeneratingSummary ? <Spinner size="sm" /> : <Sparkles className="h-4 w-4 mr-1" />}
+              再生成する
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
