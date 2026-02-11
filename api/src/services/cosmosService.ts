@@ -4,6 +4,7 @@ let client: CosmosClient | null = null;
 let database: Database | null = null;
 let recordingsContainer: Container | null = null;
 let userSettingsContainer: Container | null = null;
+let templatesContainer: Container | null = null;
 
 const connectionString = process.env.COSMOS_CONNECTION_STRING || "";
 const databaseName = process.env.COSMOS_DATABASE_NAME || "airecorder";
@@ -52,4 +53,16 @@ export async function getUserSettingsContainer(): Promise<Container> {
     userSettingsContainer = container;
   }
   return userSettingsContainer;
+}
+
+export async function getTemplatesContainer(): Promise<Container> {
+  if (!templatesContainer) {
+    const db = await getDatabase();
+    const { container } = await db.containers.createIfNotExists({
+      id: "templates",
+      partitionKey: { paths: ["/userId"] },
+    });
+    templatesContainer = container;
+  }
+  return templatesContainer;
 }

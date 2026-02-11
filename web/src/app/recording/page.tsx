@@ -56,7 +56,7 @@ import { Recording, TemplateId } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
-import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
+import { PRESET_TEMPLATES, getTemplateByIdSync, loadCustomTemplatesSync, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
 import {
   downloadAsText,
@@ -118,7 +118,7 @@ function RecordingDetailContent() {
 
   // Template list and icons (Issue #38)
   const allTemplates = useMemo(() => {
-    const customs = loadCustomTemplates().map(customToMeetingTemplate);
+    const customs = loadCustomTemplatesSync().map(customToMeetingTemplate);
     return [...PRESET_TEMPLATES, ...customs];
   }, []);
 
@@ -380,7 +380,7 @@ function RecordingDetailContent() {
       language: languageToUse,
       templateId: templateToUse,
       ...(templateToUse.startsWith("custom-")
-        ? { customPrompt: getTemplateById(templateToUse)?.systemPrompt }
+        ? { customPrompt: getTemplateByIdSync(templateToUse)?.systemPrompt }
         : {}),
     });
 

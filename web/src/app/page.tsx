@@ -36,7 +36,7 @@ import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary, TemplateId } from "@/types";
-import { PRESET_TEMPLATES, getTemplateById, loadCustomTemplates, customToMeetingTemplate } from "@/lib/meetingTemplates";
+import { PRESET_TEMPLATES, getTemplateByIdSync, loadCustomTemplatesSync, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -193,7 +193,7 @@ export default function HomePage() {
 
   // プリセット + カスタムテンプレート一覧
   const allTemplates = useMemo(() => {
-    const customs = loadCustomTemplates().map(customToMeetingTemplate);
+    const customs = loadCustomTemplatesSync().map(customToMeetingTemplate);
     return [...PRESET_TEMPLATES, ...customs];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 初回のみ（カスタムテンプレートは設定ページで管理）
@@ -353,7 +353,7 @@ export default function HomePage() {
       language: languageToUse,
       templateId: templateToUse,
       ...(templateToUse.startsWith("custom-")
-        ? { customPrompt: getTemplateById(templateToUse)?.systemPrompt }
+        ? { customPrompt: getTemplateByIdSync(templateToUse)?.systemPrompt }
         : {}),
     });
 

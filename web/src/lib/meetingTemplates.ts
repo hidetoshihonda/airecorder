@@ -1,4 +1,5 @@
 import { MeetingTemplate, CustomTemplate } from "@/types";
+import { templatesApi } from "@/services/templatesApi";
 
 // ─── JSON出力フォーマット共通定義（改善版 Issue #42）───
 const JSON_FORMAT = `出力は必ず以下のJSON形式で返してください：
@@ -188,11 +189,14 @@ ${JSON_FORMAT}
   },
 ];
 
-// ─── カスタムテンプレート管理 (localStorage) ───
+// ─── カスタムテンプレート管理 (API with localStorage fallback) ───
 
 const CUSTOM_TEMPLATES_KEY = "airecorder-custom-templates";
+const MIGRATION_FLAG_KEY = "airecorder-templates-migrated";
 
-export function loadCustomTemplates(): CustomTemplate[] {
+// ─── localStorage ヘルパー（フォールバック & マイグレーション用） ───
+
+function loadFromLocalStorage(): CustomTemplate[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
@@ -202,13 +206,92 @@ export function loadCustomTemplates(): CustomTemplate[] {
   }
 }
 
-export function saveCustomTemplates(templates: CustomTemplate[]): void {
+function saveToLocalStorage(templates: CustomTemplate[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(templates));
 }
 
-export function addCustomTemplate(template: Omit<CustomTemplate, "id" | "createdAt" | "updatedAt">): CustomTemplate {
-  const templates = loadCustomTemplates();
+function clearLocalStorage(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CUSTOM_TEMPLATES_KEY);
+}
+
+function isMigrated(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(MIGRATION_FLAG_KEY) === "true";
+}
+
+function setMigrated(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(MIGRATION_FLAG_KEY, "true");
+}
+
+// ─── マイグレーション（localStorage → Cosmos DB） ───
+
+export async function migrateLocalStorageToDb(): Promise<boolean> {
+  if (!templatesApi.isAuthenticated()) return false;
+  if (isMigrated()) return true;
+
+  const localTemplates = loadFromLocalStorage();
+  if (localTemplates.length === 0) {
+    setMigrated();
+    return true;
+  }
+
+  const result = await templatesApi.bulkImport(
+    localTemplates.map((t) => ({
+      name: t.name,
+      description: t.description,
+      systemPrompt: t.systemPrompt,
+    }))
+  );
+
+  if (!result.error) {
+    clearLocalStorage();
+    setMigrated();
+    return true;
+  }
+  return false;
+}
+
+// ─── 同期版 CRUD（後方互換性のため残す - 未認証時のみ使用） ───
+
+export function loadCustomTemplatesSync(): CustomTemplate[] {
+  return loadFromLocalStorage();
+}
+
+export function saveCustomTemplates(templates: CustomTemplate[]): void {
+  saveToLocalStorage(templates);
+}
+
+// ─── 非同期 CRUD 関数 ───
+
+export async function loadCustomTemplates(): Promise<CustomTemplate[]> {
+  // 認証済みなら API から取得
+  if (templatesApi.isAuthenticated()) {
+    await migrateLocalStorageToDb(); // 初回マイグレーション
+    const result = await templatesApi.list();
+    if (!result.error && result.data) {
+      return result.data;
+    }
+  }
+  // 未認証 or API エラー時は localStorage
+  return loadFromLocalStorage();
+}
+
+export async function addCustomTemplate(
+  template: Omit<CustomTemplate, "id" | "createdAt" | "updatedAt">
+): Promise<CustomTemplate | null> {
+  if (templatesApi.isAuthenticated()) {
+    const result = await templatesApi.create(template);
+    if (!result.error && result.data) {
+      return result.data;
+    }
+    return null;
+  }
+
+  // 未認証: localStorage
+  const templates = loadFromLocalStorage();
   const newTemplate: CustomTemplate = {
     ...template,
     id: `custom-${Date.now()}`,
@@ -216,24 +299,46 @@ export function addCustomTemplate(template: Omit<CustomTemplate, "id" | "created
     updatedAt: new Date().toISOString(),
   };
   templates.push(newTemplate);
-  saveCustomTemplates(templates);
+  saveToLocalStorage(templates);
   return newTemplate;
 }
 
-export function updateCustomTemplate(id: string, updates: Partial<Pick<CustomTemplate, "name" | "description" | "systemPrompt">>): CustomTemplate | null {
-  const templates = loadCustomTemplates();
+export async function updateCustomTemplate(
+  id: string,
+  updates: Partial<Pick<CustomTemplate, "name" | "description" | "systemPrompt">>
+): Promise<CustomTemplate | null> {
+  if (templatesApi.isAuthenticated()) {
+    const result = await templatesApi.update(id, updates);
+    if (!result.error && result.data) {
+      return result.data;
+    }
+    return null;
+  }
+
+  // 未認証: localStorage
+  const templates = loadFromLocalStorage();
   const index = templates.findIndex((t) => t.id === id);
   if (index === -1) return null;
-  templates[index] = { ...templates[index], ...updates, updatedAt: new Date().toISOString() };
-  saveCustomTemplates(templates);
+  templates[index] = {
+    ...templates[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  saveToLocalStorage(templates);
   return templates[index];
 }
 
-export function deleteCustomTemplate(id: string): boolean {
-  const templates = loadCustomTemplates();
+export async function deleteCustomTemplate(id: string): Promise<boolean> {
+  if (templatesApi.isAuthenticated()) {
+    const result = await templatesApi.delete(id);
+    return !result.error;
+  }
+
+  // 未認証: localStorage
+  const templates = loadFromLocalStorage();
   const filtered = templates.filter((t) => t.id !== id);
   if (filtered.length === templates.length) return false;
-  saveCustomTemplates(filtered);
+  saveToLocalStorage(filtered);
   return true;
 }
 
@@ -249,13 +354,25 @@ export function customToMeetingTemplate(custom: CustomTemplate): MeetingTemplate
   };
 }
 
-/** プリセット + カスタムの全テンプレートを取得 */
-export function getAllTemplates(): MeetingTemplate[] {
-  const customs = loadCustomTemplates().map(customToMeetingTemplate);
+/** プリセット + カスタムの全テンプレートを取得（非同期版） */
+export async function getAllTemplates(): Promise<MeetingTemplate[]> {
+  const customs = await loadCustomTemplates();
+  return [...PRESET_TEMPLATES, ...customs.map(customToMeetingTemplate)];
+}
+
+/** プリセット + カスタムの全テンプレートを取得（同期版 - 未認証時のフォールバック） */
+export function getAllTemplatesSync(): MeetingTemplate[] {
+  const customs = loadCustomTemplatesSync().map(customToMeetingTemplate);
   return [...PRESET_TEMPLATES, ...customs];
 }
 
-/** IDからテンプレートを検索 */
-export function getTemplateById(id: string): MeetingTemplate | undefined {
-  return getAllTemplates().find((t) => t.id === id);
+/** IDからテンプレートを検索（非同期版） */
+export async function getTemplateById(id: string): Promise<MeetingTemplate | undefined> {
+  const all = await getAllTemplates();
+  return all.find((t) => t.id === id);
+}
+
+/** IDからテンプレートを検索（同期版） */
+export function getTemplateByIdSync(id: string): MeetingTemplate | undefined {
+  return getAllTemplatesSync().find((t) => t.id === id);
 }
