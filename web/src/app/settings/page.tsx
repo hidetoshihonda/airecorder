@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Save, Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import { CustomTemplate } from "@/types";
 import { loadCustomTemplates, addCustomTemplate, updateCustomTemplate, deleteCustomTemplate } from "@/lib/meetingTemplates";
 
 export default function SettingsPage() {
-  const { settings, updateSettings } = useAuth();
+  const { settings, updateSettings, isAuthenticated, isLoading: authLoading, login } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const t = useTranslations("SettingsPage");
   const { locale: appLocale, setLocale } = useAppLocale();
@@ -104,6 +105,42 @@ export default function SettingsPage() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsSaving(false);
   };
+
+  // 認証ローディング中
+  if (authLoading) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  // 未認証時のログイン誘導UI (Issue #72)
+  if (!isAuthenticated) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex min-h-[400px] flex-col items-center justify-center space-y-6">
+          <div className="rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
+            <LogIn className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t("loginRequired")}
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              {t("loginRequiredDescription")}
+            </p>
+          </div>
+          <Button onClick={login} size="lg" className="mt-4">
+            <LogIn className="mr-2 h-5 w-5" />
+            {t("loginButton")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">

@@ -154,6 +154,9 @@
   "SettingsPage": {
     "title": "Ajustes",
     "subtitle": "Configurar los ajustes de la aplicación",
+    "loginRequired": "Se requiere inicio de sesión",
+    "loginRequiredDescription": "Inicie sesión para cambiar y sincronizar su configuración.",
+    "loginButton": "Iniciar sesión",
     "languageSettings": "Configuración de idioma",
     "languageSettingsDesc": "Establecer idiomas predeterminados de entrada y destino",
     "defaultInputLanguage": "Idioma de entrada predeterminado",
