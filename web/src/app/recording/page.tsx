@@ -55,6 +55,7 @@ import { Input } from "@/components/ui/input";
 import { Recording, TemplateId } from "@/types";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocale } from "@/contexts/I18nContext";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
 import { PRESET_TEMPLATES, getTemplateByIdSync, loadCustomTemplatesSync, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
@@ -75,9 +76,11 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-function formatDate(dateString: string): string {
+const LOCALE_MAP: Record<string, string> = { ja: "ja-JP", en: "en-US", es: "es-ES" };
+
+function formatDate(dateString: string, locale = "ja"): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString("ja-JP", {
+  return date.toLocaleDateString(LOCALE_MAP[locale] || locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -91,7 +94,9 @@ function RecordingDetailContent() {
   const router = useRouter();
   const id = searchParams.get("id");
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
-  const t = useTranslations("HomePage");
+  const t = useTranslations("RecordingDetail");
+  const tHome = useTranslations("HomePage");
+  const { locale } = useLocale();
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,36 +140,34 @@ function RecordingDetailContent() {
     PenSquare: <PenSquare className="h-4 w-4" />,
   }), []);
 
-  // Template name mapping for display (プリセットテンプレートの日本語表示)
+  // Template name mapping for display (i18n)
   const TEMPLATE_NAMES: Record<string, string> = useMemo(() => ({
-    summary: "要約",
-    meeting: "会議",
-    oneOnOne: "1on1",
-    sales: "商談・営業",
-    devSprint: "開発MTG",
-    brainstorm: "ブレスト",
-    // 後方互換性のため古いキーも残す
-    general: "一般",
-    regular: "定例会議",
-    "one-on-one": "1on1",
-    technical: "技術レビュー",
-  }), []);
+    summary: t("templateSummary"),
+    meeting: t("templateMeeting"),
+    oneOnOne: t("templateOneOnOne"),
+    sales: t("templateSales"),
+    devSprint: t("templateDevSprint"),
+    brainstorm: t("templateBrainstorm"),
+    general: t("templateGeneral"),
+    regular: t("templateRegular"),
+    "one-on-one": t("templateOneOnOne"),
+    technical: t("templateTechReview"),
+  }), [t]);
 
   const TEMPLATE_DESCRIPTIONS: Record<string, string> = useMemo(() => ({
-    summaryDesc: "シンプルな要約",
-    meetingDesc: "詳細な議事録",
-    oneOnOneDesc: "1on1ミーティング向け",
-    salesDesc: "商談・営業会議向け",
-    devSprintDesc: "スプリントレビュー向け",
-    brainstormDesc: "アイデア出し・ブレスト向け",
-    // 後方互換性のため古いキーも残す
-    general: "汎用的な議事録",
-    regular: "進捗確認・定例",
-    "one-on-one": "個人面談・1on1",
-    sales: "商談・提案",
-    technical: "技術検討・レビュー",
-    brainstorm: "アイデア出し",
-  }), []);
+    summaryDesc: t("templateSummaryDesc"),
+    meetingDesc: t("templateMeetingDesc"),
+    oneOnOneDesc: t("templateOneOnOneDesc"),
+    salesDesc: t("templateSalesDesc"),
+    devSprintDesc: t("templateDevSprintDesc"),
+    brainstormDesc: t("templateBrainstormDesc"),
+    general: t("templateGeneralDesc"),
+    regular: t("templateRegularDesc"),
+    "one-on-one": t("templateOneOnOneDesc"),
+    sales: t("templateSalesDesc"),
+    technical: t("templateTechReviewDesc"),
+    brainstorm: t("templateBrainstormDesc"),
+  }), [t]);
 
   useEffect(() => {
     // 認証チェック中または未認証の場合はデータ取得しない（Issue #57 セキュリティ修正）
@@ -176,7 +179,7 @@ function RecordingDetailContent() {
 
     const fetchData = async () => {
       if (!id) {
-        setError("録音IDが指定されていません");
+        setError(t("noRecordingId"));
         setIsLoading(false);
         return;
       }
@@ -246,15 +249,15 @@ function RecordingDetailContent() {
     switch (recording?.correctionStatus) {
       case "pending":
       case "processing":
-        return <span className="text-xs text-blue-600 animate-pulse">⏳ AI補正中...</span>;
+        return <span className="text-xs text-blue-600 animate-pulse">{t("correctionPending")}</span>;
       case "completed":
-        return <span className="text-xs text-green-600">✨ AI補正済み</span>;
+        return <span className="text-xs text-green-600">{t("correctionCompleted")}</span>;
       case "failed":
-        return <span className="text-xs text-red-600">❌ 補正失敗</span>;
+        return <span className="text-xs text-red-600">{t("correctionFailed")}</span>;
       default:
         return null;
     }
-  }, [recording?.correctionStatus]);
+  }, [recording?.correctionStatus, t]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -271,51 +274,51 @@ function RecordingDetailContent() {
     
     // 会議情報
     if (summary.meetingInfo) {
-      lines.push(`# ${t("meetingInfo")}`);
-      lines.push(`- **会議名:** ${summary.meetingInfo.title}`);
-      lines.push(`- **日時:** ${summary.meetingInfo.datetime}`);
-      lines.push(`- **参加者:** ${summary.meetingInfo.participants.join(", ") || t("undecided")}`);
-      lines.push(`- **目的:** ${summary.meetingInfo.purpose}`);
+      lines.push(`# ${tHome("meetingInfo")}`);
+      lines.push(`- **${t("meetingName")}** ${summary.meetingInfo.title}`);
+      lines.push(`- **${t("dateTime")}** ${summary.meetingInfo.datetime}`);
+      lines.push(`- **${t("participants")}** ${summary.meetingInfo.participants.join(", ") || tHome("undecided")}`);
+      lines.push(`- **${t("purpose")}** ${summary.meetingInfo.purpose}`);
       lines.push("");
     }
     
     // アジェンダ
     if (summary.agenda && summary.agenda.length > 0) {
-      lines.push(`## ${t("agendaList")}`);
+      lines.push(`## ${tHome("agendaList")}`);
       summary.agenda.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
       lines.push("");
     }
     
     // 議題別詳細
     if (summary.topics && summary.topics.length > 0) {
-      lines.push(`## ${t("topicDetails")}`);
+      lines.push(`## ${tHome("topicDetails")}`);
       summary.topics.forEach((topic, i) => {
         lines.push(`### ${i + 1}. ${topic.title}`);
-        if (topic.background) lines.push(`- **背景:** ${topic.background}`);
-        if (topic.currentStatus) lines.push(`- **現状:** ${topic.currentStatus}`);
-        if (topic.issues) lines.push(`- **課題:** ${topic.issues}`);
-        if (topic.discussion) lines.push(`- **議論:** ${topic.discussion}`);
-        if (topic.nextActions) lines.push(`- **次アクション:** ${topic.nextActions}`);
+        if (topic.background) lines.push(`- **${t("copyBackground")}** ${topic.background}`);
+        if (topic.currentStatus) lines.push(`- **${t("copyCurrentStatus")}** ${topic.currentStatus}`);
+        if (topic.issues) lines.push(`- **${t("copyIssues")}** ${topic.issues}`);
+        if (topic.discussion) lines.push(`- **${t("copyDiscussion")}** ${topic.discussion}`);
+        if (topic.nextActions) lines.push(`- **${t("copyNextActions")}** ${topic.nextActions}`);
         lines.push("");
       });
     }
     
     // 決定事項
     if (summary.decisions && summary.decisions.length > 0) {
-      lines.push(`## ${t("decisions")}`);
+      lines.push(`## ${tHome("decisions")}`);
       summary.decisions.forEach(d => lines.push(`- ✓ ${d}`));
       lines.push("");
     }
     
     // アクションアイテム
     if (summary.actionItems && summary.actionItems.length > 0) {
-      lines.push(`## ${t("todoActionItems")}`);
-      lines.push(`| ${t("todoHeader")} | ${t("assigneeHeader")} | ${t("dueDateHeader")} |`);
+      lines.push(`## ${tHome("todoActionItems")}`);
+      lines.push(`| ${tHome("todoHeader")} | ${tHome("assigneeHeader")} | ${tHome("dueDateHeader")} |`);
       lines.push("|---|---|---|");
       summary.actionItems.forEach(item => {
         const task = item.task || item.description;
-        const assignee = item.assignee || t("undecided");
-        const due = item.dueDate || t("undecided");
+        const assignee = item.assignee || tHome("undecided");
+        const due = item.dueDate || tHome("undecided");
         lines.push(`| ${task} | ${assignee} | ${due} |`);
       });
       lines.push("");
@@ -323,19 +326,19 @@ function RecordingDetailContent() {
     
     // 重要メモ
     if (summary.importantNotes && summary.importantNotes.length > 0) {
-      lines.push(`## ${t("importantNotes")}`);
+      lines.push(`## ${tHome("importantNotes")}`);
       summary.importantNotes.forEach(n => lines.push(`- 📌 ${n}`));
       lines.push("");
     }
     
     // 旧形式のoverview/keyPoints
     if (!summary.meetingInfo && summary.overview) {
-      lines.push(`## ${t("overview")}`);
+      lines.push(`## ${tHome("overview")}`);
       lines.push(summary.overview);
       lines.push("");
     }
     if (!summary.agenda && summary.keyPoints && summary.keyPoints.length > 0) {
-      lines.push(`## ${t("keyPoints")}`);
+      lines.push(`## ${tHome("keyPoints")}`);
       summary.keyPoints.forEach((p, i) => lines.push(`${i + 1}. ${p}`));
       lines.push("");
     }
@@ -357,14 +360,14 @@ function RecordingDetailContent() {
 
     return recording.transcript.segments
       .map((seg) => {
-        const label = seg.speaker || "不明";
+        const label = seg.speaker || t("unknownSpeaker");
         return `[${label}] ${seg.text}`;
       })
       .join("\n");
   };
 
   const handleDelete = async () => {
-    if (!id || !confirm("この録音を削除しますか？この操作は取り消せません。")) {
+    if (!id || !confirm(t("deleteConfirm"))) {
       return;
     }
 
@@ -372,7 +375,7 @@ function RecordingDetailContent() {
     const response = await recordingsApi.deleteRecording(id);
 
     if (response.error) {
-      alert(`削除に失敗しました: ${response.error}`);
+      alert(t("deleteFailed", { error: response.error }));
       setIsDeleting(false);
     } else {
       router.push("/history");
@@ -401,7 +404,7 @@ function RecordingDetailContent() {
     setIsUpdatingTitle(false);
     
     if (response.error) {
-      alert(`タイトル更新に失敗しました: ${response.error}`);
+      alert(t("titleUpdateFailed", { error: response.error }));
       return;
     }
     
@@ -437,7 +440,7 @@ function RecordingDetailContent() {
     setIsGeneratingSummary(false);
 
     if (response.error) {
-      alert(`議事録生成に失敗しました: ${response.error}`);
+      alert(t("summaryGenerateFailed", { error: response.error }));
     } else if (response.data) {
       const updateResponse = await recordingsApi.updateRecording(id, {
         summary: response.data,
@@ -483,10 +486,10 @@ function RecordingDetailContent() {
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              ログインが必要です
+              {t("loginRequired")}
             </h2>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              録音の詳細を表示するにはログインしてください。
+              {t("loginRequiredDescription")}
             </p>
           </div>
           <Button
@@ -495,7 +498,7 @@ function RecordingDetailContent() {
             className="mt-4"
           >
             <LogIn className="mr-2 h-5 w-5" />
-            ログイン
+            {t("loginButton")}
           </Button>
         </div>
       </div>
@@ -506,7 +509,7 @@ function RecordingDetailContent() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />
-        <span className="ml-2 text-gray-600">読み込み中...</span>
+        <span className="ml-2 text-gray-600">{t("loading")}</span>
       </div>
     );
   }
@@ -516,12 +519,12 @@ function RecordingDetailContent() {
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p>{error || "録音が見つかりません"}</p>
+          <p>{error || t("notFound")}</p>
         </div>
         <Link href="/history">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            履歴に戻る
+            {t("backToHistory")}
           </Button>
         </Link>
       </div>
@@ -539,7 +542,7 @@ function RecordingDetailContent() {
         <Link href="/history">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            履歴に戻る
+            {t("backToHistory")}
           </Button>
         </Link>
         <div className="flex items-center gap-2">
@@ -547,21 +550,21 @@ function RecordingDetailContent() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <FileDown className="mr-2 h-4 w-4" />
-                エクスポート
+                {t("export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => downloadAsText(recording)}>
+              <DropdownMenuItem onClick={() => downloadAsText(recording, locale)}>
                 <FileText className="mr-2 h-4 w-4" />
-                テキスト (.txt)
+                {t("exportText")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadAsMarkdown(recording)}>
+              <DropdownMenuItem onClick={() => downloadAsMarkdown(recording, locale)}>
                 <FileText className="mr-2 h-4 w-4" />
-                Markdown (.md)
+                {t("exportMarkdown")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => downloadAsJson(recording)}>
                 <FileText className="mr-2 h-4 w-4" />
-                JSON (.json)
+                {t("exportJson")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -627,7 +630,7 @@ function RecordingDetailContent() {
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            {formatDate(recording.createdAt)}
+            {formatDate(recording.createdAt, locale)}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
@@ -646,12 +649,12 @@ function RecordingDetailContent() {
             {isLoadingAudio ? (
               <div className="flex items-center gap-2">
                 <Spinner size="sm" />
-                <span className="text-sm text-gray-600">音声を読み込み中...</span>
+                <span className="text-sm text-gray-600">{t("loadingAudio")}</span>
               </div>
             ) : audioUrl ? (
               <div className="flex items-center gap-4">
                 <audio controls className="flex-1" src={audioUrl}>
-                  お使いのブラウザは音声再生をサポートしていません。
+                  {t("audioNotSupported")}
                 </audio>
                 <Button
                   variant="outline"
@@ -670,18 +673,18 @@ function RecordingDetailContent() {
                       document.body.removeChild(a);
                       URL.revokeObjectURL(url);
                     } catch {
-                      alert('ダウンロードに失敗しました');
+                      alert(t("downloadFailed"));
                     }
                   }}
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  ダウンロード
+                  {t("download")}
                 </Button>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-yellow-700">
                 <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">音声ファイルを読み込めませんでした</span>
+                <span className="text-sm">{t("audioLoadFailed")}</span>
               </div>
             )}
           </CardContent>
@@ -693,15 +696,15 @@ function RecordingDetailContent() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="transcript" className="gap-2">
             <FileText className="h-4 w-4" />
-            文字起こし
+            {t("transcriptTab")}
           </TabsTrigger>
           <TabsTrigger value="translation" className="gap-2">
             <Languages className="h-4 w-4" />
-            翻訳
+            {t("translationTab")}
           </TabsTrigger>
           <TabsTrigger value="summary" className="gap-2">
             <Sparkles className="h-4 w-4" />
-            議事録
+            {t("minutesTab")}
           </TabsTrigger>
         </TabsList>
 
@@ -710,7 +713,7 @@ function RecordingDetailContent() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-4">
-                <CardTitle className="text-lg">文字起こし</CardTitle>
+                <CardTitle className="text-lg">{t("transcript")}</CardTitle>
                 {correctionStatusBadge}
               </div>
               <div className="flex items-center gap-2">
@@ -723,7 +726,7 @@ function RecordingDetailContent() {
                       onClick={() => setTranscriptView("original")}
                       className="text-xs"
                     >
-                      オリジナル
+                      {t("original")}
                     </Button>
                     <Button
                       variant={transcriptView === "corrected" ? "secondary" : "ghost"}
@@ -732,7 +735,7 @@ function RecordingDetailContent() {
                       className="gap-1 text-xs"
                     >
                       <Sparkles className="h-3 w-3" />
-                      AI補正版
+                      {t("aiCorrected")}
                     </Button>
                   </div>
                 )}
@@ -755,7 +758,7 @@ function RecordingDetailContent() {
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
-                    コピー
+                    {t("copy")}
                   </Button>
                 )}
               </div>
@@ -768,8 +771,8 @@ function RecordingDetailContent() {
               ) : recording.correctionStatus === "pending" || recording.correctionStatus === "processing" ? (
                 <div className="py-8 text-center text-gray-500">
                   <Spinner className="mx-auto mb-2" />
-                  <p>AI補正処理中です...</p>
-                  <p className="text-xs mt-2">オリジナルの文字起こし：</p>
+                  <p>{t("correctionProcessing")}</p>
+                  <p className="text-xs mt-2">{t("originalTranscript")}</p>
                   {recording.transcript?.fullText && (
                     <div className="mt-4 max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800 text-left">
                       {recording.transcript.fullText}
@@ -778,7 +781,7 @@ function RecordingDetailContent() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  文字起こしデータがありません
+                  {t("noTranscript")}
                 </div>
               )}
             </CardContent>
@@ -789,7 +792,7 @@ function RecordingDetailContent() {
         <TabsContent value="translation">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">翻訳</CardTitle>
+              <CardTitle className="text-lg">{t("translation")}</CardTitle>
             </CardHeader>
             <CardContent>
               {recording.translations &&
@@ -819,7 +822,7 @@ function RecordingDetailContent() {
                               ) : (
                                 <Copy className="h-4 w-4" />
                               )}
-                              コピー
+                              {t("copy")}
                             </Button>
                           </div>
                           <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
@@ -832,7 +835,7 @@ function RecordingDetailContent() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  翻訳データがありません
+                  {t("noTranslation")}
                 </div>
               )}
             </CardContent>
@@ -843,7 +846,7 @@ function RecordingDetailContent() {
         <TabsContent value="summary">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">{t("minutesTitle")}</CardTitle>
+              <CardTitle className="text-lg">{tHome("minutesTitle")}</CardTitle>
               <div className="flex items-center gap-2">
                 {recording.summary && (
                   <Button
@@ -857,7 +860,7 @@ function RecordingDetailContent() {
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
-                    {copied === "summary" ? t("summaryCopied") : t("copySummary")}
+                    {copied === "summary" ? tHome("summaryCopied") : tHome("copySummary")}
                   </Button>
                 )}
                 {recording.transcript?.fullText && !recording.summary && (
@@ -873,7 +876,7 @@ function RecordingDetailContent() {
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    {isGeneratingSummary ? t("generating") : t("generateWithAI")}
+                    {isGeneratingSummary ? tHome("generating") : tHome("generateWithAI")}
                   </Button>
                 )}
               </div>
@@ -883,7 +886,7 @@ function RecordingDetailContent() {
                 <div className="flex flex-col items-center justify-center py-12">
                   <Spinner size="lg" />
                   <p className="mt-4 text-gray-600">
-                    {t("aiGenerating")}
+                    {tHome("aiGenerating")}
                   </p>
                 </div>
               ) : recording.summary ? (
@@ -891,7 +894,7 @@ function RecordingDetailContent() {
                   {/* 注意書き */}
                   {recording.summary.caution && (
                     <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
-                      <p className="font-medium">⚠️ 注意事項</p>
+                      <p className="font-medium">{t("cautionNotes")}</p>
                       <p className="text-sm mt-1">{recording.summary.caution}</p>
                     </div>
                   )}
@@ -899,12 +902,12 @@ function RecordingDetailContent() {
                   {/* 1. 会議情報 */}
                   {recording.summary.meetingInfo && (
                     <div className="rounded-md bg-gray-50 p-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("meetingInfo")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{tHome("meetingInfo")}</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{recording.summary.meetingInfo.title}</span></div>
-                        <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{recording.summary.meetingInfo.datetime}</span></div>
-                        <div className="col-span-2"><span className="text-gray-500">参加者:</span> <span className="text-gray-800">{recording.summary.meetingInfo.participants.join(", ") || "不明"}</span></div>
-                        <div className="col-span-2"><span className="text-gray-500">目的:</span> <span className="text-gray-800">{recording.summary.meetingInfo.purpose}</span></div>
+                        <div><span className="text-gray-500">{t("meetingName")}</span> <span className="text-gray-800">{recording.summary.meetingInfo.title}</span></div>
+                        <div><span className="text-gray-500">{t("dateTime")}</span> <span className="text-gray-800">{recording.summary.meetingInfo.datetime}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">{t("participants")}</span> <span className="text-gray-800">{recording.summary.meetingInfo.participants.join(", ") || t("unknown")}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">{t("purpose")}</span> <span className="text-gray-800">{recording.summary.meetingInfo.purpose}</span></div>
                       </div>
                     </div>
                   )}
@@ -912,7 +915,7 @@ function RecordingDetailContent() {
                   {/* 2. アジェンダ一覧 */}
                   {recording.summary.agenda && recording.summary.agenda.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("agendaList")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("agendaList")}</h3>
                       <ul className="space-y-1">
                         {recording.summary.agenda.map((item, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm text-gray-800">
@@ -927,29 +930,29 @@ function RecordingDetailContent() {
                   {/* 3. 議題別の詳細 */}
                   {recording.summary.topics && recording.summary.topics.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t("topicDetails")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{tHome("topicDetails")}</h3>
                       <div className="space-y-4">
                         {recording.summary.topics.map((topic, index) => (
                           <div key={index} className="rounded-md border border-gray-200 p-4">
                             <h4 className="font-medium text-gray-800 mb-3">3.{index + 1}. {topic.title}</h4>
                             <div className="space-y-2 text-sm">
                               {topic.background && (
-                                <div><span className="text-gray-500 font-medium">背景・前提:</span> <span className="text-gray-700">{topic.background}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("background")}</span> <span className="text-gray-700">{topic.background}</span></div>
                               )}
                               {topic.currentStatus && (
-                                <div><span className="text-gray-500 font-medium">現状共有:</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("currentStatus")}</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
                               )}
                               {topic.issues && (
-                                <div><span className="text-gray-500 font-medium">課題/懸念:</span> <span className="text-gray-700">{topic.issues}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("issues")}</span> <span className="text-gray-700">{topic.issues}</span></div>
                               )}
                               {topic.discussion && (
-                                <div><span className="text-gray-500 font-medium">議論の要点:</span> <span className="text-gray-700">{topic.discussion}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("discussionPoints")}</span> <span className="text-gray-700">{topic.discussion}</span></div>
                               )}
                               {topic.examples && (
-                                <div><span className="text-gray-500 font-medium">具体例:</span> <span className="text-gray-700">{topic.examples}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("examples")}</span> <span className="text-gray-700">{topic.examples}</span></div>
                               )}
                               {topic.nextActions && (
-                                <div><span className="text-gray-500 font-medium">次アクション:</span> <span className="text-gray-700">{topic.nextActions}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("nextActions")}</span> <span className="text-gray-700">{topic.nextActions}</span></div>
                               )}
                             </div>
                           </div>
@@ -961,7 +964,7 @@ function RecordingDetailContent() {
                   {/* 4. 決定事項 */}
                   {recording.summary.decisions && recording.summary.decisions.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("decisions")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("decisions")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.decisions.map((decision, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-gray-800 text-sm">
@@ -976,24 +979,24 @@ function RecordingDetailContent() {
                   {/* 5. ToDo / アクションアイテム */}
                   {recording.summary.actionItems && recording.summary.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("todoActionItems")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("todoActionItems")}</h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("todoHeader")}</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">{t("assigneeHeader")}</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">{t("dueDateHeader")}</th>
-                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{t("contextHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{tHome("todoHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-24">{tHome("assigneeHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700 w-28">{tHome("dueDateHeader")}</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-gray-700">{tHome("contextHeader")}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {recording.summary.actionItems.map((item) => (
                               <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="border border-gray-200 px-3 py-2 text-gray-800">{item.task || item.description}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || t("undecided")}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || t("undecided")}</td>
-                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || t("noData")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.assignee || tHome("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.dueDate || tHome("undecided")}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-gray-600">{item.context || tHome("noData")}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1005,7 +1008,7 @@ function RecordingDetailContent() {
                   {/* 6. 重要メモ */}
                   {recording.summary.importantNotes && recording.summary.importantNotes.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("importantNotes")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("importantNotes")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.importantNotes.map((note, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
@@ -1020,7 +1023,7 @@ function RecordingDetailContent() {
                   {/* 後方互換: 旧形式の overview/keyPoints があれば表示 */}
                   {!recording.summary.meetingInfo && recording.summary.overview && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("overview")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("overview")}</h3>
                       <div className="rounded-md bg-gray-50 p-4 text-gray-800">
                         {recording.summary.overview}
                       </div>
@@ -1028,7 +1031,7 @@ function RecordingDetailContent() {
                   )}
                   {!recording.summary.agenda && recording.summary.keyPoints && recording.summary.keyPoints.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("keyPoints")}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("keyPoints")}</h3>
                       <ul className="space-y-2">
                         {recording.summary.keyPoints.map((point, index) => (
                           <li key={index} className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-gray-800">
@@ -1049,7 +1052,7 @@ function RecordingDetailContent() {
                       className="gap-2"
                     >
                       <Sparkles className="h-4 w-4" />
-                      再生成
+                      {t("regenerate")}
                     </Button>
                   </div>
                 </div>
@@ -1062,7 +1065,7 @@ function RecordingDetailContent() {
                         {/* 出力言語 */}
                         <div className="flex items-center gap-2">
                           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                            出力言語
+                            {t("outputLanguage")}
                           </label>
                           <Select value={summaryLanguage} onValueChange={setSummaryLanguage}>
                             <SelectTrigger className="h-8 w-44 text-xs">
@@ -1081,7 +1084,7 @@ function RecordingDetailContent() {
                         {/* テンプレート選択グリッド */}
                         <div>
                           <label className="text-sm font-medium text-gray-700 mb-2 block">
-                            テンプレート
+                            {t("template")}
                           </label>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {allTemplates.map((tmpl) => (
@@ -1111,10 +1114,10 @@ function RecordingDetailContent() {
                       </div>
 
                       <Sparkles className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                      <p>「AIで生成」ボタンをクリックして議事録を作成できます</p>
+                      <p>{t("emptyMinutesWithTranscript")}</p>
                     </>
                   ) : (
-                    <p>文字起こしデータがないため議事録を生成できません</p>
+                    <p>{t("emptyMinutesNoTranscript")}</p>
                   )}
                 </div>
               )}
@@ -1127,14 +1130,14 @@ function RecordingDetailContent() {
       <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>議事録を再生成</DialogTitle>
-            <DialogDescription>テンプレートと出力言語を選択してください</DialogDescription>
+            <DialogTitle>{t("regenerateTitle")}</DialogTitle>
+            <DialogDescription>{t("regenerateDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* 出力言語選択 */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                出力言語
+                {t("outputLanguage")}
               </label>
               <Select value={regenerateLanguage} onValueChange={setRegenerateLanguage}>
                 <SelectTrigger className="w-full">
@@ -1153,7 +1156,7 @@ function RecordingDetailContent() {
             {/* テンプレート選択 */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                テンプレートを選択
+                {t("selectTemplate")}
               </label>
               <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
                 {allTemplates.map((tmpl) => (
@@ -1183,11 +1186,11 @@ function RecordingDetailContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
-              キャンセル
+              {t("cancel")}
             </Button>
             <Button onClick={handleRegenerate} disabled={isGeneratingSummary}>
               {isGeneratingSummary ? <Spinner size="sm" /> : <Sparkles className="h-4 w-4 mr-1" />}
-              再生成する
+              {t("regenerateButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1202,7 +1205,7 @@ export default function RecordingDetailPage() {
       fallback={
         <div className="flex items-center justify-center min-h-screen">
           <Spinner size="lg" />
-          <span className="ml-2 text-gray-600">読み込み中...</span>
+          <span className="ml-2 text-gray-600">Loading...</span>
         </div>
       }
     >

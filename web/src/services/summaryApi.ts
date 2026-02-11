@@ -39,7 +39,7 @@ class SummaryApiService {
           data = JSON.parse(text);
         } catch (parseError) {
           console.error('[SummaryAPI] JSON parse error:', parseError);
-          return { error: `サーバーからの応答を解析できませんでした: ${text.substring(0, 100)}` };
+          return { error: `SERVER_PARSE_ERROR: ${text.substring(0, 100)}` };
         }
       }
 
