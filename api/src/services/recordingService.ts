@@ -5,6 +5,7 @@ import {
   deleteAudioBlob,
   generateSasUrl,
 } from "./blobService";
+import { processTranscriptCorrection } from "./transcriptCorrectionService";
 import {
   Recording,
   CreateRecordingRequest,
@@ -27,13 +28,24 @@ export async function createRecording(
     audioUrl: request.audioUrl,
     transcript: request.transcript,
     translations: request.translations,
+    // LLM 補正ステータス (Issue #70)
+    correctionStatus: request.transcript?.fullText ? "pending" : undefined,
     createdAt: now,
     updatedAt: now,
     status: "completed",
   };
 
   const { resource } = await container.items.create(recording);
-  return resource as Recording;
+  const result = resource as Recording;
+
+  // 非同期で補正処理をキック (Issue #70)
+  if (request.transcript?.fullText) {
+    processTranscriptCorrection(result.id, result.userId).catch((err) => {
+      console.error(`[Correction] Failed to start for ${result.id}:`, err);
+    });
+  }
+
+  return result;
 }
 
 export async function getRecording(
@@ -173,6 +185,8 @@ export async function saveRecordingWithAudio(
     transcript: request.transcript,
     translations: request.translations,
     audioBlobName: blobName,
+    // LLM 補正ステータス (Issue #70)
+    correctionStatus: request.transcript?.fullText ? "pending" : undefined,
     createdAt: now,
     updatedAt: now,
     status: "completed",
@@ -181,6 +195,13 @@ export async function saveRecordingWithAudio(
   const { resource } = await container.items.create(recording);
   const result = resource as Recording;
   result.audioUrl = await generateSasUrl(blobName);
+
+  // 非同期で補正処理をキック (Issue #70)
+  if (request.transcript?.fullText) {
+    processTranscriptCorrection(result.id, result.userId).catch((err) => {
+      console.error(`[Correction] Failed to start for ${result.id}:`, err);
+    });
+  }
 
   return result;
 }

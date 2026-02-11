@@ -102,6 +102,9 @@ function RecordingDetailContent() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   
+  // LLM 補正版表示切り替え (Issue #70)
+  const [transcriptView, setTranscriptView] = useState<"original" | "corrected">("corrected");
+  
   // Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
@@ -205,6 +208,53 @@ function RecordingDetailContent() {
     };
     fetchData();
   }, [id, isAuthenticated, authLoading]);
+
+  // LLM 補正中の場合、定期的に再取得 (Issue #70)
+  useEffect(() => {
+    if (!id || !recording) return;
+    if (recording.correctionStatus !== "pending" && recording.correctionStatus !== "processing") {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      const response = await recordingsApi.getRecording(id);
+      if (response.data) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setRecording(response.data);
+        if (
+          response.data.correctionStatus === "completed" ||
+          response.data.correctionStatus === "failed"
+        ) {
+          clearInterval(interval);
+        }
+      }
+    }, 3000); // 3秒ごとにチェック
+
+    return () => clearInterval(interval);
+  }, [id, recording?.correctionStatus]);
+
+  // 表示する文字起こしを決定 (Issue #70)
+  const displayTranscript = useMemo(() => {
+    if (transcriptView === "corrected" && recording?.correctedTranscript) {
+      return recording.correctedTranscript;
+    }
+    return recording?.transcript;
+  }, [recording, transcriptView]);
+
+  // 補正ステータスバッジ (Issue #70)
+  const correctionStatusBadge = useMemo(() => {
+    switch (recording?.correctionStatus) {
+      case "pending":
+      case "processing":
+        return <span className="text-xs text-blue-600 animate-pulse">⏳ AI補正中...</span>;
+      case "completed":
+        return <span className="text-xs text-green-600">✨ AI補正済み</span>;
+      case "failed":
+        return <span className="text-xs text-red-600">❌ 補正失敗</span>;
+      default:
+        return null;
+    }
+  }, [recording?.correctionStatus]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -659,29 +709,72 @@ function RecordingDetailContent() {
         <TabsContent value="transcript">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">文字起こし</CardTitle>
-              {recording.transcript?.fullText && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    handleCopy(getTranscriptWithSpeakerLabels(), "transcript")
-                  }
-                  className="gap-2"
-                >
-                  {copied === "transcript" ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                  コピー
-                </Button>
-              )}
+              <div className="flex items-center gap-4">
+                <CardTitle className="text-lg">文字起こし</CardTitle>
+                {correctionStatusBadge}
+              </div>
+              <div className="flex items-center gap-2">
+                {/* オリジナル / AI補正版 切り替え (Issue #70) */}
+                {recording.correctedTranscript && (
+                  <div className="flex rounded-lg border p-1">
+                    <Button
+                      variant={transcriptView === "original" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setTranscriptView("original")}
+                      className="text-xs"
+                    >
+                      オリジナル
+                    </Button>
+                    <Button
+                      variant={transcriptView === "corrected" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setTranscriptView("corrected")}
+                      className="gap-1 text-xs"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      AI補正版
+                    </Button>
+                  </div>
+                )}
+                {displayTranscript?.fullText && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      handleCopy(
+                        transcriptView === "corrected" && recording.correctedTranscript
+                          ? recording.correctedTranscript.fullText
+                          : getTranscriptWithSpeakerLabels(),
+                        "transcript"
+                      )
+                    }
+                    className="gap-2"
+                  >
+                    {copied === "transcript" ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    コピー
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
-              {recording.transcript?.fullText ? (
+              {displayTranscript?.fullText ? (
                 <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                  {recording.transcript.fullText}
+                  {displayTranscript.fullText}
+                </div>
+              ) : recording.correctionStatus === "pending" || recording.correctionStatus === "processing" ? (
+                <div className="py-8 text-center text-gray-500">
+                  <Spinner className="mx-auto mb-2" />
+                  <p>AI補正処理中です...</p>
+                  <p className="text-xs mt-2">オリジナルの文字起こし：</p>
+                  {recording.transcript?.fullText && (
+                    <div className="mt-4 max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800 text-left">
+                      {recording.transcript.fullText}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-gray-500">
