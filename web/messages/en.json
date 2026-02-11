@@ -154,6 +154,9 @@
   "SettingsPage": {
     "title": "Settings",
     "description": "Configure application settings",
+    "loginRequired": "Login Required",
+    "loginRequiredDescription": "Please log in to change and sync your settings.",
+    "loginButton": "Login",
     "languageSettings": "Language Settings",
     "languageSettingsDesc": "Set default input and target languages",
     "defaultInputLang": "Default input language",

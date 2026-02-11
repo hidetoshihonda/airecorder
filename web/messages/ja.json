@@ -154,6 +154,9 @@
   "SettingsPage": {
     "title": "設定",
     "description": "アプリケーションの設定を変更",
+    "loginRequired": "ログインが必要です",
+    "loginRequiredDescription": "設定を変更・同期するにはログインしてください。",
+    "loginButton": "ログイン",
     "languageSettings": "言語設定",
     "languageSettingsDesc": "デフォルトの入力言語と翻訳先言語を設定",
     "defaultInputLang": "デフォルト入力言語",
