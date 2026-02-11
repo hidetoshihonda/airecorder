@@ -13,6 +13,11 @@ export interface Recording {
   tags?: string[];
   folderId?: string;
   status?: "recording" | "processing" | "completed" | "error";
+  // LLM 文字起こし補正 (Issue #70)
+  correctedTranscript?: Transcript;
+  correctionStatus?: "pending" | "processing" | "completed" | "failed";
+  correctionError?: string;
+  correctedAt?: string;
 }
 
 export interface Transcript {

@@ -11,6 +11,7 @@ import {
   deleteRecording,
   listRecordings,
 } from "../services/recordingService";
+import { processTranscriptCorrection } from "../services/transcriptCorrectionService";
 import {
   ApiResponse,
   Recording,
@@ -200,6 +201,48 @@ app.http("recordingById", {
         { success: false, error: "Method not allowed" },
         405
       );
+    } catch (error) {
+      return jsonResponse(
+        { success: false, error: (error as Error).message },
+        500
+      );
+    }
+  },
+});
+
+// POST /api/recordings/{id}/correct - 手動で補正を再実行 (Issue #70)
+app.http("correctRecording", {
+  methods: ["POST", "OPTIONS"],
+  authLevel: "anonymous",
+  route: "recordings/{id}/correct",
+  handler: async (
+    request: HttpRequest,
+    _context: InvocationContext
+  ): Promise<HttpResponseInit> => {
+    if (request.method === "OPTIONS") {
+      return jsonResponse({ success: true });
+    }
+
+    const id = request.params.id;
+    const userId = request.query.get("userId");
+
+    if (!userId) {
+      return jsonResponse(
+        { success: false, error: "userId is required" },
+        400
+      );
+    }
+
+    try {
+      // 補正処理を非同期でキック
+      processTranscriptCorrection(id!, userId).catch((err) => {
+        console.error(`[Correction] Manual correction failed for ${id}:`, err);
+      });
+
+      return jsonResponse({
+        success: true,
+        data: { message: "Correction started" },
+      });
     } catch (error) {
       return jsonResponse(
         { success: false, error: (error as Error).message },
