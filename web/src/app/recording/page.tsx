@@ -257,7 +257,7 @@ function RecordingDetailContent() {
       default:
         return null;
     }
-  }, [recording?.correctionStatus]);
+  }, [recording?.correctionStatus, t]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
