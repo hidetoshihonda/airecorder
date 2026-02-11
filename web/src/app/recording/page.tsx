@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -106,6 +106,8 @@ function RecordingDetailContent() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
   
   // LLM 補正版表示切り替え (Issue #70)
   const [transcriptView, setTranscriptView] = useState<"original" | "corrected">("corrected");
@@ -652,34 +654,76 @@ function RecordingDetailContent() {
                 <span className="text-sm text-gray-600">{t("loadingAudio")}</span>
               </div>
             ) : audioUrl ? (
-              <div className="flex items-center gap-4">
-                <audio controls className="flex-1" src={audioUrl}>
-                  {t("audioNotSupported")}
-                </audio>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await fetch(audioUrl);
-                      const blob = await response.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      const ext = blob.type.includes('mp4') ? '.m4a' : blob.type.includes('wav') ? '.wav' : '.webm';
-                      a.download = `${recording.title}${ext}`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    } catch {
-                      alert(t("downloadFailed"));
-                    }
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {t("download")}
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-4">
+                  <audio
+                    ref={audioRef}
+                    controls
+                    className="flex-1"
+                    src={audioUrl}
+                    onPlay={() => {
+                      if (audioRef.current) {
+                        audioRef.current.playbackRate = playbackRate;
+                      }
+                    }}
+                  >
+                    {t("audioNotSupported")}
+                  </audio>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(audioUrl);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const ext = blob.type.includes('mp4') ? '.m4a' : blob.type.includes('wav') ? '.wav' : '.webm';
+                        a.download = `${recording.title}${ext}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        alert(t("downloadFailed"));
+                      }
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("download")}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">
+                    {t("playbackSpeed")}
+                  </span>
+                  {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      className={cn(
+                        "h-6 px-2 text-xs rounded-md transition-colors",
+                        playbackRate === rate
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-accent"
+                      )}
+                      onClick={() => {
+                        setPlaybackRate(rate);
+                        if (audioRef.current) {
+                          audioRef.current.playbackRate = rate;
+                          if ('preservesPitch' in audioRef.current) {
+                            audioRef.current.preservesPitch = true;
+                          } else if ('webkitPreservesPitch' in audioRef.current) {
+                            (audioRef.current as unknown as { webkitPreservesPitch: boolean }).webkitPreservesPitch = true;
+                          }
+                        }
+                      }}
+                    >
+                      {rate === 1.0 ? "1x" : `${rate}x`}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-yellow-700">

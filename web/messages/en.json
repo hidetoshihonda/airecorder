@@ -259,6 +259,7 @@
     "downloadFailed": "Download failed",
     "download": "Download",
     "audioLoadFailed": "Failed to load audio file",
+    "playbackSpeed": "Speed",
     "transcriptTab": "Transcript",
     "translationTab": "Translation",
     "minutesTab": "Minutes",

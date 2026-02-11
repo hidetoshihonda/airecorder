@@ -259,6 +259,7 @@
     "downloadFailed": "Error en la descarga",
     "download": "Descargar",
     "audioLoadFailed": "No se pudo cargar el archivo de audio",
+    "playbackSpeed": "Velocidad",
     "transcriptTab": "Transcripción",
     "translationTab": "Traducción",
     "minutesTab": "Acta",
