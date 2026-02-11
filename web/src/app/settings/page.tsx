@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
@@ -25,30 +25,53 @@ export default function SettingsPage() {
   const { locale: appLocale, setLocale } = useAppLocale();
 
   // Custom template state
-  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => loadCustomTemplates());
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplate | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [templateForm, setTemplateForm] = useState({ name: "", description: "", systemPrompt: "" });
 
-  const handleCreateTemplate = () => {
+  // Load templates on mount
+  useEffect(() => {
+    const load = async () => {
+      setIsLoadingTemplates(true);
+      try {
+        const templates = await loadCustomTemplates();
+        setCustomTemplates(templates);
+      } finally {
+        setIsLoadingTemplates(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleCreateTemplate = async () => {
     if (!templateForm.name || !templateForm.systemPrompt) return;
-    addCustomTemplate(templateForm);
-    setCustomTemplates(loadCustomTemplates());
+    const newTemplate = await addCustomTemplate(templateForm);
+    if (newTemplate) {
+      setCustomTemplates((prev) => [...prev, newTemplate]);
+    }
     setTemplateForm({ name: "", description: "", systemPrompt: "" });
     setIsCreating(false);
   };
 
-  const handleUpdateTemplate = () => {
+  const handleUpdateTemplate = async () => {
     if (!editingTemplate || !templateForm.name || !templateForm.systemPrompt) return;
-    updateCustomTemplate(editingTemplate.id, templateForm);
-    setCustomTemplates(loadCustomTemplates());
+    const updated = await updateCustomTemplate(editingTemplate.id, templateForm);
+    if (updated) {
+      setCustomTemplates((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      );
+    }
     setEditingTemplate(null);
     setTemplateForm({ name: "", description: "", systemPrompt: "" });
   };
 
-  const handleDeleteTemplate = (id: string) => {
-    deleteCustomTemplate(id);
-    setCustomTemplates(loadCustomTemplates());
+  const handleDeleteTemplate = async (id: string) => {
+    const success = await deleteCustomTemplate(id);
+    if (success) {
+      setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
+    }
   };
 
   const startEditing = (tmpl: CustomTemplate) => {
@@ -387,7 +410,11 @@ export default function SettingsPage() {
             )}
 
             {/* テンプレート一覧 */}
-            {customTemplates.length === 0 && !isCreating ? (
+            {isLoadingTemplates ? (
+              <div className="text-sm text-gray-500 text-center py-4">
+                読み込み中...
+              </div>
+            ) : customTemplates.length === 0 && !isCreating ? (
               <p className="text-sm text-gray-500 text-center py-4">
                 {t("noCustomTemplates")}
               </p>
