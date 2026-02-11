@@ -35,7 +35,7 @@ export async function correctTranscript(
     apiVersion: "2024-02-15-preview",
   });
 
-  const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o";
+  const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini";
 
   const response = await client.chat.completions.create({
     model: deploymentName,

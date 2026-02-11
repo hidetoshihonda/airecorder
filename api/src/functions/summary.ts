@@ -266,7 +266,7 @@ app.http("generateSummary", {
 
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
       const apiKey = process.env.AZURE_OPENAI_KEY;
-      const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4";
+      const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini";
 
       if (!endpoint || !apiKey) {
         return jsonResponse(
