@@ -259,6 +259,7 @@
     "downloadFailed": "ダウンロードに失敗しました",
     "download": "ダウンロード",
     "audioLoadFailed": "音声ファイルを読み込めませんでした",
+    "playbackSpeed": "再生速度",
     "transcriptTab": "文字起こし",
     "translationTab": "翻訳",
     "minutesTab": "議事録",
