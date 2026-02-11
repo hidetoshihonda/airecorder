@@ -412,10 +412,10 @@ export default function HomePage() {
     // 会議情報
     if (summary.meetingInfo) {
       lines.push(`# ${t("meetingInfo")}`);
-      lines.push(`- **${t("meetingName") || "会議名"}:** ${summary.meetingInfo.title}`);
-      lines.push(`- **${t("datetime") || "日時"}:** ${summary.meetingInfo.datetime}`);
-      lines.push(`- **${t("participants") || "参加者"}:** ${summary.meetingInfo.participants.join(", ") || t("undecided")}`);
-      lines.push(`- **${t("purpose") || "目的"}:** ${summary.meetingInfo.purpose}`);
+      lines.push(`- **${t("meetingName")}** ${summary.meetingInfo.title}`);
+      lines.push(`- **${t("datetime")}** ${summary.meetingInfo.datetime}`);
+      lines.push(`- **${t("participants")}** ${summary.meetingInfo.participants.join(", ") || t("undecided")}`);
+      lines.push(`- **${t("purpose")}** ${summary.meetingInfo.purpose}`);
       lines.push("");
     }
     
@@ -431,11 +431,11 @@ export default function HomePage() {
       lines.push(`## ${t("topicDetails")}`);
       summary.topics.forEach((topic, i) => {
         lines.push(`### ${i + 1}. ${topic.title}`);
-        if (topic.background) lines.push(`- **背景:** ${topic.background}`);
-        if (topic.currentStatus) lines.push(`- **現状:** ${topic.currentStatus}`);
-        if (topic.issues) lines.push(`- **課題:** ${topic.issues}`);
-        if (topic.discussion) lines.push(`- **議論:** ${topic.discussion}`);
-        if (topic.nextActions) lines.push(`- **次アクション:** ${topic.nextActions}`);
+        if (topic.background) lines.push(`- **${t("copyBackground")}** ${topic.background}`);
+        if (topic.currentStatus) lines.push(`- **${t("copyCurrentStatus")}** ${topic.currentStatus}`);
+        if (topic.issues) lines.push(`- **${t("copyIssues")}** ${topic.issues}`);
+        if (topic.discussion) lines.push(`- **${t("copyDiscussion")}** ${topic.discussion}`);
+        if (topic.nextActions) lines.push(`- **${t("copyNextActions")}** ${topic.nextActions}`);
         lines.push("");
       });
     }
@@ -1107,7 +1107,7 @@ export default function HomePage() {
                   {/* 注意書き */}
                   {summary.caution && (
                     <div className="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
-                      <p className="font-medium">⚠️ 注意事項</p>
+                      <p className="font-medium">{t("cautionNotes")}</p>
                       <p className="text-sm mt-1">{summary.caution}</p>
                     </div>
                   )}
@@ -1117,10 +1117,10 @@ export default function HomePage() {
                     <div className="rounded-md bg-gray-50 p-4">
                       <h3 className="text-sm font-medium text-gray-700 mb-3">{t("meetingInfo")}</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-gray-500">会議名:</span> <span className="text-gray-800">{summary.meetingInfo.title}</span></div>
-                        <div><span className="text-gray-500">日時:</span> <span className="text-gray-800">{summary.meetingInfo.datetime}</span></div>
-                        <div className="col-span-2"><span className="text-gray-500">参加者:</span> <span className="text-gray-800">{summary.meetingInfo.participants.join(", ") || "不明"}</span></div>
-                        <div className="col-span-2"><span className="text-gray-500">目的:</span> <span className="text-gray-800">{summary.meetingInfo.purpose}</span></div>
+                        <div><span className="text-gray-500">{t("meetingName")}</span> <span className="text-gray-800">{summary.meetingInfo.title}</span></div>
+                        <div><span className="text-gray-500">{t("datetime")}</span> <span className="text-gray-800">{summary.meetingInfo.datetime}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">{t("participants")}</span> <span className="text-gray-800">{summary.meetingInfo.participants.join(", ") || t("unknownParticipant")}</span></div>
+                        <div className="col-span-2"><span className="text-gray-500">{t("purpose")}</span> <span className="text-gray-800">{summary.meetingInfo.purpose}</span></div>
                       </div>
                     </div>
                   )}
@@ -1150,22 +1150,22 @@ export default function HomePage() {
                             <h4 className="font-medium text-gray-800 mb-3">3.{index + 1}. {topic.title}</h4>
                             <div className="space-y-2 text-sm">
                               {topic.background && (
-                                <div><span className="text-gray-500 font-medium">背景・前提:</span> <span className="text-gray-700">{topic.background}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("background")}</span> <span className="text-gray-700">{topic.background}</span></div>
                               )}
                               {topic.currentStatus && (
-                                <div><span className="text-gray-500 font-medium">現状共有:</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("currentStatus")}</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
                               )}
                               {topic.issues && (
-                                <div><span className="text-gray-500 font-medium">課題/懸念:</span> <span className="text-gray-700">{topic.issues}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("issues")}</span> <span className="text-gray-700">{topic.issues}</span></div>
                               )}
                               {topic.discussion && (
-                                <div><span className="text-gray-500 font-medium">議論の要点:</span> <span className="text-gray-700">{topic.discussion}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("discussionPoints")}</span> <span className="text-gray-700">{topic.discussion}</span></div>
                               )}
                               {topic.examples && (
-                                <div><span className="text-gray-500 font-medium">具体例:</span> <span className="text-gray-700">{topic.examples}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("examples")}</span> <span className="text-gray-700">{topic.examples}</span></div>
                               )}
                               {topic.nextActions && (
-                                <div><span className="text-gray-500 font-medium">次アクション:</span> <span className="text-gray-700">{topic.nextActions}</span></div>
+                                <div><span className="text-gray-500 font-medium">{t("nextActions")}</span> <span className="text-gray-700">{topic.nextActions}</span></div>
                               )}
                             </div>
                           </div>

@@ -1,4 +1,4 @@
-import { CustomTemplate, ApiResponse } from "@/types";
+﻿import { CustomTemplate, ApiResponse } from "@/types";
 
 // API base URL - use environment variable or default to Azure Functions URL
 const API_BASE_URL =
@@ -68,7 +68,7 @@ class TemplatesApiService {
    */
   async list(): Promise<ApiResponse<CustomTemplate[]>> {
     if (!this.isAuthenticated()) {
-      return { error: "認証が必要です" };
+      return { error: "èªè¨¼ãŒå¿…è¦ã§ã™" };
     }
     return this.request<CustomTemplate[]>(
       `/templates?userId=${encodeURIComponent(this.userId!)}`
@@ -82,7 +82,7 @@ class TemplatesApiService {
     template: Omit<CustomTemplate, "id" | "createdAt" | "updatedAt">
   ): Promise<ApiResponse<CustomTemplate>> {
     if (!this.isAuthenticated()) {
-      return { error: "認証が必要です" };
+      return { error: "èªè¨¼ãŒå¿…è¦ã§ã™" };
     }
     return this.request<CustomTemplate>("/templates", {
       method: "POST",
@@ -101,7 +101,7 @@ class TemplatesApiService {
     updates: Partial<Pick<CustomTemplate, "name" | "description" | "systemPrompt">>
   ): Promise<ApiResponse<CustomTemplate>> {
     if (!this.isAuthenticated()) {
-      return { error: "認証が必要です" };
+      return { error: "èªè¨¼ãŒå¿…è¦ã§ã™" };
     }
     return this.request<CustomTemplate>(
       `/templates/${id}?userId=${encodeURIComponent(this.userId!)}`,
@@ -117,7 +117,7 @@ class TemplatesApiService {
    */
   async delete(id: string): Promise<ApiResponse<void>> {
     if (!this.isAuthenticated()) {
-      return { error: "認証が必要です" };
+      return { error: "èªè¨¼ãŒå¿…è¦ã§ã™" };
     }
     return this.request<void>(
       `/templates/${id}?userId=${encodeURIComponent(this.userId!)}`,
@@ -132,7 +132,7 @@ class TemplatesApiService {
     templates: Array<{ name: string; description: string; systemPrompt: string }>
   ): Promise<ApiResponse<CustomTemplate[]>> {
     if (!this.isAuthenticated()) {
-      return { error: "認証が必要です" };
+      return { error: "èªè¨¼ãŒå¿…è¦ã§ã™" };
     }
     return this.request<CustomTemplate[]>("/templates/bulk", {
       method: "POST",
@@ -145,3 +145,4 @@ class TemplatesApiService {
 }
 
 export const templatesApi = new TemplatesApiService();
+
