@@ -218,7 +218,10 @@
     "cancel": "Cancel",
     "createTemplate": "Create",
     "updateTemplate": "Update",
-    "noCustomTemplates": "No custom templates yet"
+    "noCustomTemplates": "No custom templates yet",
+    "templateCreateFailed": "Failed to create template",
+    "templateUpdateFailed": "Failed to update template",
+    "templateDeleteFailed": "Failed to delete template"
   },
   "AuthGateModal": {
     "title": "Login Required",

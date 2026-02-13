@@ -218,7 +218,10 @@
     "cancel": "Cancelar",
     "createTemplate": "Crear",
     "updateTemplate": "Actualizar",
-    "noCustomTemplates": "Aún no hay plantillas personalizadas"
+    "noCustomTemplates": "Aún no hay plantillas personalizadas",
+    "templateCreateFailed": "Error al crear la plantilla",
+    "templateUpdateFailed": "Error al actualizar la plantilla",
+    "templateDeleteFailed": "Error al eliminar la plantilla"
   },
   "AuthGateModal": {
     "title": "Inicio de sesión requerido",

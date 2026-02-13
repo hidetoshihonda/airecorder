@@ -69,6 +69,7 @@ jobs:
           NEXT_PUBLIC_AZURE_SPEECH_KEY: ${{ secrets.NEXT_PUBLIC_AZURE_SPEECH_KEY }}
           NEXT_PUBLIC_AZURE_SPEECH_REGION: ${{ secrets.NEXT_PUBLIC_AZURE_SPEECH_REGION }}
           NEXT_PUBLIC_AZURE_TRANSLATOR_KEY: ${{ secrets.NEXT_PUBLIC_AZURE_TRANSLATOR_KEY }}
+          NEXT_PUBLIC_AZURE_TRANSLATOR_REGION: ${{ secrets.NEXT_PUBLIC_AZURE_TRANSLATOR_REGION }}
 
   # ===================================
   # Close Pull Request (Cleanup Preview)

@@ -73,7 +73,21 @@ export function useTranslation(
         );
 
         if (!response.ok) {
-          throw new Error(`翻訳エラー: ${response.status} ${response.statusText}`);
+          let errorMessage = `翻訳エラー: ${response.status} ${response.statusText}`;
+          try {
+            const errorBody = await response.json();
+            if (errorBody?.error?.message) {
+              if (response.status === 401 || response.status === 403 ||
+                  errorBody.error.message.toLowerCase().includes('quota')) {
+                errorMessage = '翻訳サービスの利用制限に達しました。しばらく経ってから再度お試しください。';
+              } else {
+                errorMessage = `翻訳エラー: ${errorBody.error.message}`;
+              }
+            }
+          } catch {
+            // JSONパースエラーはデフォルトメッセージを使用
+          }
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
