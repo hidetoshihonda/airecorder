@@ -239,6 +239,7 @@
     "correctionPending": "⏳ Corrección IA...",
     "correctionCompleted": "✨ Corregido por IA",
     "correctionFailed": "❌ Corrección fallida",
+    "retryCorrection": "Reintentar",
     "unknownSpeaker": "Desconocido",
     "deleteConfirm": "¿Eliminar esta grabación? Esta acción no se puede deshacer.",
     "deleteFailed": "Error al eliminar: {error}",

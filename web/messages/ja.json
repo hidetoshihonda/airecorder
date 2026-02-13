@@ -239,6 +239,7 @@
     "correctionPending": "⏳ AI補正中...",
     "correctionCompleted": "✨ AI補正済み",
     "correctionFailed": "❌ 補正失敗",
+    "retryCorrection": "再試行",
     "unknownSpeaker": "不明",
     "deleteConfirm": "この録音を削除しますか？この操作は取り消せません。",
     "deleteFailed": "削除に失敗しました: {error}",

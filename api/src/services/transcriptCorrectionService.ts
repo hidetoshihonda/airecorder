@@ -29,13 +29,21 @@ export async function correctTranscript(
   transcript: Transcript,
   language?: string
 ): Promise<Transcript> {
-  const client = new AzureOpenAI({
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-    apiVersion: "2024-02-15-preview",
-  });
-
+  const apiKey = process.env.AZURE_OPENAI_KEY;
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini";
+
+  if (!apiKey || !endpoint) {
+    throw new Error(
+      "Azure OpenAI is not configured: AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT are required"
+    );
+  }
+
+  const client = new AzureOpenAI({
+    apiKey,
+    endpoint,
+    apiVersion: "2024-08-01-preview",
+  });
 
   const response = await client.chat.completions.create({
     model: deploymentName,
