@@ -202,6 +202,8 @@
     "themeSystem": "システム設定に従う",
     "saving": "保存中...",
     "saveSettings": "設定を保存",
+    "autoSaveNote": "設定は変更時に自動保存されます",
+    "settingsSaved": "設定を保存しました",
     "uiLanguage": "表示言語",
     "uiLanguageDesc": "アプリケーションの表示言語を選択",
     "customTemplates": "カスタムテンプレート",
