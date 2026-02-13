@@ -48,9 +48,15 @@ export default function SettingsPage() {
 
   const handleCreateTemplate = async () => {
     if (!templateForm.name || !templateForm.systemPrompt) return;
-    const newTemplate = await addCustomTemplate(templateForm);
-    if (newTemplate) {
-      setCustomTemplates((prev) => [...prev, newTemplate]);
+    try {
+      const newTemplate = await addCustomTemplate(templateForm);
+      if (newTemplate) {
+        setCustomTemplates((prev) => [...prev, newTemplate]);
+      } else {
+        alert(t("templateCreateFailed"));
+      }
+    } catch {
+      alert(t("templateCreateFailed"));
     }
     setTemplateForm({ name: "", description: "", systemPrompt: "" });
     setIsCreating(false);
@@ -58,20 +64,32 @@ export default function SettingsPage() {
 
   const handleUpdateTemplate = async () => {
     if (!editingTemplate || !templateForm.name || !templateForm.systemPrompt) return;
-    const updated = await updateCustomTemplate(editingTemplate.id, templateForm);
-    if (updated) {
-      setCustomTemplates((prev) =>
-        prev.map((t) => (t.id === updated.id ? updated : t))
-      );
+    try {
+      const updated = await updateCustomTemplate(editingTemplate.id, templateForm);
+      if (updated) {
+        setCustomTemplates((prev) =>
+          prev.map((t) => (t.id === updated.id ? updated : t))
+        );
+      } else {
+        alert(t("templateUpdateFailed"));
+      }
+    } catch {
+      alert(t("templateUpdateFailed"));
     }
     setEditingTemplate(null);
     setTemplateForm({ name: "", description: "", systemPrompt: "" });
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    const success = await deleteCustomTemplate(id);
-    if (success) {
-      setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
+    try {
+      const success = await deleteCustomTemplate(id);
+      if (success) {
+        setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
+      } else {
+        alert(t("templateDeleteFailed"));
+      }
+    } catch {
+      alert(t("templateDeleteFailed"));
     }
   };
 

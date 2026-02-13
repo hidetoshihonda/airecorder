@@ -80,6 +80,10 @@ export default function HomePage() {
   const lastTranslatedTextRef = useRef<string>("");
   const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Differential translation refs (Issue #110: send only new text to reduce API cost)
+  const lastTranslatedLengthRef = useRef(0);
+  const accumulatedTranslationRef = useRef("");
+
   // Translation scroll control
   const translationScrollRef = useRef<HTMLDivElement>(null);
   const [translationAutoFollow, setTranslationAutoFollow] = useState(true);
@@ -211,6 +215,7 @@ export default function HomePage() {
   }, [fsmIsRecording, fsmIsPaused]);
 
   // Auto-translate when transcript changes (real-time translation)
+  // Issue #110: Differential translation - only send new text to reduce API cost
   useEffect(() => {
     const textToTranslate = transcript || interimTranscript;
     
@@ -224,7 +229,7 @@ export default function HomePage() {
       clearTimeout(translationTimeoutRef.current);
     }
 
-    // If recording stopped, translate immediately
+    // If recording stopped, translate full text for final accuracy
     if (!showRecordingUI && transcript) {
       lastTranslatedTextRef.current = transcript;
       translate(transcript, sourceLanguage, targetLanguage).then((result) => {
@@ -235,13 +240,36 @@ export default function HomePage() {
       return;
     }
 
-    // Real-time translation with debounce (500ms delay to avoid too many API calls)
+    // Real-time translation with debounce — differential: only translate new portion
     if (showRecordingUI && isRealtimeTranslation && textToTranslate) {
       translationTimeoutRef.current = setTimeout(async () => {
         lastTranslatedTextRef.current = textToTranslate;
-        const result = await translate(textToTranslate, sourceLanguage, targetLanguage);
+        
+        // Calculate new text since last successful translation
+        const newConfirmedText = transcript.slice(lastTranslatedLengthRef.current);
+        const deltaText = newConfirmedText + (interimTranscript ? " " + interimTranscript : "");
+        
+        if (!deltaText.trim()) return;
+        
+        const result = await translate(deltaText, sourceLanguage, targetLanguage);
         if (result) {
-          setTranslatedText(result);
+          // If we have new confirmed text, accumulate its translation
+          if (newConfirmedText.trim()) {
+            // Translate only confirmed portion to accumulate
+            const confirmedResult = interimTranscript
+              ? await translate(newConfirmedText, sourceLanguage, targetLanguage)
+              : result;
+            if (confirmedResult) {
+              accumulatedTranslationRef.current += 
+                (accumulatedTranslationRef.current ? " " : "") + confirmedResult;
+              lastTranslatedLengthRef.current = transcript.length;
+            }
+          }
+          // Display: accumulated + interim translation
+          const interimPart = interimTranscript ? " " + result.split(" ").slice(-interimTranscript.split(" ").length).join(" ") : "";
+          setTranslatedText(
+            (accumulatedTranslationRef.current + interimPart).trim()
+          );
         }
       }, 500);
     }
@@ -291,6 +319,8 @@ export default function HomePage() {
     setSummary(null);
     setSummaryError(null);
     lastTranslatedTextRef.current = "";
+    lastTranslatedLengthRef.current = 0;
+    accumulatedTranslationRef.current = "";
     setTranslationAutoFollow(true);
     resetTranscript();
     resetSpeakers();

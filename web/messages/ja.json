@@ -218,7 +218,10 @@
     "cancel": "キャンセル",
     "createTemplate": "作成",
     "updateTemplate": "更新",
-    "noCustomTemplates": "カスタムテンプレートはまだありません"
+    "noCustomTemplates": "カスタムテンプレートはまだありません",
+    "templateCreateFailed": "テンプレートの作成に失敗しました",
+    "templateUpdateFailed": "テンプレートの更新に失敗しました",
+    "templateDeleteFailed": "テンプレートの削除に失敗しました"
   },
   "AuthGateModal": {
     "title": "ログインが必要です",

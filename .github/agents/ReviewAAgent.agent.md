@@ -1,6 +1,6 @@
 ---
 description: 'GitHub Issue を分析し、実装計画書を作成するエージェント（分析・計画のみ、コード実装は行わない）'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'gitkraken/*', 'context7/*', 'playwright/*', 'agent', 'serena/*', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'gitkraken/*', 'context7/*', 'playwright/*', 'serena/*', 'agent', 'todo']
 ---
 
 # ReviewAAgent — コード深掘り分析 & 実装計画書作成エージェント
