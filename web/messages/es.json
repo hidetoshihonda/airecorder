@@ -202,6 +202,8 @@
     "themeSystem": "Seguir sistema",
     "saving": "Guardando...",
     "saveSettings": "Guardar ajustes",
+    "autoSaveNote": "Los ajustes se guardan automáticamente al cambiar",
+    "settingsSaved": "Ajustes guardados",
     "uiLanguage": "Idioma de visualización",
     "uiLanguageDesc": "Seleccionar el idioma de la aplicación",
     "customTemplates": "Plantillas personalizadas",

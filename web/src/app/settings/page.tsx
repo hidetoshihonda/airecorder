@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn } from "lucide-react";
+import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,10 +21,26 @@ import { CustomTemplate } from "@/types";
 import { loadCustomTemplates, addCustomTemplate, updateCustomTemplate, deleteCustomTemplate } from "@/lib/meetingTemplates";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, isAuthenticated, isLoading: authLoading, login } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
+  const { settings, updateSettings, isAuthenticated, isLoading: authLoading, login, settingsLoaded } = useAuth();
+  const [showSaved, setShowSaved] = useState(false);
   const t = useTranslations("SettingsPage");
   const { locale: appLocale, setLocale } = useAppLocale();
+
+  // next-themes との同期
+  const { setTheme } = useTheme();
+
+  useEffect(() => {
+    if (settingsLoaded) {
+      setTheme(settings.theme);
+    }
+  }, [settings.theme, settingsLoaded, setTheme]);
+
+  // 設定変更ハンドラ: updateSettings + トースト通知
+  const handleSettingChange = (newSettings: Partial<typeof settings>) => {
+    updateSettings(newSettings);
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 2000);
+  };
 
   // Custom template state
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
@@ -117,13 +134,6 @@ export default function SettingsPage() {
     { code: "es", flag: "🇪🇸", name: "Español" },
   ];
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    // TODO: Save settings to backend
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-  };
-
   // 認証ローディング中
   if (authLoading) {
     return (
@@ -164,8 +174,12 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
-        <p className="mt-1 text-gray-600">{t("description")}</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("title")}</h1>
+        <p className="mt-1 text-gray-600 dark:text-gray-400">{t("description")}</p>
+        <p className="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <Check className="h-3 w-3" />
+          {t("autoSaveNote")}
+        </p>
       </div>
 
       <div className="space-y-6">
@@ -182,13 +196,13 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t("defaultInputLang")}
               </label>
               <Select
                 value={settings.defaultSourceLanguage}
                 onValueChange={(value) =>
-                  updateSettings({ defaultSourceLanguage: value })
+                  handleSettingChange({ defaultSourceLanguage: value })
                 }
               >
                 <SelectTrigger>
@@ -204,13 +218,13 @@ export default function SettingsPage() {
               </Select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t("defaultTargetLang")}
               </label>
               <Select
                 value={settings.defaultTargetLanguages[0] || "en-US"}
                 onValueChange={(value) =>
-                  updateSettings({ defaultTargetLanguages: [value] })
+                  handleSettingChange({ defaultTargetLanguages: [value] })
                 }
               >
                 <SelectTrigger>
@@ -241,13 +255,13 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t("audioQuality")}
               </label>
               <Select
                 value={settings.audioQuality}
                 onValueChange={(value: "low" | "medium" | "high") =>
-                  updateSettings({ audioQuality: value })
+                  handleSettingChange({ audioQuality: value })
                 }
               >
                 <SelectTrigger>
@@ -262,8 +276,8 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">{t("autoSave")}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("autoSave")}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {t("autoSaveDesc")}
                 </p>
               </div>
@@ -272,7 +286,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.autoSaveRecordings}
                   onChange={(e) =>
-                    updateSettings({ autoSaveRecordings: e.target.checked })
+                    handleSettingChange({ autoSaveRecordings: e.target.checked })
                   }
                   className="peer sr-only"
                 />
@@ -296,8 +310,8 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">{t("speakerDiarizationToggle")}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("speakerDiarizationToggle")}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {t("speakerDiarizationToggleDesc")}
                 </p>
               </div>
@@ -306,7 +320,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.enableSpeakerDiarization ?? false}
                   onChange={(e) =>
-                    updateSettings({ enableSpeakerDiarization: e.target.checked })
+                    handleSettingChange({ enableSpeakerDiarization: e.target.checked })
                   }
                   className="peer sr-only"
                 />
@@ -369,13 +383,13 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t("theme")}
               </label>
               <Select
                 value={settings.theme}
                 onValueChange={(value: "light" | "dark" | "system") =>
-                  updateSettings({ theme: value })
+                  handleSettingChange({ theme: value })
                 }
               >
                 <SelectTrigger>
@@ -501,13 +515,13 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {isSaving ? t("saving") : t("saveSettings")}
-          </Button>
-        </div>
+        {/* Toast notification */}
+        {showSaved && (
+          <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white shadow-lg transition-opacity">
+            <Check className="h-4 w-4" />
+            {t("settingsSaved")}
+          </div>
+        )}
       </div>
     </div>
   );

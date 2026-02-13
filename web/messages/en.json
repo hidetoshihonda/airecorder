@@ -202,6 +202,8 @@
     "themeSystem": "Follow system",
     "saving": "Saving...",
     "saveSettings": "Save settings",
+    "autoSaveNote": "Settings are automatically saved when changed",
+    "settingsSaved": "Settings saved",
     "uiLanguage": "Display Language",
     "uiLanguageDesc": "Choose the application display language",
     "customTemplates": "Custom Templates",

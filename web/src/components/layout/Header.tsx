@@ -32,12 +32,12 @@ export function Header() {
   const tc = useTranslations("Common");
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
+    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-gray-900">AI Recorder</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">AI Recorder</span>
           </Link>
         </div>
 
@@ -52,8 +52,8 @@ export function Header() {
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -71,7 +71,7 @@ export function Header() {
               variant="ghost"
               size="sm"
               onClick={() => setLangMenuOpen(!langMenuOpen)}
-              className="gap-1 text-gray-600"
+              className="gap-1 text-gray-600 dark:text-gray-300"
             >
               <Globe className="h-4 w-4" />
               {UI_LANGUAGES.find(l => l.code === locale)?.flag}
@@ -79,7 +79,7 @@ export function Header() {
             {langMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setLangMenuOpen(false)} />
-                <div className="absolute right-0 z-50 mt-1 w-36 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 z-50 mt-1 w-36 rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
                   {UI_LANGUAGES.map((lang) => (
                     <button
                       key={lang.code}
@@ -87,8 +87,8 @@ export function Header() {
                       className={cn(
                         "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors",
                         locale === lang.code
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-700 hover:bg-gray-50"
+                          ? "bg-blue-50 text-blue-700 font-medium dark:bg-blue-900/30 dark:text-blue-400"
+                          : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
                       )}
                     >
                       <span>{lang.flag}</span>
@@ -102,15 +102,15 @@ export function Header() {
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-1.5">
-                <User className="h-4 w-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">{user.displayName}</span>
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-1.5 dark:bg-gray-800">
+                <User className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{user.displayName}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => logout()}
-                className="gap-1 text-gray-600 hover:text-red-600"
+                className="gap-1 text-gray-600 hover:text-red-600 dark:text-gray-300 dark:hover:text-red-400"
               >
                 <LogOut className="h-4 w-4" />
                 {tc('logout')}
@@ -146,7 +146,7 @@ export function Header() {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="border-t border-gray-200 bg-white md:hidden">
+        <div className="border-t border-gray-200 bg-white md:hidden dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-1 px-4 py-3">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
@@ -158,8 +158,8 @@ export function Header() {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors",
                     isActive
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -169,10 +169,10 @@ export function Header() {
             })}
           </div>
           {/* Mobile User Info */}
-          <div className="mt-3 border-t border-gray-200 pt-3">
+          <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-700">
             {isAuthenticated && user ? (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700">
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
                   <User className="h-4 w-4" />
                   {user.displayName}
                 </div>

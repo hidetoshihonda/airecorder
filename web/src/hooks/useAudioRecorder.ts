@@ -2,9 +2,18 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 
+/** 音声品質 → audioBitsPerSecond マッピング */
+const QUALITY_BITRATE_MAP: Record<string, number> = {
+  low: 32000,      // 32kbps
+  medium: 128000,  // 128kbps
+  high: 256000,    // 256kbps
+};
+
 interface UseAudioRecorderOptions {
   /** 共有 MediaStream（指定時はこのストリームを使用し、独自に getUserMedia を呼ばない） */
   sharedStream?: MediaStream | null;
+  /** 音声品質設定。MediaRecorder の audioBitsPerSecond にマッピングされる */
+  audioQuality?: "low" | "medium" | "high";
 }
 
 interface UseAudioRecorderReturn {
@@ -24,7 +33,7 @@ interface UseAudioRecorderReturn {
 export function useAudioRecorder(
   options: UseAudioRecorderOptions = {}
 ): UseAudioRecorderReturn {
-  const { sharedStream = null } = options;
+  const { sharedStream = null, audioQuality = "high" } = options;
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -97,7 +106,10 @@ export function useAudioRecorder(
             ? "audio/mp4"
             : "audio/wav";
 
-      const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
+      const mediaRecorder = new MediaRecorder(audioStream, {
+        mimeType,
+        audioBitsPerSecond: QUALITY_BITRATE_MAP[audioQuality] || 128000,
+      });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {

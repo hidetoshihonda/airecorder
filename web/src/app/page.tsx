@@ -135,7 +135,7 @@ export default function HomePage() {
     pauseRecording: pauseAudioRecording,
     resumeRecording: resumeAudioRecording,
     resetRecording: resetAudioRecording,
-  } = useAudioRecorder();
+  } = useAudioRecorder({ audioQuality: settings.audioQuality });
 
   // Translation
   const {
