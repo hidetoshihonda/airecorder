@@ -150,7 +150,7 @@ export function useAudioRecorder(
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`マイクへのアクセスに失敗しました: ${message}`);
     }
-  }, [sharedStream, audioUrl]);
+  }, [sharedStream, audioUrl, audioQuality]);
 
   // BUG-6 fix: Ref ベースのガードで stale closure を防止
   const stopRecording = useCallback(() => {
