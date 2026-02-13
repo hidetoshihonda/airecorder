@@ -181,6 +181,20 @@ class RecordingsApiService {
     });
   }
 
+  /**
+   * 文字起こし補正を手動で再実行 (Issue #103)
+   */
+  async retryCorrection(id: string): Promise<ApiResponse<{ message: string }>> {
+    const authError = this.requireAuth<{ message: string }>();
+    if (authError) return authError;
+
+    const params = new URLSearchParams({ userId: this.userId! });
+    return this.request<{ message: string }>(
+      `/recordings/${id}/correct?${params.toString()}`,
+      { method: "POST" }
+    );
+  }
+
   async healthCheck(): Promise<ApiResponse<{ status: string }>> {
     return this.request<{ status: string }>("/health");
   }

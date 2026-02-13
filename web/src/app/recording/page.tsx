@@ -18,6 +18,7 @@ import {
   AlertCircle,
   FileDown,
   PenSquare,
+  RefreshCw,
   X,
   Users,
   CalendarCheck,
@@ -246,7 +247,28 @@ function RecordingDetailContent() {
     return recording?.transcript;
   }, [recording, transcriptView]);
 
-  // 補正ステータスバッジ (Issue #70)
+  // 補正リトライ (Issue #103)
+  const [isRetryingCorrection, setIsRetryingCorrection] = useState(false);
+
+  const handleRetryCorrection = async () => {
+    if (!id || isRetryingCorrection) return;
+    setIsRetryingCorrection(true);
+    try {
+      const response = await recordingsApi.retryCorrection(id);
+      if (response.error) {
+        console.error("[Correction] Retry failed:", response.error);
+      } else {
+        // ステータスをpendingに戻してポーリングを再開
+        setRecording((prev) => prev ? { ...prev, correctionStatus: "pending", correctionError: undefined } : prev);
+      }
+    } catch (err) {
+      console.error("[Correction] Retry error:", err);
+    } finally {
+      setIsRetryingCorrection(false);
+    }
+  };
+
+  // 補正ステータスバッジ (Issue #70, #103)
   const correctionStatusBadge = useMemo(() => {
     switch (recording?.correctionStatus) {
       case "pending":
@@ -255,11 +277,26 @@ function RecordingDetailContent() {
       case "completed":
         return <span className="text-xs text-green-600">{t("correctionCompleted")}</span>;
       case "failed":
-        return <span className="text-xs text-red-600">{t("correctionFailed")}</span>;
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-xs text-red-600">{t("correctionFailed")}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRetryCorrection}
+              disabled={isRetryingCorrection}
+              className="h-5 px-1.5 text-xs text-red-600 hover:text-red-700"
+            >
+              <RefreshCw className={cn("h-3 w-3", isRetryingCorrection && "animate-spin")} />
+              {t("retryCorrection")}
+            </Button>
+          </span>
+        );
       default:
         return null;
     }
-  }, [recording?.correctionStatus, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording?.correctionStatus, isRetryingCorrection, t]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);

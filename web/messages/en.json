@@ -239,6 +239,7 @@
     "correctionPending": "⏳ AI correcting...",
     "correctionCompleted": "✨ AI corrected",
     "correctionFailed": "❌ Correction failed",
+    "retryCorrection": "Retry",
     "unknownSpeaker": "Unknown",
     "deleteConfirm": "Delete this recording? This action cannot be undone.",
     "deleteFailed": "Delete failed: {error}",
