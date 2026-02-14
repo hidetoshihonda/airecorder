@@ -71,6 +71,7 @@
     "sourceLabel": "原文（{language}）:",
     "followLatest": "最新に追従",
     "emptyTranslation": "録音完了後、自動的に翻訳されます",
+    "fullDisplay": "全文表示",
     "minutesTitle": "議事録",
     "generating": "生成中...",
     "generateWithAI": "AIで議事録を生成",

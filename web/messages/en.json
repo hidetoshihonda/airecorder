@@ -71,6 +71,7 @@
     "sourceLabel": "Source ({language}):",
     "followLatest": "Follow latest",
     "emptyTranslation": "Translation will appear after recording",
+    "fullDisplay": "Show all",
     "minutesTitle": "Minutes",
     "generating": "Generating...",
     "generateWithAI": "Generate minutes with AI",

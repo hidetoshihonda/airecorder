@@ -71,6 +71,7 @@
     "sourceLabel": "Original ({language}):",
     "followLatest": "Seguir lo último",
     "emptyTranslation": "La traducción aparecerá después de la grabación",
+    "fullDisplay": "Mostrar todo",
     "minutesTitle": "Acta",
     "generating": "Generando...",
     "generateWithAI": "Generar acta con IA",
