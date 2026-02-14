@@ -732,7 +732,7 @@ function RecordingDetailContent() {
                   </Button>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground mr-1">
+                  <span className="text-xs text-gray-500 mr-1">
                     {t("playbackSpeed")}
                   </span>
                   {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
@@ -742,8 +742,8 @@ function RecordingDetailContent() {
                       className={cn(
                         "h-6 px-2 text-xs rounded-md transition-colors",
                         playbackRate === rate
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-accent"
+                          ? "bg-gray-900 text-white shadow-sm font-medium"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       )}
                       onClick={() => {
                         setPlaybackRate(rate);
