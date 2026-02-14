@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,18 @@ import { Summary, TemplateId } from "@/types";
 import { PRESET_TEMPLATES, getTemplateByIdSync, loadCustomTemplatesSync, customToMeetingTemplate } from "@/lib/meetingTemplates";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+
+/**
+ * テキストを文区切りで分割し、最新の N 文のみ返す。
+ * 全文データは translatedText state に保持されたまま、表示用の切り出しのみ行う。
+ */
+function getRecentSentences(text: string, count: number = 5): string {
+  if (!text) return "";
+  // 日本語句点(。)、英語ピリオド(.)、!?で区切り
+  const sentences = text.split(/(?<=[。.!?！？])\s*/g).filter(Boolean);
+  if (sentences.length <= count) return text;
+  return "…" + sentences.slice(-count).join(" ");
+}
 
 export default function HomePage() {
   const { settings } = useAuth();
@@ -87,6 +99,9 @@ export default function HomePage() {
   // Translation scroll control
   const translationScrollRef = useRef<HTMLDivElement>(null);
   const [translationAutoFollow, setTranslationAutoFollow] = useState(true);
+
+  // Issue #105: Translation display mode (recent N sentences vs full text)
+  const [translationDisplayMode, setTranslationDisplayMode] = useState<"recent" | "full">("recent");
 
   // Recording State Machine (BUG-1~7 の根本修正)
   const {
@@ -924,21 +939,38 @@ export default function HomePage() {
           <Card className="flex min-h-0 flex-1 flex-col">
             <CardHeader className="flex flex-none flex-row items-center justify-between py-3">
               <CardTitle className="text-base">{t("translationResult")}</CardTitle>
-              {translatedText && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCopy(translatedText, "translation")}
-                  className="gap-1.5 h-7 text-xs"
-                >
-                  {copied === "translation" ? (
-                    <Check className="h-3.5 w-3.5 text-green-600" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {t("copy")}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Issue #105: Display mode toggle - only during recording */}
+                {showRecordingUI && translatedText && (
+                  <label className="relative inline-flex items-center cursor-pointer gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={translationDisplayMode === "full"}
+                      onChange={(e) => setTranslationDisplayMode(e.target.checked ? "full" : "recent")}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span className="text-xs text-gray-600">
+                      {t("fullDisplay")}
+                    </span>
+                  </label>
+                )}
+                {translatedText && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(translatedText, "translation")}
+                    className="gap-1.5 h-7 text-xs"
+                  >
+                    {copied === "translation" ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {t("copy")}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
               {isTranslating && !translatedText && !showRecordingUI ? (
@@ -971,16 +1003,22 @@ export default function HomePage() {
                         </Button>
                       </div>
                       <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
-                        {translatedText}
+                        {showRecordingUI && translationDisplayMode === "recent"
+                          ? getRecentSentences(translatedText, 5)
+                          : translatedText}
                       </div>
                     </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm text-gray-500">{t("sourceLabel", { language: SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name || sourceLanguage })}</p>
+                    {/* Issue #105: Source section - collapsible to reduce scroll area */}
+                    <details className="group" open={!showRecordingUI}>
+                      <summary className="flex items-center justify-between mb-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                          {t("sourceLabel", { language: SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name || sourceLanguage })}
+                          <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                        </p>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSpeak(transcript, sourceLanguage)}
+                          onClick={(e) => { e.preventDefault(); handleSpeak(transcript, sourceLanguage); }}
                           className="gap-1 h-7 px-2"
                           title={isSpeaking ? "停止" : "読み上げ"}
                         >
@@ -990,20 +1028,22 @@ export default function HomePage() {
                             <Volume2 className="h-4 w-4" />
                           )}
                         </Button>
+                      </summary>
+                      <div className="mt-2">
+                        {enableSpeakerDiarization && labeledSegments.length > 0 ? (
+                          <TranscriptView
+                            segments={labeledSegments}
+                            interimTranscript={showRecordingUI ? interimTranscript : ""}
+                            showSpeaker={enableSpeakerDiarization}
+                            isRecording={showRecordingUI}
+                          />
+                        ) : (
+                          <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
+                            {transcript}
+                          </div>
+                        )}
                       </div>
-                      {enableSpeakerDiarization && labeledSegments.length > 0 ? (
-                        <TranscriptView
-                          segments={labeledSegments}
-                          interimTranscript={showRecordingUI ? interimTranscript : ""}
-                          showSpeaker={enableSpeakerDiarization}
-                          isRecording={showRecordingUI}
-                        />
-                      ) : (
-                        <div className="whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                          {transcript}
-                        </div>
-                      )}
-                    </div>
+                    </details>
                   </div>
                   {/* Issue #4: Follow toggle button for translation tab */}
                   {showRecordingUI && !translationAutoFollow && (
