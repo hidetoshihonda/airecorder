@@ -42,7 +42,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * テキストを文区切りで分割し、最新の N 文のみ返す。
- * 全文データは translatedText state に保持されたまま、表示用の切り出しのみ行う。
+ * Issue #33: displayTranslation に対して適用される。
  */
 function getRecentSentences(text: string, count: number = 5): string {
   if (!text) return "";
@@ -88,13 +88,9 @@ export default function HomePage() {
   const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("summary");
   const [regenerateLanguage, setRegenerateLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
   
-  // Ref to track last translated text to avoid redundant translations
-  const lastTranslatedTextRef = useRef<string>("");
-  const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Differential translation refs (Issue #110: send only new text to reduce API cost)
-  const lastTranslatedLengthRef = useRef(0);
-  const accumulatedTranslationRef = useRef("");
+  // Issue #33: Track translated segment count for differential translation
+  const prevSegmentCountRef = useRef(0);
+  const interimTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Translation scroll control
   const translationScrollRef = useRef<HTMLDivElement>(null);
@@ -153,11 +149,17 @@ export default function HomePage() {
     resetRecording: resetAudioRecording,
   } = useAudioRecorder({ audioQuality: settings.audioQuality });
 
-  // Translation
+  // Translation (Issue #33: segment-based differential translation)
   const {
     isTranslating,
     error: translationError,
     translate,
+    translatedSegments,
+    translatedFullText,
+    interimTranslation,
+    translateSegment,
+    translateInterim,
+    resetSegments,
   } = useTranslation({
     subscriptionKey: translatorConfig.subscriptionKey,
     region: translatorConfig.region,
@@ -230,72 +232,85 @@ export default function HomePage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [fsmIsRecording, fsmIsPaused]);
 
-  // Auto-translate when transcript changes (real-time translation)
-  // Issue #110: Differential translation - only send new text to reduce API cost
+  // Issue #33: Segment-based differential translation — translate only new segments
   useEffect(() => {
-    const textToTranslate = transcript || interimTranscript;
-    
-    // Skip if no text or same as last translated
-    if (!textToTranslate || textToTranslate === lastTranslatedTextRef.current) {
-      return;
+    if (!isRealtimeTranslation || !showRecordingUI) return;
+
+    // Detect new segments since last check
+    const newSegments = segments.slice(prevSegmentCountRef.current);
+    prevSegmentCountRef.current = segments.length;
+
+    for (const seg of newSegments) {
+      translateSegment(seg, sourceLanguage, targetLanguage);
+    }
+  }, [segments, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateSegment]);
+
+  // Issue #33: Interim (in-progress) text translation with 300ms debounce
+  useEffect(() => {
+    if (!interimTranscript || !isRealtimeTranslation || !showRecordingUI) return;
+
+    if (interimTimeoutRef.current) {
+      clearTimeout(interimTimeoutRef.current);
     }
 
-    // Clear previous timeout
-    if (translationTimeoutRef.current) {
-      clearTimeout(translationTimeoutRef.current);
-    }
+    interimTimeoutRef.current = setTimeout(() => {
+      translateInterim(interimTranscript, sourceLanguage, targetLanguage);
+    }, 300);
 
-    // If recording stopped, translate full text for final accuracy
-    if (!showRecordingUI && transcript) {
-      lastTranslatedTextRef.current = transcript;
+    return () => {
+      if (interimTimeoutRef.current) {
+        clearTimeout(interimTimeoutRef.current);
+      }
+    };
+  }, [interimTranscript, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateInterim]);
+
+  // Issue #33: Fallback — when recording stops, if some segments are untranslated, translate full text
+  useEffect(() => {
+    if (!showRecordingUI && transcript && translatedSegments.length > 0 && translatedSegments.length < segments.length) {
+      // Some segments failed — fallback to full text translation
       translate(transcript, sourceLanguage, targetLanguage).then((result) => {
         if (result) {
           setTranslatedText(result);
         }
       });
-      return;
     }
-
-    // Real-time translation with debounce — differential: only translate new portion
-    if (showRecordingUI && isRealtimeTranslation && textToTranslate) {
-      translationTimeoutRef.current = setTimeout(async () => {
-        lastTranslatedTextRef.current = textToTranslate;
-        
-        // Calculate new text since last successful translation
-        const newConfirmedText = transcript.slice(lastTranslatedLengthRef.current);
-        const deltaText = newConfirmedText + (interimTranscript ? " " + interimTranscript : "");
-        
-        if (!deltaText.trim()) return;
-        
-        const result = await translate(deltaText, sourceLanguage, targetLanguage);
+    // Also handle: recording stopped with no real-time translation (RT off)
+    if (!showRecordingUI && transcript && translatedSegments.length === 0 && !isRealtimeTranslation) {
+      translate(transcript, sourceLanguage, targetLanguage).then((result) => {
         if (result) {
-          // If we have new confirmed text, accumulate its translation
-          if (newConfirmedText.trim()) {
-            // Translate only confirmed portion to accumulate
-            const confirmedResult = interimTranscript
-              ? await translate(newConfirmedText, sourceLanguage, targetLanguage)
-              : result;
-            if (confirmedResult) {
-              accumulatedTranslationRef.current += 
-                (accumulatedTranslationRef.current ? " " : "") + confirmedResult;
-              lastTranslatedLengthRef.current = transcript.length;
-            }
-          }
-          // Display: accumulated + interim translation
-          const interimPart = interimTranscript ? " " + result.split(" ").slice(-interimTranscript.split(" ").length).join(" ") : "";
-          setTranslatedText(
-            (accumulatedTranslationRef.current + interimPart).trim()
-          );
+          setTranslatedText(result);
         }
-      }, 500);
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRecordingUI]);
 
-    return () => {
-      if (translationTimeoutRef.current) {
-        clearTimeout(translationTimeoutRef.current);
+  // Issue #33: Combined display translation (segments + interim)
+  const displayTranslation = useMemo(() => {
+    const base = translatedFullText;
+    const interim = interimTranslation;
+    if (!base && !interim) return translatedText; // fallback for non-RT mode
+    return interim
+      ? (base ? base + " " + interim : interim)
+      : base;
+  }, [translatedFullText, interimTranslation, translatedText]);
+
+  // Issue #33: Language change → reset segment cache and re-translate
+  const prevTargetLanguageRef = useRef(targetLanguage);
+  useEffect(() => {
+    if (prevTargetLanguageRef.current !== targetLanguage) {
+      prevTargetLanguageRef.current = targetLanguage;
+      resetSegments();
+      prevSegmentCountRef.current = 0;
+      // Re-translate existing segments with new language
+      if (showRecordingUI && isRealtimeTranslation) {
+        for (const seg of segments) {
+          translateSegment(seg, sourceLanguage, targetLanguage);
+        }
       }
-    };
-  }, [transcript, interimTranscript, showRecordingUI, sourceLanguage, targetLanguage, translate, isRealtimeTranslation]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetLanguage]);
 
   // Issue #4: Auto-scroll for translation tab with rAF
   useEffect(() => {
@@ -306,7 +321,7 @@ export default function HomePage() {
         }
       });
     }
-  }, [translatedText, translationAutoFollow]);
+  }, [displayTranslation, translationAutoFollow]);
 
   // Issue #4: Detect manual scroll on translation container
   const handleTranslationScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -334,9 +349,9 @@ export default function HomePage() {
     setSaveSuccess(false);
     setSummary(null);
     setSummaryError(null);
-    lastTranslatedTextRef.current = "";
-    lastTranslatedLengthRef.current = 0;
-    accumulatedTranslationRef.current = "";
+    // Issue #33: Reset segment-based translation state
+    resetSegments();
+    prevSegmentCountRef.current = 0;
     setTranslationAutoFollow(true);
     resetTranscript();
     resetSpeakers();
@@ -597,14 +612,19 @@ export default function HomePage() {
           })),
           fullText: transcript,
         },
-        translations: translatedText ? {
+        translations: displayTranslation ? {
           [targetLanguage]: {
             languageCode: targetLanguage,
-            segments: [{
-              originalSegmentId: "1",
-              text: translatedText,
-            }],
-            fullText: translatedText,
+            segments: translatedSegments.length > 0
+              ? translatedSegments.map((ts) => ({
+                  originalSegmentId: ts.segmentId,
+                  text: ts.translatedText,
+                }))
+              : [{
+                  originalSegmentId: "1",
+                  text: displayTranslation,
+                }],
+            fullText: displayTranslation,
           },
         } : undefined,
       });
@@ -942,7 +962,7 @@ export default function HomePage() {
               <CardTitle className="text-base">{t("translationResult")}</CardTitle>
               <div className="flex items-center gap-2">
                 {/* Issue #105: Display mode toggle - only during recording */}
-                {showRecordingUI && translatedText && (
+                {showRecordingUI && displayTranslation && (
                   <label className="relative inline-flex items-center cursor-pointer gap-1.5">
                     <input
                       type="checkbox"
@@ -956,11 +976,11 @@ export default function HomePage() {
                     </span>
                   </label>
                 )}
-                {translatedText && (
+                {displayTranslation && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleCopy(translatedText, "translation")}
+                    onClick={() => handleCopy(displayTranslation, "translation")}
                     className="gap-1.5 h-7 text-xs"
                   >
                     {copied === "translation" ? (
@@ -974,12 +994,12 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
-              {isTranslating && !translatedText && !showRecordingUI ? (
+              {isTranslating && !displayTranslation && !showRecordingUI ? (
                 <div className="flex items-center justify-center py-8">
                   <Spinner size="lg" />
                   <span className="ml-2 text-gray-600">{t("translating")}</span>
                 </div>
-              ) : translatedText ? (
+              ) : displayTranslation ? (
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   <div
                     ref={translationScrollRef}
@@ -992,7 +1012,7 @@ export default function HomePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSpeak(translatedText, targetLanguage)}
+                          onClick={() => handleSpeak(displayTranslation, targetLanguage)}
                           className="gap-1 h-7 px-2"
                           title={isSpeaking ? "停止" : "読み上げ"}
                         >
@@ -1005,8 +1025,8 @@ export default function HomePage() {
                       </div>
                       <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
                         {showRecordingUI && translationDisplayMode === "recent"
-                          ? getRecentSentences(translatedText, 5)
-                          : translatedText}
+                          ? getRecentSentences(displayTranslation, 5)
+                          : displayTranslation}
                       </div>
                     </div>
                     {/* Issue #105: Source section - collapsible to reduce scroll area */}
