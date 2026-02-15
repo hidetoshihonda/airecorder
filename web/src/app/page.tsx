@@ -725,13 +725,13 @@ export default function HomePage() {
 
   return (
     <div className={cn(
-      "mx-auto flex h-[calc(100dvh-56px)] px-4 py-2 sm:px-6 lg:px-8",
+      "mx-auto flex h-[calc(100dvh-56px)] overflow-hidden px-4 py-2 sm:px-6 lg:px-8",
       enableAICues && showRecordingUI
         ? "max-w-7xl flex-row gap-4"
         : "max-w-5xl flex-col"
     )}>
      {/* Main content wrapper */}
-     <div className="flex min-w-0 flex-1 flex-col">
+     <div className="flex min-w-0 min-h-0 flex-1 flex-col">
       {/* API Key Warning */}
       {!hasApiKeys && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">

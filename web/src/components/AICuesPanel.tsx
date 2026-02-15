@@ -168,7 +168,7 @@ export function AICuesPanel({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm",
+        "flex h-full min-h-0 flex-col rounded-lg border border-gray-200 bg-white shadow-sm",
         "dark:border-gray-700 dark:bg-gray-800",
         "lg:w-70 xl:w-80"
       )}
@@ -197,8 +197,7 @@ export function AICuesPanel({
       {/* Cue List */}
       <div
         ref={scrollRef}
-        className="flex-1 space-y-2 overflow-y-auto p-3"
-        style={{ maxHeight: "calc(100vh - 200px)" }}
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3"
       >
         {error && (
           <div className="flex items-center gap-1 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
