@@ -167,6 +167,7 @@ export interface UserSettings {
   audioQuality: "low" | "medium" | "high";
   enableSpeakerDiarization: boolean;
   phraseList?: string[];
+  enableAICues?: boolean;
 }
 
 export interface Subscription {
@@ -203,3 +204,37 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   hasMore: boolean;
 }
+
+// ─── AI Cues Types (Issue #89) ───
+
+export type CueType = "concept" | "bio" | "suggestion";
+
+export interface BaseCue {
+  id: string;
+  type: CueType;
+  timestamp: number;
+  segmentIndex: number;
+}
+
+export interface ConceptCue extends BaseCue {
+  type: "concept";
+  term: string;
+  definition: string;
+  context?: string;
+}
+
+export interface BioCue extends BaseCue {
+  type: "bio";
+  name: string;
+  description: string;
+  role?: string;
+}
+
+export interface SuggestionCue extends BaseCue {
+  type: "suggestion";
+  question: string;
+  suggestion: string;
+  reasoning?: string;
+}
+
+export type AICue = ConceptCue | BioCue | SuggestionCue;

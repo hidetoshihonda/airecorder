@@ -33,6 +33,7 @@ const defaultSettings: UserSettings = {
   noiseSuppression: true,
   enableSpeakerDiarization: false,
   phraseList: [],
+  enableAICues: false,
 };
 
 const SETTINGS_STORAGE_KEY = "airecorder-settings";

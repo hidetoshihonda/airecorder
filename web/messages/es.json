@@ -234,7 +234,9 @@
     "phraseLimit": "Máximo de frases",
     "phraseHint": "Registre nombres, empresas, productos y abreviaturas difíciles de reconocer.",
     "noPhrases": "No hay frases registradas",
-    "removePhrase": "Eliminar"
+    "removePhrase": "Eliminar",
+    "enableAICues": "AI Cues (Asistencia IA en grabación)",
+    "enableAICuesDesc": "La IA mostrará automáticamente definiciones, biografías y sugerencias durante la grabación"
   },
   "AuthGateModal": {
     "title": "Inicio de sesión requerido",
@@ -421,6 +423,19 @@
     "article9Content": "El desarrollador puede cambiar estos Términos según sea necesario. Los Términos actualizados entran en vigor cuando se publican en el Servicio.",
     "article10Title": "Artículo 10 (Ley Aplicable/Jurisdicción)",
     "article10Content": "Estos Términos se regirán e interpretarán de acuerdo con las leyes de Japón. El Tribunal de Distrito de Tokio tendrá jurisdicción exclusiva sobre cualquier disputa derivada del Servicio."
+  },
+  "AICues": {
+    "title": "AI Cues",
+    "concept": "Término",
+    "bio": "Biografía",
+    "suggestion": "Sugerencia",
+    "waitingForCues": "Analizando conversación...",
+    "waitingDescription": "La IA analizará el contexto mientras hablas",
+    "noRecording": "Inicia la grabación para ver AI Cues",
+    "analyzing": "Analizando...",
+    "expandPanel": "Expandir panel de AI Cues",
+    "collapsePanel": "Contraer panel",
+    "error": "Error al obtener AI Cues"
   },
   "Errors": {
     "authRequired": "Se requiere autenticación",

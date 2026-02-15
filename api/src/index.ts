@@ -5,3 +5,4 @@ import "./functions/summary";
 import "./functions/blob";
 import "./functions/settings";
 import "./functions/templates";
+import "./functions/cues";

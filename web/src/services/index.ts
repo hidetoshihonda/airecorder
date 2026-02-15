@@ -13,3 +13,5 @@ export { fetchUserSettings, saveUserSettings } from "./settingsApi";
 export type { UserSettingsResponse } from "./settingsApi";
 
 export { templatesApi } from "./templatesApi";
+
+export { cuesApi } from "./cuesApi";

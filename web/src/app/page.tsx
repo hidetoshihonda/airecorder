@@ -33,8 +33,10 @@ import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
 import { useSpeakerManager } from "@/hooks/useSpeakerManager";
+import { useAICues } from "@/hooks/useAICues";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
+import { AICuesPanel } from "@/components/AICuesPanel";
 import { recordingsApi, summaryApi, blobApi } from "@/services";
 import { Summary, TemplateId } from "@/types";
 import { PRESET_TEMPLATES, getTemplateByIdSync, loadCustomTemplatesSync, customToMeetingTemplate } from "@/lib/meetingTemplates";
@@ -245,6 +247,21 @@ export default function HomePage() {
   // FSM ベースの表示状態（isListening の代わりに使用）
   const showRecordingUI = fsmIsRecording || fsmIsPaused || isTransitioning;
 
+  // Issue #89: AI Cues — リアルタイム文脈補助
+  const enableAICues = settings.enableAICues ?? false;
+  const {
+    cues: aiCues,
+    isLoading: isCuesLoading,
+    error: cuesError,
+    callCount: cuesCallCount,
+    clearCues,
+  } = useAICues({
+    segments,
+    sourceLanguage,
+    enabled: enableAICues,
+    isRecording: showRecordingUI,
+  });
+
   // テンプレートアイコンマッピング
   const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
     FileText: <FileText className="h-4 w-4" />,
@@ -406,6 +423,7 @@ export default function HomePage() {
     setTranslationAutoFollow(true);
     resetSpeakers();
     resetAudioRecording();
+    clearCues();
     
     try {
       // Start both speech recognition and audio recording
@@ -706,7 +724,14 @@ export default function HomePage() {
   // DESIGN-4 fix: エラーを配列で管理（全エラーを表示） — 定義は上方で行っている
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-56px)] max-w-5xl flex-col px-4 py-2 sm:px-6 lg:px-8">
+    <div className={cn(
+      "mx-auto flex h-[calc(100dvh-56px)] px-4 py-2 sm:px-6 lg:px-8",
+      enableAICues && showRecordingUI
+        ? "max-w-7xl flex-row gap-4"
+        : "max-w-5xl flex-col"
+    )}>
+     {/* Main content wrapper */}
+     <div className="flex min-w-0 flex-1 flex-col">
       {/* API Key Warning */}
       {!hasApiKeys && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
@@ -1566,6 +1591,21 @@ export default function HomePage() {
         onClose={closeModal}
         action={blockedAction}
       />
+     </div>
+
+      {/* AI Cues Side Panel (Issue #89) */}
+      {enableAICues && showRecordingUI && (
+        <div className="hidden flex-none lg:flex">
+          <AICuesPanel
+            cues={aiCues}
+            isLoading={isCuesLoading}
+            error={cuesError}
+            callCount={cuesCallCount}
+            isRecording={showRecordingUI}
+            enabled={enableAICues}
+          />
+        </div>
+      )}
     </div>
   );
 }

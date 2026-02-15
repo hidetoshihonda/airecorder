@@ -234,7 +234,9 @@
     "phraseLimit": "登録可能数",
     "phraseHint": "人名・社名・製品名・略語など、認識されにくい単語を登録すると精度が向上します。",
     "noPhrases": "フレーズが登録されていません",
-    "removePhrase": "削除"
+    "removePhrase": "削除",
+    "enableAICues": "AI Cues（録音中AI補助）",
+    "enableAICuesDesc": "録音中にAIが専門用語の解説、人物情報、回答提案を自動表示します"
   },
   "AuthGateModal": {
     "title": "ログインが必要です",
@@ -421,6 +423,19 @@
     "article9Content": "開発者は、必要に応じて本規約を変更することができます。変更後の規約は、本サービス上に掲載した時点で効力を生じます。",
     "article10Title": "第10条（準拠法・管轄）",
     "article10Content": "本規約の解釈および適用は、日本法に準拠します。本サービスに関する紛争については、東京地方裁判所を第一審の専属的合意管轄裁判所とします。"
+  },
+  "AICues": {
+    "title": "AI Cues",
+    "concept": "用語解説",
+    "bio": "人物情報",
+    "suggestion": "提案",
+    "waitingForCues": "会話を分析中...",
+    "waitingDescription": "発言が溜まるとAIが文脈を分析します",
+    "noRecording": "録音を開始するとAI Cuesが表示されます",
+    "analyzing": "分析中...",
+    "expandPanel": "AI Cuesパネルを展開",
+    "collapsePanel": "パネルを折りたたむ",
+    "error": "AI Cuesの取得に失敗しました"
   },
   "Errors": {
     "authRequired": "認証が必要です",
