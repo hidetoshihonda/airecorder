@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check } from "lucide-react";
+import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check, List, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
@@ -40,6 +40,27 @@ export default function SettingsPage() {
     updateSettings(newSettings);
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 2000);
+  };
+
+  // Phrase list state (Issue #34)
+  const [newPhrase, setNewPhrase] = useState("");
+
+  const handleAddPhrase = () => {
+    const phrase = newPhrase.trim();
+    if (!phrase) return;
+    const currentList = settings.phraseList ?? [];
+    if (currentList.includes(phrase)) {
+      setNewPhrase("");
+      return;
+    }
+    if (currentList.length >= 500) return;
+    handleSettingChange({ phraseList: [...currentList, phrase] });
+    setNewPhrase("");
+  };
+
+  const handleRemovePhrase = (phrase: string) => {
+    const currentList = settings.phraseList ?? [];
+    handleSettingChange({ phraseList: currentList.filter(p => p !== phrase) });
   };
 
   // Custom template state
@@ -337,6 +358,82 @@ export default function SettingsPage() {
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Phrase List Settings (Issue #34) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <List className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">{t("phraseList")}</CardTitle>
+            </div>
+            <CardDescription>
+              {t("phraseListDesc")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 入力フォーム */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newPhrase}
+                onChange={(e) => setNewPhrase(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddPhrase();
+                  }
+                }}
+                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                placeholder={t("phrasePlaceholder")}
+                maxLength={100}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddPhrase}
+                disabled={!newPhrase.trim() || (settings.phraseList ?? []).length >= 500}
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                {t("addPhrase")}
+              </Button>
+            </div>
+
+            {/* フレーズ一覧 */}
+            {(settings.phraseList ?? []).length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {(settings.phraseList ?? []).map((phrase) => (
+                  <span
+                    key={phrase}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    {phrase}
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhrase(phrase)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                      aria-label={`Remove ${phrase}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-2">
+                {t("noPhrases")}
+              </p>
+            )}
+
+            {/* ヘルプテキスト */}
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+              <p className="font-medium mb-1">💡 {t("phraseHint")}</p>
+              <p className="text-blue-600 dark:text-blue-400">
+                {t("phraseLimit")} ({(settings.phraseList ?? []).length}/500)
+              </p>
+            </div>
           </CardContent>
         </Card>
 

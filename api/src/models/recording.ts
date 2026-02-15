@@ -98,6 +98,7 @@ export interface UserSettings {
   audioQuality: "low" | "medium" | "high";
   noiseSuppression: boolean;
   enableSpeakerDiarization: boolean;
+  phraseList?: string[];
 }
 
 export interface UserSettingsDocument {

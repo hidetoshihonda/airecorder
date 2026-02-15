@@ -138,6 +138,7 @@ export default function HomePage() {
     region: speechConfig.region,
     language: sourceLanguage,
     enableSpeakerDiarization,
+    phraseList: settings.phraseList ?? [],
   });
 
   // Audio Recording (for saving audio files)

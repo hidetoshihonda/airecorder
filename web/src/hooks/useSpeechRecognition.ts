@@ -11,6 +11,8 @@ interface UseSpeechRecognitionOptions {
   enableSpeakerDiarization?: boolean;
   /** 共有 MediaStream（指定時はこのストリームを使用し、独自に getUserMedia を呼ばない） */
   sharedStream?: MediaStream | null;
+  /** フレーズリスト（固有名詞・専門用語を登録して音声認別精度を向上） */
+  phraseList?: string[];
 }
 
 interface UseSpeechRecognitionReturn {
@@ -30,7 +32,7 @@ interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions
 ): UseSpeechRecognitionReturn {
-  const { subscriptionKey, region, language = "ja-JP", enableSpeakerDiarization = false, sharedStream = null } = options;
+  const { subscriptionKey, region, language = "ja-JP", enableSpeakerDiarization = false, sharedStream = null, phraseList = [] } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -56,6 +58,18 @@ export function useSpeechRecognition(
     (speechConfig: SpeechSDK.SpeechConfig) => {
       const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
       const transcriber = new SpeechSDK.ConversationTranscriber(speechConfig, audioConfig);
+
+      // フレーズリスト適用（PhraseListGrammar で固有名詞・専門用語の認識精度向上）
+      if (phraseList.length > 0) {
+        try {
+          const phraseListGrammar = SpeechSDK.PhraseListGrammar.fromRecognizer(transcriber as unknown as SpeechSDK.Recognizer);
+          for (const phrase of phraseList) {
+            phraseListGrammar.addPhrase(phrase);
+          }
+        } catch {
+          // ConversationTranscriber で PhraseListGrammar がサポートされない場合は無視
+        }
+      }
 
       // 中間結果
       transcriber.transcribing = (_sender: unknown, event: SpeechSDK.ConversationTranscriptionEventArgs) => {
@@ -112,7 +126,7 @@ export function useSpeechRecognition(
         }
       );
     },
-    []
+    [phraseList]
   );
 
   const startListening = useCallback(() => {
@@ -144,6 +158,14 @@ export function useSpeechRecognition(
           speechConfig,
           audioConfig
         );
+
+        // フレーズリスト適用（PhraseListGrammar で固有名詞・専門用語の認識精度向上）
+        if (phraseList.length > 0) {
+          const phraseListGrammar = SpeechSDK.PhraseListGrammar.fromRecognizer(recognizer);
+          for (const phrase of phraseList) {
+            phraseListGrammar.addPhrase(phrase);
+          }
+        }
 
         // 認識中（途中結果）
         recognizer.recognizing = (_sender, event) => {
@@ -201,7 +223,7 @@ export function useSpeechRecognition(
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`初期化エラー: ${message}`);
     }
-  }, [subscriptionKey, region, language, enableSpeakerDiarization, startConversationTranscriber]);
+  }, [subscriptionKey, region, language, enableSpeakerDiarization, startConversationTranscriber, phraseList]);
 
   const stopListening = useCallback(() => {
     isPausingRef.current = false;
@@ -295,7 +317,7 @@ export function useSpeechRecognition(
         }
       );
     }
-  }, [enableSpeakerDiarization, isPaused, subscriptionKey, region, language, startConversationTranscriber]);
+  }, [enableSpeakerDiarization, isPaused, subscriptionKey, region, language, startConversationTranscriber, phraseList]);
 
   const resetTranscript = useCallback(() => {
     setSegments([]);

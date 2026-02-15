@@ -152,6 +152,7 @@ export interface UserSettings {
   theme: "light" | "dark" | "system";
   audioQuality: "low" | "medium" | "high";
   enableSpeakerDiarization: boolean;
+  phraseList?: string[];
 }
 
 export interface Subscription {
