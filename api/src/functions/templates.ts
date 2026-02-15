@@ -36,9 +36,9 @@ function jsonResponse<T>(
   };
 }
 
-// GET /api/templates - List all templates for a user
-app.http("listTemplates", {
-  methods: ["GET", "OPTIONS"],
+// GET/POST /api/templates - List or Create templates
+app.http("templates", {
+  methods: ["GET", "POST", "OPTIONS"],
   authLevel: "anonymous",
   route: "templates",
   handler: async (
@@ -50,50 +50,39 @@ app.http("listTemplates", {
     }
 
     try {
-      const userId = request.query.get("userId");
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
+      // GET - List all templates
+      if (request.method === "GET") {
+        const userId = request.query.get("userId");
+        if (!userId) {
+          return jsonResponse(
+            { success: false, error: "userId is required" },
+            400
+          );
+        }
+
+        const templates = await listTemplates(userId);
+        return jsonResponse<CustomTemplate[]>({ success: true, data: templates });
       }
 
-      const templates = await listTemplates(userId);
-      return jsonResponse<CustomTemplate[]>({ success: true, data: templates });
-    } catch (error) {
+      // POST - Create a new template
+      if (request.method === "POST") {
+        const body = (await request.json()) as CreateTemplateRequest;
+
+        if (!body.userId || !body.name || !body.systemPrompt) {
+          return jsonResponse(
+            { success: false, error: "userId, name, and systemPrompt are required" },
+            400
+          );
+        }
+
+        const template = await createTemplate(body);
+        return jsonResponse<CustomTemplate>({ success: true, data: template }, 201);
+      }
+
       return jsonResponse(
-        { success: false, error: (error as Error).message },
-        500
+        { success: false, error: "Method not allowed" },
+        405
       );
-    }
-  },
-});
-
-// POST /api/templates - Create a new template
-app.http("createTemplate", {
-  methods: ["POST", "OPTIONS"],
-  authLevel: "anonymous",
-  route: "templates",
-  handler: async (
-    request: HttpRequest,
-    _context: InvocationContext
-  ): Promise<HttpResponseInit> => {
-    if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
-    }
-
-    try {
-      const body = (await request.json()) as CreateTemplateRequest;
-
-      if (!body.userId || !body.name || !body.systemPrompt) {
-        return jsonResponse(
-          { success: false, error: "userId, name, and systemPrompt are required" },
-          400
-        );
-      }
-
-      const template = await createTemplate(body);
-      return jsonResponse<CustomTemplate>({ success: true, data: template }, 201);
     } catch (error) {
       return jsonResponse(
         { success: false, error: (error as Error).message },
