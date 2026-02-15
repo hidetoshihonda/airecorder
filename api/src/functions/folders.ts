@@ -35,9 +35,9 @@ function jsonResponse<T>(
   };
 }
 
-// GET /api/folders - List all folders for a user
-app.http("listFolders", {
-  methods: ["GET", "OPTIONS"],
+// GET/POST /api/folders - List or Create folders
+app.http("folders", {
+  methods: ["GET", "POST", "OPTIONS"],
   authLevel: "anonymous",
   route: "folders",
   handler: async (
@@ -49,50 +49,39 @@ app.http("listFolders", {
     }
 
     try {
-      const userId = request.query.get("userId");
-      if (!userId) {
-        return jsonResponse(
-          { success: false, error: "userId is required" },
-          400
-        );
+      // GET - List all folders
+      if (request.method === "GET") {
+        const userId = request.query.get("userId");
+        if (!userId) {
+          return jsonResponse(
+            { success: false, error: "userId is required" },
+            400
+          );
+        }
+
+        const folders = await listFolders(userId);
+        return jsonResponse<Folder[]>({ success: true, data: folders });
       }
 
-      const folders = await listFolders(userId);
-      return jsonResponse<Folder[]>({ success: true, data: folders });
-    } catch (error) {
+      // POST - Create a new folder
+      if (request.method === "POST") {
+        const body = (await request.json()) as CreateFolderRequest;
+
+        if (!body.userId || !body.name) {
+          return jsonResponse(
+            { success: false, error: "userId and name are required" },
+            400
+          );
+        }
+
+        const folder = await createFolder(body);
+        return jsonResponse<Folder>({ success: true, data: folder }, 201);
+      }
+
       return jsonResponse(
-        { success: false, error: (error as Error).message },
-        500
+        { success: false, error: "Method not allowed" },
+        405
       );
-    }
-  },
-});
-
-// POST /api/folders - Create a new folder
-app.http("createFolder", {
-  methods: ["POST", "OPTIONS"],
-  authLevel: "anonymous",
-  route: "folders",
-  handler: async (
-    request: HttpRequest,
-    _context: InvocationContext
-  ): Promise<HttpResponseInit> => {
-    if (request.method === "OPTIONS") {
-      return jsonResponse({ success: true });
-    }
-
-    try {
-      const body = (await request.json()) as CreateFolderRequest;
-
-      if (!body.userId || !body.name) {
-        return jsonResponse(
-          { success: false, error: "userId and name are required" },
-          400
-        );
-      }
-
-      const folder = await createFolder(body);
-      return jsonResponse<Folder>({ success: true, data: folder }, 201);
     } catch (error) {
       return jsonResponse(
         { success: false, error: (error as Error).message },
