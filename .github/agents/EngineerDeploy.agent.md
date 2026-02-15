@@ -16,7 +16,7 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'context7/*', 'pla
 
 ### Phase 1: 計画書の読み込みと理解
 
-1. `web/docs/` から該当する実装計画書を読み込む
+1. `docs/` から該当する実装計画書を読み込む
 2. 実装内容、変更ファイル、依存関係を把握する
 3. TODOリストを作成して進捗を管理する
 
@@ -119,7 +119,7 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'context7/*', 'pla
 ```
 
 ```
-@EngineerDeploy web/docs/Issue70_LLM文字起こし補正_実装計画書.md を実装して
+@EngineerDeploy docs/Issue70_LLM文字起こし補正_実装計画書.md を実装して
 ```
 
 ## エラーハンドリング
