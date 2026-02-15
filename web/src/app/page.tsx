@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare, Zap, Globe } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import { SUPPORTED_LANGUAGES, speechConfig, translatorConfig } from "@/lib/confi
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslationRecognizer } from "@/hooks/useTranslationRecognizer";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
@@ -115,20 +116,23 @@ export default function HomePage() {
     canStop,
   } = useRecordingStateMachine();
 
-  // Speech Recognition
+  // Issue #35: Translation mode — SDK mode (low latency) vs API mode (speaker diarization)
   const enableSpeakerDiarization = settings.enableSpeakerDiarization ?? false;
+  const translationMode = enableSpeakerDiarization ? "api" : "sdk";
+
+  // Speech Recognition (API mode: SpeechRecognizer + ConversationTranscriber)
   const {
-    isListening,
-    isPaused,
-    transcript,
-    segments,
-    interimTranscript,
-    error: speechError,
-    startListening,
-    stopListening,
-    pauseListening,
-    resumeListening,
-    resetTranscript,
+    isListening: _apiIsListening,
+    isPaused: _apiIsPaused,
+    transcript: apiTranscript,
+    segments: apiSegments,
+    interimTranscript: apiInterimTranscript,
+    error: apiSpeechError,
+    startListening: apiStartListening,
+    stopListening: apiStopListening,
+    pauseListening: apiPauseListening,
+    resumeListening: apiResumeListening,
+    resetTranscript: apiResetTranscript,
   } = useSpeechRecognition({
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
@@ -136,6 +140,40 @@ export default function HomePage() {
     enableSpeakerDiarization,
     phraseList: settings.phraseList ?? [],
   });
+
+  // Issue #35: SDK mode (TranslationRecognizer — recognition + translation in single pipeline)
+  const {
+    isListening: _sdkIsListening,
+    isPaused: _sdkIsPaused,
+    transcript: sdkTranscript,
+    segments: sdkSegments,
+    translatedSegments: sdkTranslatedSegments,
+    interimTranscript: sdkInterimTranscript,
+    interimTranslation: sdkInterimTranslation,
+    translatedFullText: sdkTranslatedFullText,
+    error: sdkSpeechError,
+    startListening: sdkStartListening,
+    stopListening: sdkStopListening,
+    pauseListening: sdkPauseListening,
+    resumeListening: sdkResumeListening,
+    resetTranscript: sdkResetTranscript,
+  } = useTranslationRecognizer({
+    subscriptionKey: speechConfig.subscriptionKey,
+    region: speechConfig.region,
+    sourceLanguage,
+    targetLanguage,
+    phraseList: settings.phraseList ?? [],
+  });
+
+  // Issue #35: Unified data sources — select active mode's data
+  const transcript = translationMode === "sdk" ? sdkTranscript : apiTranscript;
+  const segments = translationMode === "sdk" ? sdkSegments : apiSegments;
+  const interimTranscript = translationMode === "sdk" ? sdkInterimTranscript : apiInterimTranscript;
+  const speechError = translationMode === "sdk" ? sdkSpeechError : apiSpeechError;
+  const startListening = translationMode === "sdk" ? sdkStartListening : apiStartListening;
+  const stopListening = translationMode === "sdk" ? sdkStopListening : apiStopListening;
+  const pauseListening = translationMode === "sdk" ? sdkPauseListening : apiPauseListening;
+  const resumeListening = translationMode === "sdk" ? sdkResumeListening : apiResumeListening;
 
   // Audio Recording (for saving audio files)
   const {
@@ -149,14 +187,14 @@ export default function HomePage() {
     resetRecording: resetAudioRecording,
   } = useAudioRecorder({ audioQuality: settings.audioQuality });
 
-  // Translation (Issue #33: segment-based differential translation)
+  // Translation (Issue #33: segment-based differential translation — API mode only)
   const {
     isTranslating,
     error: translationError,
     translate,
-    translatedSegments,
-    translatedFullText,
-    interimTranslation,
+    translatedSegments: apiTranslatedSegments,
+    translatedFullText: apiTranslatedFullText,
+    interimTranslation: apiInterimTranslation,
     translateSegment,
     translateInterim,
     resetSegments,
@@ -164,6 +202,11 @@ export default function HomePage() {
     subscriptionKey: translatorConfig.subscriptionKey,
     region: translatorConfig.region,
   });
+
+  // Issue #35: Unified translated data
+  const translatedSegments = translationMode === "sdk" ? sdkTranslatedSegments : apiTranslatedSegments;
+  const translatedFullText = translationMode === "sdk" ? sdkTranslatedFullText : apiTranslatedFullText;
+  const interimTranslation = translationMode === "sdk" ? sdkInterimTranslation : apiInterimTranslation;
 
   // Text-to-Speech
   const {
@@ -232,8 +275,10 @@ export default function HomePage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [fsmIsRecording, fsmIsPaused]);
 
-  // Issue #33: Segment-based differential translation — translate only new segments
+  // Issue #33: Segment-based differential translation — API mode only
+  // (SDK mode handles translation internally via TranslationRecognizer)
   useEffect(() => {
+    if (translationMode !== "api") return;
     if (!isRealtimeTranslation || !showRecordingUI) return;
 
     // Detect new segments since last check
@@ -243,10 +288,11 @@ export default function HomePage() {
     for (const seg of newSegments) {
       translateSegment(seg, sourceLanguage, targetLanguage);
     }
-  }, [segments, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateSegment]);
+  }, [segments, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateSegment, translationMode]);
 
-  // Issue #33: Interim (in-progress) text translation with 300ms debounce
+  // Issue #33: Interim (in-progress) text translation with 300ms debounce — API mode only
   useEffect(() => {
+    if (translationMode !== "api") return;
     if (!interimTranscript || !isRealtimeTranslation || !showRecordingUI) return;
 
     if (interimTimeoutRef.current) {
@@ -262,7 +308,7 @@ export default function HomePage() {
         clearTimeout(interimTimeoutRef.current);
       }
     };
-  }, [interimTranscript, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateInterim]);
+  }, [interimTranscript, sourceLanguage, targetLanguage, isRealtimeTranslation, showRecordingUI, translateInterim, translationMode]);
 
   // Issue #33: Fallback — when recording stops, if some segments are untranslated, translate full text
   useEffect(() => {
@@ -295,17 +341,20 @@ export default function HomePage() {
       : base;
   }, [translatedFullText, interimTranslation, translatedText]);
 
-  // Issue #33: Language change → reset segment cache and re-translate
+  // Issue #33: Language change → reset segment cache and re-translate (API mode only)
+  // SDK mode: TranslationRecognizer re-creates on targetLanguage change via hook deps
   const prevTargetLanguageRef = useRef(targetLanguage);
   useEffect(() => {
     if (prevTargetLanguageRef.current !== targetLanguage) {
       prevTargetLanguageRef.current = targetLanguage;
-      resetSegments();
-      prevSegmentCountRef.current = 0;
-      // Re-translate existing segments with new language
-      if (showRecordingUI && isRealtimeTranslation) {
-        for (const seg of segments) {
-          translateSegment(seg, sourceLanguage, targetLanguage);
+      if (translationMode === "api") {
+        resetSegments();
+        prevSegmentCountRef.current = 0;
+        // Re-translate existing segments with new language
+        if (showRecordingUI && isRealtimeTranslation) {
+          for (const seg of segments) {
+            translateSegment(seg, sourceLanguage, targetLanguage);
+          }
         }
       }
     }
@@ -349,11 +398,12 @@ export default function HomePage() {
     setSaveSuccess(false);
     setSummary(null);
     setSummaryError(null);
-    // Issue #33: Reset segment-based translation state
+    // Issue #33/35: Reset segment-based translation state (both modes)
     resetSegments();
+    apiResetTranscript();
+    sdkResetTranscript();
     prevSegmentCountRef.current = 0;
     setTranslationAutoFollow(true);
-    resetTranscript();
     resetSpeakers();
     resetAudioRecording();
     
@@ -707,10 +757,24 @@ export default function HomePage() {
                   {fsmIsPaused ? t("paused") : isTransitioning ? t("transitioning") : t("liveTranscribing")}
                 </span>
               </div>
-              {isRealtimeTranslation && isTranslating && (
+              {isRealtimeTranslation && isTranslating && translationMode === "api" && (
                 <span className="text-xs text-blue-600 flex items-center gap-1">
                   <Spinner className="h-3 w-3" />
                   {t("translating")}
+                </span>
+              )}
+              {isRealtimeTranslation && (
+                <span className={cn(
+                  "text-xs flex items-center gap-1 rounded-full px-2 py-0.5",
+                  translationMode === "sdk"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-blue-50 text-blue-700"
+                )}>
+                  {translationMode === "sdk" ? (
+                    <><Zap className="h-3 w-3" />{t("translationModeSdk")}</>
+                  ) : (
+                    <><Globe className="h-3 w-3" />{t("translationModeApi")}</>
+                  )}
                 </span>
               )}
             </div>

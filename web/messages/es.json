@@ -56,6 +56,8 @@
     "targetLanguage": "Idioma destino:",
     "realtimeTranslation": "Traducción en tiempo real",
     "translating": "Traduciendo...",
+    "translationModeSdk": "Traducción SDK",
+    "translationModeApi": "Traducción API",
     "transcriptTab": "Transcripción",
     "translationTab": "Traducción",
     "minutesTab": "Acta",

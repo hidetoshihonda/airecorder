@@ -56,6 +56,8 @@
     "targetLanguage": "翻訳先:",
     "realtimeTranslation": "リアルタイム翻訳",
     "translating": "翻訳中...",
+    "translationModeSdk": "SDK翻訳",
+    "translationModeApi": "API翻訳",
     "transcriptTab": "文字起こし",
     "translationTab": "翻訳",
     "minutesTab": "議事録",
