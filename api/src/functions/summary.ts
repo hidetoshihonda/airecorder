@@ -137,6 +137,27 @@ const JSON_FORMAT = `出力は必ず以下のJSON形式で返してください�
 
 // ─── プリセットテンプレートのシステムプロンプト（詳細版 Issue #42 v2）───
 const TEMPLATE_PROMPTS: Record<string, string> = {
+  summary: `あなたは文字起こしを簡潔に要約する専門家です。
+与えられた文字起こしテキストから、短く分かりやすい要約を作成してください。
+
+出力は必ず以下のJSON形式で返してください：
+{
+  "overview": "内容の要約（100-200字程度）。何について話されたかを簡潔にまとめる",
+  "keyPoints": [
+    "重要なポイント1",
+    "重要なポイント2",
+    "重要なポイント3"
+  ],
+  "actionItems": []
+}
+
+要約作成の指示：
+- 詳細な議事録ではなく、短い要約を作成
+- keyPointsは3-5個程度に絞る
+- 箇条書きは簡潔に（厐20-50字程度）
+- actionItemsは明確なものがあれば記載、なければ空配列
+- 必ず有効なJSONで出力`,
+
   general: `あなたは社内向け議事録作成のプロ編集者です。
 与えられた文字起こしから、社内共有に耐える"かなり詳細な議事録"を作成してください。
 
@@ -354,9 +375,9 @@ app.http("generateSummary", {
         importantNotes: parsedSummary.importantNotes || [],
         // メタ情報
         generatedAt: new Date().toISOString(),
-        // 後方互換性（旧形式のフィールドも含める）
-        overview: parsedSummary.meetingInfo?.purpose || parsedSummary.overview || "",
-        keyPoints: parsedSummary.agenda || parsedSummary.keyPoints || [],
+        // 後方互換性（旧形式のフィールドも含める、overview/keyPoints を優先）
+        overview: parsedSummary.overview || parsedSummary.meetingInfo?.purpose || "",
+        keyPoints: parsedSummary.keyPoints || parsedSummary.agenda || [],
       };
 
       return jsonResponse<SummaryResponse>({ success: true, data: summary });
