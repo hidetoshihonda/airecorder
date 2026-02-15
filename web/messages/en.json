@@ -224,7 +224,15 @@
     "noCustomTemplates": "No custom templates yet",
     "templateCreateFailed": "Failed to create template",
     "templateUpdateFailed": "Failed to update template",
-    "templateDeleteFailed": "Failed to delete template"
+    "templateDeleteFailed": "Failed to delete template",
+    "phraseList": "Phrase List",
+    "phraseListDesc": "Register proper nouns and technical terms for more accurate speech recognition.",
+    "addPhrase": "Add",
+    "phrasePlaceholder": "Enter a phrase (e.g. names, technical terms)",
+    "phraseLimit": "Max phrases",
+    "phraseHint": "Register names, company names, product names, and abbreviations that are difficult to recognize.",
+    "noPhrases": "No phrases registered",
+    "removePhrase": "Remove"
   },
   "AuthGateModal": {
     "title": "Login Required",

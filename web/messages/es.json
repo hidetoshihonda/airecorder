@@ -224,7 +224,15 @@
     "noCustomTemplates": "Aún no hay plantillas personalizadas",
     "templateCreateFailed": "Error al crear la plantilla",
     "templateUpdateFailed": "Error al actualizar la plantilla",
-    "templateDeleteFailed": "Error al eliminar la plantilla"
+    "templateDeleteFailed": "Error al eliminar la plantilla",
+    "phraseList": "Lista de frases",
+    "phraseListDesc": "Registre nombres propios y términos técnicos para un reconocimiento de voz más preciso.",
+    "addPhrase": "Agregar",
+    "phrasePlaceholder": "Ingrese una frase (ej. nombres, términos técnicos)",
+    "phraseLimit": "Máximo de frases",
+    "phraseHint": "Registre nombres, empresas, productos y abreviaturas difíciles de reconocer.",
+    "noPhrases": "No hay frases registradas",
+    "removePhrase": "Eliminar"
   },
   "AuthGateModal": {
     "title": "Inicio de sesión requerido",

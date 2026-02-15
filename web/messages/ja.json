@@ -224,7 +224,15 @@
     "noCustomTemplates": "カスタムテンプレートはまだありません",
     "templateCreateFailed": "テンプレートの作成に失敗しました",
     "templateUpdateFailed": "テンプレートの更新に失敗しました",
-    "templateDeleteFailed": "テンプレートの削除に失敗しました"
+    "templateDeleteFailed": "テンプレートの削除に失敗しました",
+    "phraseList": "フレーズリスト",
+    "phraseListDesc": "音声認識で正確に認識させたい固有名詞や専門用語を登録できます。",
+    "addPhrase": "追加",
+    "phrasePlaceholder": "フレーズを入力（例：固有名詞、専門用語）",
+    "phraseLimit": "登録可能数",
+    "phraseHint": "人名・社名・製品名・略語など、認識されにくい単語を登録すると精度が向上します。",
+    "noPhrases": "フレーズが登録されていません",
+    "removePhrase": "削除"
   },
   "AuthGateModal": {
     "title": "ログインが必要です",
