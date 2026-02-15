@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check, List, X } from "lucide-react";
+import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check, List, X, Sparkles } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
@@ -358,6 +358,40 @@ export default function SettingsPage() {
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* AI Cues Settings (Issue #89) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-lg">{t("enableAICues")}</CardTitle>
+            </div>
+            <CardDescription>
+              {t("enableAICuesDesc")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("enableAICues")}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("enableAICuesDesc")}
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.enableAICues ?? false}
+                  onChange={(e) =>
+                    handleSettingChange({ enableAICues: e.target.checked })
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
+              </label>
+            </div>
           </CardContent>
         </Card>
 

@@ -234,7 +234,9 @@
     "phraseLimit": "Max phrases",
     "phraseHint": "Register names, company names, product names, and abbreviations that are difficult to recognize.",
     "noPhrases": "No phrases registered",
-    "removePhrase": "Remove"
+    "removePhrase": "Remove",
+    "enableAICues": "AI Cues (Recording AI Assist)",
+    "enableAICuesDesc": "AI will automatically show term definitions, bios, and suggestions during recording"
   },
   "AuthGateModal": {
     "title": "Login Required",
@@ -421,6 +423,19 @@
     "article9Content": "The developer may change these Terms as needed. Updated Terms take effect when posted on the Service.",
     "article10Title": "Article 10 (Governing Law/Jurisdiction)",
     "article10Content": "These Terms shall be governed by and construed in accordance with the laws of Japan. The Tokyo District Court shall have exclusive jurisdiction over any disputes arising from the Service."
+  },
+  "AICues": {
+    "title": "AI Cues",
+    "concept": "Term",
+    "bio": "Bio",
+    "suggestion": "Suggestion",
+    "waitingForCues": "Analyzing conversation...",
+    "waitingDescription": "AI will analyze context as you speak",
+    "noRecording": "Start recording to see AI Cues",
+    "analyzing": "Analyzing...",
+    "expandPanel": "Expand AI Cues panel",
+    "collapsePanel": "Collapse panel",
+    "error": "Failed to fetch AI Cues"
   },
   "Errors": {
     "authRequired": "Authentication required",
