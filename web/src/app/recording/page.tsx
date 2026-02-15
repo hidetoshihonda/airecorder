@@ -793,20 +793,20 @@ function RecordingDetailContent() {
         {/* Transcript Tab */}
         <TabsContent value="transcript">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-4">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <CardTitle className="text-lg">{t("transcript")}</CardTitle>
                 {correctionStatusBadge}
               </div>
               <div className="flex items-center gap-2">
                 {/* オリジナル / AI補正版 切り替え (Issue #70) */}
                 {recording.correctedTranscript && (
-                  <div className="flex rounded-lg border p-1">
+                  <div className="flex w-full rounded-lg border p-1 sm:w-auto">
                     <Button
                       variant={transcriptView === "original" ? "secondary" : "ghost"}
                       size="sm"
                       onClick={() => setTranscriptView("original")}
-                      className="text-xs"
+                      className="flex-1 text-xs sm:flex-none"
                     >
                       {t("original")}
                     </Button>
@@ -814,7 +814,7 @@ function RecordingDetailContent() {
                       variant={transcriptView === "corrected" ? "secondary" : "ghost"}
                       size="sm"
                       onClick={() => setTranscriptView("corrected")}
-                      className="gap-1 text-xs"
+                      className="flex-1 gap-1 text-xs sm:flex-none"
                     >
                       <Sparkles className="h-3 w-3" />
                       {t("aiCorrected")}
