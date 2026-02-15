@@ -385,19 +385,20 @@ function RecordingDetailContent() {
     await handleCopy(lines.join("\n"), "summary");
   };
 
-  // 話者ラベル付きテキストを生成
-  const getTranscriptWithSpeakerLabels = () => {
-    if (!recording?.transcript?.segments || recording.transcript.segments.length === 0) {
-      return recording?.transcript?.fullText || "";
+  // 話者ラベル付きテキストを生成（Issue #120: correctedTranscript にも対応）
+  const getTranscriptWithSpeakerLabels = (useCorrected?: boolean) => {
+    const target = useCorrected ? recording?.correctedTranscript : recording?.transcript;
+    if (!target?.segments || target.segments.length === 0) {
+      return target?.fullText || "";
     }
     
     // segments に speaker 情報があるか確認
-    const hasSpeakerInfo = recording.transcript.segments.some(seg => seg.speaker);
+    const hasSpeakerInfo = target.segments.some(seg => seg.speaker);
     if (!hasSpeakerInfo) {
-      return recording.transcript.fullText;
+      return target.fullText;
     }
 
-    return recording.transcript.segments
+    return target.segments
       .map((seg) => {
         const label = seg.speaker || t("unknownSpeaker");
         return `[${label}] ${seg.text}`;
@@ -826,9 +827,9 @@ function RecordingDetailContent() {
                     size="sm"
                     onClick={() =>
                       handleCopy(
-                        transcriptView === "corrected" && recording.correctedTranscript
-                          ? recording.correctedTranscript.fullText
-                          : getTranscriptWithSpeakerLabels(),
+                        getTranscriptWithSpeakerLabels(
+                          transcriptView === "corrected" && !!recording.correctedTranscript
+                        ),
                         "transcript"
                       )
                     }
