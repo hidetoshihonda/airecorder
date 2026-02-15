@@ -1112,7 +1112,11 @@ export default function HomePage() {
                           )}
                         </Button>
                       </div>
-                      <div className="whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800">
+                      <div className={cn(
+                        "whitespace-pre-wrap rounded-md bg-blue-50 p-4 text-gray-800",
+                        showRecordingUI && translationDisplayMode === "recent"
+                          && "max-h-[7.5rem] min-h-[7.5rem] overflow-y-auto"
+                      )}>
                         {showRecordingUI && translationDisplayMode === "recent"
                           ? getRecentSentences(displayTranslation, 5)
                           : displayTranslation}
