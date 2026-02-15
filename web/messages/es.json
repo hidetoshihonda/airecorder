@@ -169,7 +169,15 @@
     "downloadError": "Error durante la descarga",
     "loginRequired": "Se requiere inicio de sesión",
     "loginRequiredDescription": "Inicie sesión para ver su historial de grabaciones.",
-    "loginButton": "Iniciar sesión"
+    "loginButton": "Iniciar sesión",
+    "allFolders": "Todos",
+    "newFolder": "Nueva carpeta",
+    "folderNamePrompt": "Ingrese el nombre de la carpeta",
+    "moveToFolder": "Mover a carpeta",
+    "removeFromFolder": "Quitar de carpeta",
+    "renameFolder": "Renombrar",
+    "deleteFolder": "Eliminar carpeta",
+    "deleteFolderConfirm": "¿Eliminar esta carpeta? Las grabaciones se moverán a sin categoría."
   },
   "SettingsPage": {
     "title": "Ajustes",

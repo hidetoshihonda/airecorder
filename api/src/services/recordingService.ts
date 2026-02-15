@@ -114,7 +114,8 @@ export async function listRecordings(
   userId: string,
   page: number = 1,
   limit: number = 20,
-  search?: string
+  search?: string,
+  folderId?: string
 ): Promise<PaginatedResponse<Recording>> {
   const container = await getRecordingsContainer();
 
@@ -126,6 +127,11 @@ export async function listRecordings(
   if (search) {
     queryText += " AND CONTAINS(LOWER(c.title), LOWER(@search))";
     parameters.push({ name: "@search", value: search });
+  }
+
+  if (folderId) {
+    queryText += " AND c.folderId = @folderId";
+    parameters.push({ name: "@folderId", value: folderId });
   }
 
   queryText += " ORDER BY c.createdAt DESC";

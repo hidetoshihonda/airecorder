@@ -20,6 +20,15 @@ export interface Recording {
   correctedAt?: string;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  color?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Transcript {
   segments: TranscriptSegment[];
   fullText: string;

@@ -169,7 +169,15 @@
     "downloadError": "Error during download",
     "loginRequired": "Login Required",
     "loginRequiredDescription": "Please log in to view your recording history.",
-    "loginButton": "Log In"
+    "loginButton": "Log In",
+    "allFolders": "All",
+    "newFolder": "New Folder",
+    "folderNamePrompt": "Enter folder name",
+    "moveToFolder": "Move to folder",
+    "removeFromFolder": "Remove from folder",
+    "renameFolder": "Rename",
+    "deleteFolder": "Delete folder",
+    "deleteFolderConfirm": "Delete this folder? Recordings inside will become uncategorized."
   },
   "SettingsPage": {
     "title": "Settings",

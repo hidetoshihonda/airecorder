@@ -28,6 +28,7 @@ export interface UpdateRecordingInput {
   summary?: Summary;
   tags?: string[];
   status?: Recording["status"];
+  folderId?: string | null;
 }
 
 class RecordingsApiService {
@@ -112,7 +113,8 @@ class RecordingsApiService {
   async listRecordings(
     page: number = 1,
     limit: number = 20,
-    search?: string
+    search?: string,
+    folderId?: string
   ): Promise<ApiResponse<PaginatedResponse<Recording>>> {
     const authError = this.requireAuth<PaginatedResponse<Recording>>();
     if (authError) return authError;
@@ -125,6 +127,10 @@ class RecordingsApiService {
 
     if (search) {
       params.append("search", search);
+    }
+
+    if (folderId) {
+      params.append("folderId", folderId);
     }
 
     return this.request<PaginatedResponse<Recording>>(

@@ -14,4 +14,7 @@ export type { UserSettingsResponse } from "./settingsApi";
 
 export { templatesApi } from "./templatesApi";
 
+export { foldersApi } from "./foldersApi";
+export type { CreateFolderInput, UpdateFolderInput } from "./foldersApi";
+
 export { cuesApi } from "./cuesApi";
