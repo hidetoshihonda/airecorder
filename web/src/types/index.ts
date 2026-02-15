@@ -61,6 +61,20 @@ export interface TranslationSegment {
   text: string;
 }
 
+/** セグメント単位の翻訳結果（Issue #33: リアルタイム差分翻訳用） */
+export interface TranslatedSegment {
+  /** 元の LiveSegment.id */
+  segmentId: string;
+  /** 原文 */
+  originalText: string;
+  /** 翻訳文 */
+  translatedText: string;
+  /** 話者 ID */
+  speaker?: string;
+  /** 話者ラベル */
+  speakerLabel?: string;
+}
+
 export interface Summary {
   // 注意書き（センシティブ情報がある場合）
   caution?: string;
