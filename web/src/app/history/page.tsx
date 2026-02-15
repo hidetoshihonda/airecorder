@@ -12,6 +12,9 @@ import {
   RefreshCw,
   AlertCircle,
   LogIn,
+  FolderOpen,
+  Plus,
+  MoreVertical,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,8 +23,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Recording } from "@/types";
-import { recordingsApi, blobApi } from "@/services";
+import { Recording, Folder } from "@/types";
+import { recordingsApi, blobApi, foldersApi } from "@/services";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -53,6 +56,9 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [movingRecordingId, setMovingRecordingId] = useState<string | null>(null);
   const t = useTranslations("HistoryPage");
   const { locale: appLocale } = useAppLocale();
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
@@ -117,7 +123,8 @@ export default function HistoryPage() {
       const response = await recordingsApi.listRecordings(
         1,
         50,
-        searchQuery || undefined
+        searchQuery || undefined,
+        selectedFolderId || undefined
       );
 
       if (response.error) {
@@ -135,7 +142,19 @@ export default function HistoryPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [searchQuery, isAuthenticated, authLoading]);
+  }, [searchQuery, selectedFolderId, isAuthenticated, authLoading]);
+
+  // フォルダ一覧を取得 (Issue #83)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchFolders = async () => {
+      const response = await foldersApi.list();
+      if (response.data) {
+        setFolders(response.data);
+      }
+    };
+    fetchFolders();
+  }, [isAuthenticated]);
 
   const fetchRecordings = useCallback(async () => {
     // 未認証の場合は取得しない（Issue #57 セキュリティ修正）
@@ -149,7 +168,8 @@ export default function HistoryPage() {
     const response = await recordingsApi.listRecordings(
       1,
       50,
-      searchQuery || undefined
+      searchQuery || undefined,
+      selectedFolderId || undefined
     );
 
     if (response.error) {
@@ -165,7 +185,74 @@ export default function HistoryPage() {
     }
 
     setIsLoading(false);
-  }, [searchQuery, isAuthenticated]);
+  }, [searchQuery, selectedFolderId, isAuthenticated]);
+
+  // フォルダ作成 (Issue #83)
+  const handleCreateFolder = async () => {
+    const name = prompt(t("folderNamePrompt"));
+    if (!name?.trim()) return;
+
+    const response = await foldersApi.create({ name: name.trim() });
+    if (response.data) {
+      setFolders((prev) => [...prev, response.data!]);
+    }
+  };
+
+  // フォルダ削除 (Issue #83)
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!confirm(t("deleteFolderConfirm"))) return;
+
+    const response = await foldersApi.delete(folderId);
+    if (!response.error) {
+      setFolders((prev) => prev.filter((f) => f.id !== folderId));
+      if (selectedFolderId === folderId) {
+        setSelectedFolderId(null);
+      }
+      fetchRecordings();
+    }
+  };
+
+  // フォルダ名変更 (Issue #83)
+  const handleRenameFolder = async (folder: Folder) => {
+    const newName = prompt(t("folderNamePrompt"), folder.name);
+    if (!newName?.trim() || newName.trim() === folder.name) return;
+
+    const response = await foldersApi.update(folder.id, {
+      name: newName.trim(),
+    });
+    if (response.data) {
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folder.id ? response.data! : f))
+      );
+    }
+  };
+
+  // 録音をフォルダに移動 (Issue #83)
+  const handleMoveToFolder = async (
+    recordingId: string,
+    folderId: string | null
+  ) => {
+    setMovingRecordingId(recordingId);
+    const response = await recordingsApi.updateRecording(recordingId, {
+      folderId: folderId,
+    });
+    if (!response.error) {
+      if (selectedFolderId) {
+        // フォルダフィルタ中は移動した録音を一覧から除去
+        setRecordings((prev) => prev.filter((r) => r.id !== recordingId));
+      } else {
+        // 「すべて」表示の場合はローカル更新
+        setRecordings((prev) =>
+          prev.map((r) =>
+            r.id === recordingId
+              ? { ...r, folderId: folderId || undefined }
+              : r
+          )
+        );
+      }
+    }
+    setMovingRecordingId(null);
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm(t("deleteConfirm"))) {
@@ -252,6 +339,58 @@ export default function HistoryPage() {
         </Button>
       </div>
 
+      {/* Folder Tabs */}
+      <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
+        <button
+          onClick={() => setSelectedFolderId(null)}
+          className={`whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+            selectedFolderId === null
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          {t("allFolders")}
+        </button>
+        {folders.map((folder) => (
+          <div key={folder.id} className="group relative flex items-center">
+            <button
+              onClick={() => setSelectedFolderId(folder.id)}
+              className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                selectedFolderId === folder.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              {folder.name}
+            </button>
+            <div className="ml-1 hidden gap-0.5 group-hover:flex">
+              <button
+                onClick={() => handleRenameFolder(folder)}
+                className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                title={t("renameFolder")}
+              >
+                <MoreVertical className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => handleDeleteFolder(folder.id)}
+                className="rounded p-0.5 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                title={t("deleteFolder")}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={handleCreateFolder}
+          className="flex items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-gray-300 px-3 py-1 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("newFolder")}
+        </button>
+      </div>
+
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-6">
         <div className="relative">
@@ -320,7 +459,7 @@ export default function HistoryPage() {
                           {recording.sourceLanguage}
                         </span>
                       </div>
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {recording.transcript && (
                           <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
                             {t("transcribed")}
@@ -337,6 +476,23 @@ export default function HistoryPage() {
                             {t("minutesCreated")}
                           </span>
                         )}
+                      </div>
+                      {/* Folder move */}
+                      <div className="mt-2 flex items-center gap-2">
+                        <FolderOpen className="h-3.5 w-3.5 text-gray-400" />
+                        <select
+                          className="rounded border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 focus:border-blue-500 focus:outline-none"
+                          value={recording.folderId || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleMoveToFolder(recording.id, val || null);
+                          }}
+                        >
+                          <option value="">{t("allFolders")}</option>
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { User, UserSettings } from "@/types";
 import { fetchUserSettings, saveUserSettings } from "@/services/settingsApi";
 import { recordingsApi } from "@/services/recordingsApi";
 import { templatesApi } from "@/services/templatesApi";
+import { foldersApi } from "@/services/foldersApi";
 
 interface AuthContextType {
   // User state
@@ -157,11 +158,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           recordingsApi.setUserId(authUser?.id || null);
           // templatesApiにもユーザーIDを設定（Issue #32 クロスデバイス対応）
           templatesApi.setUserId(authUser?.id || null);
+          // foldersApiにもユーザーIDを設定（Issue #83 フォルダ分類）
+          foldersApi.setUserId(authUser?.id || null);
         }
       } catch {
         // Auth fetch failed — treat as unauthenticated
         recordingsApi.setUserId(null);
         templatesApi.setUserId(null);
+        foldersApi.setUserId(null);
       } finally {
         if (!cancelled) {
           // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -224,6 +228,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     recordingsApi.setUserId(null);
     // templatesApiからもユーザーIDをクリア（Issue #32）
     templatesApi.setUserId(null);
+    // foldersApiからもユーザーIDをクリア（Issue #83）
+    foldersApi.setUserId(null);
     window.location.href = "/.auth/logout?post_logout_redirect_uri=/";
   }, []);
 

@@ -169,7 +169,15 @@
     "downloadError": "ダウンロード中にエラーが発生しました",
     "loginRequired": "ログインが必要です",
     "loginRequiredDescription": "録音履歴を表示するにはログインしてください。",
-    "loginButton": "ログイン"
+    "loginButton": "ログイン",
+    "allFolders": "すべて",
+    "newFolder": "新規フォルダ",
+    "folderNamePrompt": "フォルダ名を入力してください",
+    "moveToFolder": "フォルダに移動",
+    "removeFromFolder": "フォルダから外す",
+    "renameFolder": "名前変更",
+    "deleteFolder": "フォルダを削除",
+    "deleteFolderConfirm": "このフォルダを削除しますか？配下の録音は未分類に移動されます。"
   },
   "SettingsPage": {
     "title": "設定",
