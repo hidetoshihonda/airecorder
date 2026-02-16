@@ -19,6 +19,7 @@ export interface CreateRecordingInput {
   audioUrl?: string;
   transcript?: Transcript;
   translations?: Record<string, Translation>;
+  speakerLabels?: Record<string, string>;
 }
 
 export interface UpdateRecordingInput {
@@ -29,6 +30,7 @@ export interface UpdateRecordingInput {
   tags?: string[];
   status?: Recording["status"];
   folderId?: string | null;
+  speakerLabels?: Record<string, string>;
 }
 
 class RecordingsApiService {

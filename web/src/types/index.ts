@@ -18,6 +18,8 @@ export interface Recording {
   correctionStatus?: "pending" | "processing" | "completed" | "failed";
   correctionError?: string;
   correctedAt?: string;
+  // 話者ラベルマッピング (Issue #140)
+  speakerLabels?: Record<string, string>;
 }
 
 export interface Folder {

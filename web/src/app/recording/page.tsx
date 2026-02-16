@@ -435,7 +435,7 @@ function RecordingDetailContent() {
 
     return target.segments
       .map((seg) => {
-        const label = seg.speaker || t("unknownSpeaker");
+        const label = (seg.speaker && recording?.speakerLabels?.[seg.speaker]) || seg.speaker || t("unknownSpeaker");
         return `[${label}] ${seg.text}`;
       })
       .join("\n");
@@ -950,7 +950,7 @@ function RecordingDetailContent() {
                             </button>
                             {segment.speaker && (
                               <span className="shrink-0 text-xs font-medium text-purple-600 mt-0.5">
-                                {segment.speaker}
+                                {recording?.speakerLabels?.[segment.speaker] || segment.speaker}
                               </span>
                             )}
                             <span className="text-sm text-gray-800 leading-relaxed">
