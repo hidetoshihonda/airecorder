@@ -343,7 +343,10 @@
     "copyCurrentStatus": "Current Status:",
     "copyIssues": "Issues:",
     "copyDiscussion": "Discussion:",
-    "copyNextActions": "Next Actions:"
+    "copyNextActions": "Next Actions:",
+    "seekToTimestamp": "Play from this position",
+    "autoScrollOn": "Auto-scroll ON",
+    "autoScrollOff": "Auto-scroll OFF"
   },
   "PrivacyPage": {
     "backToTop": "Back to top",
