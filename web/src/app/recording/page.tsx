@@ -109,6 +109,12 @@ function RecordingDetailContent() {
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playbackRate, setPlaybackRate] = useState(1.0);
+
+  // Issue #135: タイムコード同期
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
+  const segmentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   
   // LLM 補正版表示切り替え (Issue #70)
   const [transcriptView, setTranscriptView] = useState<"original" | "corrected">("corrected");
@@ -246,6 +252,35 @@ function RecordingDetailContent() {
     }
     return recording?.transcript;
   }, [recording, transcriptView]);
+
+  // Issue #135: displayTranscript 切替時に segmentRefs をクリア
+  useEffect(() => {
+    segmentRefs.current.clear();
+  }, [displayTranscript]);
+
+  // Issue #135: アクティブセグメントへの自動スクロール
+  useEffect(() => {
+    if (!isAutoScroll || !displayTranscript?.segments) return;
+
+    const activeSegment = displayTranscript.segments.find(
+      (seg) => currentTime >= seg.startTime && currentTime < seg.endTime
+    );
+
+    if (activeSegment) {
+      const el = segmentRefs.current.get(activeSegment.id);
+      if (el && transcriptContainerRef.current) {
+        const container = transcriptContainerRef.current;
+        const elTop = el.offsetTop - container.offsetTop;
+        const elBottom = elTop + el.offsetHeight;
+        const scrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+
+        if (elTop < scrollTop || elBottom > scrollTop + containerHeight) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
+  }, [currentTime, displayTranscript, isAutoScroll]);
 
   // 補正リトライ (Issue #103)
   const [isRetryingCorrection, setIsRetryingCorrection] = useState(false);
@@ -699,6 +734,16 @@ function RecordingDetailContent() {
                     controls
                     className="flex-1"
                     src={audioUrl}
+                    onTimeUpdate={() => {
+                      if (audioRef.current) {
+                        setCurrentTime(audioRef.current.currentTime);
+                      }
+                    }}
+                    onSeeked={() => {
+                      if (audioRef.current) {
+                        setCurrentTime(audioRef.current.currentTime);
+                      }
+                    }}
                     onPlay={() => {
                       if (audioRef.current) {
                         audioRef.current.playbackRate = playbackRate;
@@ -821,6 +866,17 @@ function RecordingDetailContent() {
                     </Button>
                   </div>
                 )}
+                {/* Issue #135: 自動追従トグル */}
+                {audioUrl && displayTranscript?.segments && displayTranscript.segments.length > 0 && (
+                  <Button
+                    variant={isAutoScroll ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setIsAutoScroll(!isAutoScroll)}
+                    className="gap-1 text-xs"
+                  >
+                    {isAutoScroll ? t("autoScrollOn") : t("autoScrollOff")}
+                  </Button>
+                )}
                 {displayTranscript?.fullText && (
                   <Button
                     variant="ghost"
@@ -847,8 +903,68 @@ function RecordingDetailContent() {
             </CardHeader>
             <CardContent>
               {displayTranscript?.fullText ? (
-                <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 text-gray-800">
-                  {displayTranscript.fullText}
+                <div
+                  ref={transcriptContainerRef}
+                  className="max-h-[60vh] overflow-y-auto rounded-md bg-gray-50 p-2 sm:p-4"
+                >
+                  {displayTranscript.segments && displayTranscript.segments.length > 0 ? (
+                    <div className="space-y-0.5">
+                      {displayTranscript.segments.map((segment) => {
+                        const isActive =
+                          !!audioUrl &&
+                          currentTime >= segment.startTime &&
+                          currentTime < segment.endTime;
+                        return (
+                          <div
+                            key={segment.id}
+                            ref={(el) => {
+                              if (el) segmentRefs.current.set(segment.id, el);
+                              else segmentRefs.current.delete(segment.id);
+                            }}
+                            className={cn(
+                              "group flex gap-2 sm:gap-3 rounded-md px-2 py-1.5 transition-colors",
+                              isActive
+                                ? "bg-blue-100 border-l-2 border-blue-500"
+                                : "hover:bg-gray-100 border-l-2 border-transparent"
+                            )}
+                          >
+                            <button
+                              type="button"
+                              className={cn(
+                                "shrink-0 text-xs font-mono mt-0.5 tabular-nums",
+                                audioUrl
+                                  ? "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  : "text-gray-400 cursor-default"
+                              )}
+                              onClick={() => {
+                                if (audioRef.current && audioUrl) {
+                                  audioRef.current.currentTime = segment.startTime;
+                                  audioRef.current.play();
+                                  setIsAutoScroll(true);
+                                }
+                              }}
+                              disabled={!audioUrl}
+                              title={audioUrl ? t("seekToTimestamp") : ""}
+                            >
+                              {formatDuration(Math.floor(segment.startTime))}
+                            </button>
+                            {segment.speaker && (
+                              <span className="shrink-0 text-xs font-medium text-purple-600 mt-0.5">
+                                {segment.speaker}
+                              </span>
+                            )}
+                            <span className="text-sm text-gray-800 leading-relaxed">
+                              {segment.text}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap text-gray-800 p-2">
+                      {displayTranscript.fullText}
+                    </div>
+                  )}
                 </div>
               ) : recording.correctionStatus === "pending" || recording.correctionStatus === "processing" ? (
                 <div className="py-8 text-center text-gray-500">

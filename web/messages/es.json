@@ -343,7 +343,10 @@
     "copyCurrentStatus": "Estado actual:",
     "copyIssues": "Problemas:",
     "copyDiscussion": "Discusión:",
-    "copyNextActions": "Próximas acciones:"
+    "copyNextActions": "Próximas acciones:",
+    "seekToTimestamp": "Reproducir desde esta posición",
+    "autoScrollOn": "Seguimiento auto. ON",
+    "autoScrollOff": "Seguimiento auto. OFF"
   },
   "PrivacyPage": {
     "backToTop": "Volver al inicio",

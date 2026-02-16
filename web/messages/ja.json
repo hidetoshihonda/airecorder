@@ -343,7 +343,10 @@
     "copyCurrentStatus": "現状:",
     "copyIssues": "課題:",
     "copyDiscussion": "議論:",
-    "copyNextActions": "次アクション:"
+    "copyNextActions": "次アクション:",
+    "seekToTimestamp": "この位置から再生",
+    "autoScrollOn": "自動追従 ON",
+    "autoScrollOff": "自動追従 OFF"
   },
   "PrivacyPage": {
     "backToTop": "トップに戻る",
