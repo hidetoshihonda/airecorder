@@ -340,11 +340,27 @@ app.http("generateSummary", {
           },
         ],
         temperature: 0.3,
-        max_tokens: 4000,
+        max_tokens: 8000,
         response_format: { type: "json_object" },
       });
 
       const content = response.choices[0]?.message?.content;
+
+      // デバッグログ: LLM出力の構造・トークン使用量を監視（Issue #136）
+      if (content) {
+        const usage = response.usage;
+        console.log(`[Summary] template=${body.templateId || 'default'}, model=${deploymentName}, prompt_tokens=${usage?.prompt_tokens}, completion_tokens=${usage?.completion_tokens}, total_tokens=${usage?.total_tokens}, output_length=${content.length}`);
+        try {
+          const preview = JSON.parse(content);
+          const topicCount = preview.topics?.length || 0;
+          const hasContent = preview.topics?.some((t: { content?: string }) => t.content) || false;
+          const qaCount = preview.qaItems?.length || 0;
+          console.log(`[Summary] topics=${topicCount}, hasContent=${hasContent}, qaItems=${qaCount}, hasNextSteps=${!!preview.nextSteps?.length}`);
+        } catch {
+          console.log(`[Summary] WARNING: Failed to preview parsed structure`);
+        }
+      }
+
       if (!content) {
         return jsonResponse(
           { success: false, error: "No response from OpenAI" },
@@ -377,17 +393,29 @@ app.http("generateSummary", {
           discussion?: string;
           examples?: string;
           nextActions?: string;
-        }) => ({
-          title: topic.title || "",
-          content: topic.content || "",
-          // 旧形式フィールドも保持（後方互換）
-          background: topic.background || "",
-          currentStatus: topic.currentStatus || "",
-          issues: topic.issues || "",
-          discussion: topic.discussion || "",
-          examples: topic.examples || "",
-          nextActions: topic.nextActions || "",
-        })),
+        }) => {
+          // 旧形式フィールドを content に統合（LLMが旧形式で出力した場合のフォールバック）
+          const legacyContent = [
+            topic.background && `【背景】${topic.background}`,
+            topic.currentStatus && `【現状】${topic.currentStatus}`,
+            topic.issues && `【課題】${topic.issues}`,
+            topic.discussion && `【議論】${topic.discussion}`,
+            topic.examples && `【具体例】${topic.examples}`,
+            topic.nextActions && `【次のアクション】${topic.nextActions}`,
+          ].filter(Boolean).join("\n");
+
+          return {
+            title: topic.title || "",
+            content: topic.content || legacyContent || "",
+            // 旧形式フィールドも保持（後方互換）
+            background: topic.background || "",
+            currentStatus: topic.currentStatus || "",
+            issues: topic.issues || "",
+            discussion: topic.discussion || "",
+            examples: topic.examples || "",
+            nextActions: topic.nextActions || "",
+          };
+        }),
         // 4. 決定事項
         decisions: parsedSummary.decisions || [],
         // 5. ToDo / アクションアイテム
