@@ -381,16 +381,6 @@ function RecordingDetailContent() {
       });
     }
     
-    // 質疑応答
-    if (summary.qaItems && summary.qaItems.length > 0) {
-      lines.push(`## ${tHome("qaSection")}`);
-      summary.qaItems.forEach(qa => {
-        lines.push(`**Q:** ${qa.question}`);
-        lines.push(`**A:** ${qa.answer}`);
-        lines.push("");
-      });
-    }
-    
     // 決定事項
     if (summary.decisions && summary.decisions.length > 0) {
       lines.push(`## ${tHome("decisions")}`);
@@ -410,6 +400,16 @@ function RecordingDetailContent() {
         lines.push(`| ${task} | ${assignee} | ${due} |`);
       });
       lines.push("");
+    }
+    
+    // 質疑応答
+    if (summary.qaItems && summary.qaItems.length > 0) {
+      lines.push(`## ${tHome("qaSection")}`);
+      summary.qaItems.forEach(qa => {
+        lines.push(`**Q:** ${qa.question}`);
+        lines.push(`**A:** ${qa.answer}`);
+        lines.push("");
+      });
     }
     
     // 重要メモ
@@ -1184,27 +1184,6 @@ function RecordingDetailContent() {
                     </div>
                   )}
 
-                  {/* 質疑応答 (Q&A) */}
-                  {recording.summary.qaItems && recording.summary.qaItems.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("qaSection")}</h3>
-                      <div className="space-y-3">
-                        {recording.summary.qaItems.map((qa, index) => (
-                          <div key={index} className="rounded-md border border-gray-200 p-3 text-sm">
-                            <div className="flex items-start gap-2 mb-1">
-                              <span className="text-blue-600 font-bold shrink-0">Q:</span>
-                              <span className="text-gray-800">{qa.question}</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="text-green-600 font-bold shrink-0">A:</span>
-                              <span className="text-gray-700">{qa.answer}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {/* 4. 決定事項 */}
                   {recording.summary.decisions && recording.summary.decisions.length > 0 && (
                     <div>
@@ -1249,7 +1228,28 @@ function RecordingDetailContent() {
                     </div>
                   )}
 
-                  {/* 6. 重要メモ */}
+                  {/* 6. 質疑応答 (Q&A) */}
+                  {recording.summary.qaItems && recording.summary.qaItems.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("qaSection")}</h3>
+                      <div className="space-y-3">
+                        {recording.summary.qaItems.map((qa, index) => (
+                          <div key={index} className="rounded-md border border-gray-200 p-3 text-sm">
+                            <div className="flex items-start gap-2 mb-1">
+                              <span className="text-blue-600 font-bold shrink-0">Q:</span>
+                              <span className="text-gray-800">{qa.question}</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-green-600 font-bold shrink-0">A:</span>
+                              <span className="text-gray-700">{qa.answer}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 重要メモ */}
                   {recording.summary.importantNotes && recording.summary.importantNotes.length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("importantNotes")}</h3>
