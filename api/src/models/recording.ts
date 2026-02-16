@@ -18,9 +18,38 @@ export interface Translation {
 }
 
 export interface Summary {
-  overview: string;
-  keyPoints: string[];
-  actionItems: string[];
+  // 新形式（v2）
+  caution?: string;
+  meetingInfo?: {
+    title: string;
+    participants: string[];
+    datetime: string;
+    purpose: string;
+  };
+  agenda?: string[];
+  topics?: Array<{
+    title: string;
+    background: string;
+    currentStatus: string;
+    issues: string;
+    discussion: string;
+    examples: string;
+    nextActions: string;
+  }>;
+  decisions?: string[];
+  actionItems: Array<{
+    id: string;
+    task: string;
+    assignee: string;
+    dueDate: string;
+    context: string;
+  }> | string[];
+  importantNotes?: string[];
+  nextSteps?: string[];
+  generatedAt?: string;
+  // 後方互換性（旧形式）
+  overview?: string;
+  keyPoints?: string[];
 }
 
 export interface Recording {

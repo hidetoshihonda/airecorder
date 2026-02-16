@@ -69,7 +69,7 @@ export const PRESET_TEMPLATES: MeetingTemplate[] = [
 - 必ず有効なJSONで出力`,
   },
   {
-    id: "meeting",
+    id: "general",
     nameKey: "meeting",
     descriptionKey: "meetingDesc",
     icon: "ClipboardList",
