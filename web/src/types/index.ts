@@ -98,15 +98,22 @@ export interface Summary {
   };
   // 2. アジェンダ一覧
   agenda?: string[];
-  // 3. 議題別の詳細
+  // 3. 主要な会話内容
   topics?: Array<{
     title: string;
-    background: string;
-    currentStatus: string;
-    issues: string;
-    discussion: string;
-    examples: string;
-    nextActions: string;
+    content?: string;
+    // 後方互換（旧形式）
+    background?: string;
+    currentStatus?: string;
+    issues?: string;
+    discussion?: string;
+    examples?: string;
+    nextActions?: string;
+  }>;
+  // 質疑応答
+  qaItems?: Array<{
+    question: string;
+    answer: string;
   }>;
   // 4. 決定事項
   decisions?: string[];

@@ -363,16 +363,30 @@ function RecordingDetailContent() {
       lines.push("");
     }
     
-    // 議題別詳細
+    // 主要な会話内容
     if (summary.topics && summary.topics.length > 0) {
       lines.push(`## ${tHome("topicDetails")}`);
       summary.topics.forEach((topic, i) => {
         lines.push(`### ${i + 1}. ${topic.title}`);
-        if (topic.background) lines.push(`- **${t("copyBackground")}** ${topic.background}`);
-        if (topic.currentStatus) lines.push(`- **${t("copyCurrentStatus")}** ${topic.currentStatus}`);
-        if (topic.issues) lines.push(`- **${t("copyIssues")}** ${topic.issues}`);
-        if (topic.discussion) lines.push(`- **${t("copyDiscussion")}** ${topic.discussion}`);
-        if (topic.nextActions) lines.push(`- **${t("copyNextActions")}** ${topic.nextActions}`);
+        if (topic.content) {
+          lines.push(topic.content);
+        } else {
+          if (topic.background) lines.push(`- **${t("copyBackground")}** ${topic.background}`);
+          if (topic.currentStatus) lines.push(`- **${t("copyCurrentStatus")}** ${topic.currentStatus}`);
+          if (topic.issues) lines.push(`- **${t("copyIssues")}** ${topic.issues}`);
+          if (topic.discussion) lines.push(`- **${t("copyDiscussion")}** ${topic.discussion}`);
+          if (topic.nextActions) lines.push(`- **${t("copyNextActions")}** ${topic.nextActions}`);
+        }
+        lines.push("");
+      });
+    }
+    
+    // 質疑応答
+    if (summary.qaItems && summary.qaItems.length > 0) {
+      lines.push(`## ${tHome("qaSection")}`);
+      summary.qaItems.forEach(qa => {
+        lines.push(`**Q:** ${qa.question}`);
+        lines.push(`**A:** ${qa.answer}`);
         lines.push("");
       });
     }
@@ -1132,33 +1146,58 @@ function RecordingDetailContent() {
                     </div>
                   )}
 
-                  {/* 3. 議題別の詳細 */}
+                  {/* 3. 主要な会話内容 */}
                   {recording.summary.topics && recording.summary.topics.length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-3">{tHome("topicDetails")}</h3>
                       <div className="space-y-4">
                         {recording.summary.topics.map((topic, index) => (
                           <div key={index} className="rounded-md border border-gray-200 p-4">
-                            <h4 className="font-medium text-gray-800 mb-3">3.{index + 1}. {topic.title}</h4>
-                            <div className="space-y-2 text-sm">
-                              {topic.background && (
-                                <div><span className="text-gray-500 font-medium">{t("background")}</span> <span className="text-gray-700">{topic.background}</span></div>
-                              )}
-                              {topic.currentStatus && (
-                                <div><span className="text-gray-500 font-medium">{t("currentStatus")}</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
-                              )}
-                              {topic.issues && (
-                                <div><span className="text-gray-500 font-medium">{t("issues")}</span> <span className="text-gray-700">{topic.issues}</span></div>
-                              )}
-                              {topic.discussion && (
-                                <div><span className="text-gray-500 font-medium">{t("discussionPoints")}</span> <span className="text-gray-700">{topic.discussion}</span></div>
-                              )}
-                              {topic.examples && (
-                                <div><span className="text-gray-500 font-medium">{t("examples")}</span> <span className="text-gray-700">{topic.examples}</span></div>
-                              )}
-                              {topic.nextActions && (
-                                <div><span className="text-gray-500 font-medium">{t("nextActions")}</span> <span className="text-gray-700">{topic.nextActions}</span></div>
-                              )}
+                            <h4 className="font-medium text-gray-800 mb-3">{index + 1}. {topic.title}</h4>
+                            {topic.content ? (
+                              <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+                            ) : (
+                              <div className="space-y-2 text-sm">
+                                {topic.background && (
+                                  <div><span className="text-gray-500 font-medium">{t("background")}</span> <span className="text-gray-700">{topic.background}</span></div>
+                                )}
+                                {topic.currentStatus && (
+                                  <div><span className="text-gray-500 font-medium">{t("currentStatus")}</span> <span className="text-gray-700">{topic.currentStatus}</span></div>
+                                )}
+                                {topic.issues && (
+                                  <div><span className="text-gray-500 font-medium">{t("issues")}</span> <span className="text-gray-700">{topic.issues}</span></div>
+                                )}
+                                {topic.discussion && (
+                                  <div><span className="text-gray-500 font-medium">{t("discussionPoints")}</span> <span className="text-gray-700">{topic.discussion}</span></div>
+                                )}
+                                {topic.examples && (
+                                  <div><span className="text-gray-500 font-medium">{t("examples")}</span> <span className="text-gray-700">{topic.examples}</span></div>
+                                )}
+                                {topic.nextActions && (
+                                  <div><span className="text-gray-500 font-medium">{t("nextActions")}</span> <span className="text-gray-700">{topic.nextActions}</span></div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 質疑応答 (Q&A) */}
+                  {recording.summary.qaItems && recording.summary.qaItems.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("qaSection")}</h3>
+                      <div className="space-y-3">
+                        {recording.summary.qaItems.map((qa, index) => (
+                          <div key={index} className="rounded-md border border-gray-200 p-3 text-sm">
+                            <div className="flex items-start gap-2 mb-1">
+                              <span className="text-blue-600 font-bold shrink-0">Q:</span>
+                              <span className="text-gray-800">{qa.question}</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-green-600 font-bold shrink-0">A:</span>
+                              <span className="text-gray-700">{qa.answer}</span>
                             </div>
                           </div>
                         ))}

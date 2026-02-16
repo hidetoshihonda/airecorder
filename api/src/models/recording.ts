@@ -29,12 +29,17 @@ export interface Summary {
   agenda?: string[];
   topics?: Array<{
     title: string;
-    background: string;
-    currentStatus: string;
-    issues: string;
-    discussion: string;
-    examples: string;
-    nextActions: string;
+    content?: string;
+    background?: string;
+    currentStatus?: string;
+    issues?: string;
+    discussion?: string;
+    examples?: string;
+    nextActions?: string;
+  }>;
+  qaItems?: Array<{
+    question: string;
+    answer: string;
   }>;
   decisions?: string[];
   actionItems: Array<{
