@@ -88,7 +88,7 @@ export default function HomePage() {
   
   // Regenerate dialog state
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
-  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("summary");
+  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("general");
   const [regenerateLanguage, setRegenerateLanguage] = useState(settings.defaultTargetLanguages[0] || "en-US");
   
   // Issue #33: Track translated segment count for differential translation
@@ -594,6 +594,13 @@ export default function HomePage() {
     if (summary.importantNotes && summary.importantNotes.length > 0) {
       lines.push(`## ${t("importantNotes")}`);
       summary.importantNotes.forEach(n => lines.push(`- 📌 ${n}`));
+      lines.push("");
+    }
+    
+    // 次回に向けて
+    if (summary.nextSteps && summary.nextSteps.length > 0) {
+      lines.push(`## ${t("nextSteps")}`);
+      summary.nextSteps.forEach(s => lines.push(`- 📋 ${s}`));
       lines.push("");
     }
     
@@ -1412,6 +1419,21 @@ export default function HomePage() {
                           <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
                             <span className="text-purple-600">📌</span>
                             <span>{note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 7. 次回に向けて */}
+                  {summary.nextSteps && summary.nextSteps.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{t("nextSteps")}</h3>
+                      <ul className="space-y-2">
+                        {summary.nextSteps.map((step, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-teal-50 p-3 text-gray-800 text-sm">
+                            <span className="text-teal-600">📋</span>
+                            <span>{step}</span>
                           </li>
                         ))}
                       </ul>

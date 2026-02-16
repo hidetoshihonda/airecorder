@@ -125,12 +125,12 @@ function RecordingDetailContent() {
   const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
 
   // Template selection state (Issue #38)
-  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("summary");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
   const [summaryLanguage, setSummaryLanguage] = useState("ja-JP");
   
   // Regenerate dialog state (Issue #64)
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
-  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("summary");
+  const [regenerateTemplateId, setRegenerateTemplateId] = useState<TemplateId>("general");
   const [regenerateLanguage, setRegenerateLanguage] = useState("ja-JP");
 
   // Template list and icons (Issue #38)
@@ -402,6 +402,13 @@ function RecordingDetailContent() {
     if (summary.importantNotes && summary.importantNotes.length > 0) {
       lines.push(`## ${tHome("importantNotes")}`);
       summary.importantNotes.forEach(n => lines.push(`- 📌 ${n}`));
+      lines.push("");
+    }
+    
+    // 次回に向けて
+    if (summary.nextSteps && summary.nextSteps.length > 0) {
+      lines.push(`## ${tHome("nextSteps")}`);
+      summary.nextSteps.forEach(s => lines.push(`- 📋 ${s}`));
       lines.push("");
     }
     
@@ -1212,6 +1219,21 @@ function RecordingDetailContent() {
                           <li key={index} className="flex items-start gap-2 rounded-md bg-purple-50 p-3 text-gray-800 text-sm">
                             <span className="text-purple-600">📌</span>
                             <span>{note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 7. 次回に向けて */}
+                  {recording.summary.nextSteps && recording.summary.nextSteps.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">{tHome("nextSteps")}</h3>
+                      <ul className="space-y-2">
+                        {recording.summary.nextSteps.map((step, index) => (
+                          <li key={index} className="flex items-start gap-2 rounded-md bg-teal-50 p-3 text-gray-800 text-sm">
+                            <span className="text-teal-600">📋</span>
+                            <span>{step}</span>
                           </li>
                         ))}
                       </ul>

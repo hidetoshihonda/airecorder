@@ -114,6 +114,8 @@ export interface Summary {
   actionItems: ActionItem[];
   // 6. 重要メモ
   importantNotes?: string[];
+  // 7. 次回に向けて
+  nextSteps?: string[];
   // メタ情報
   generatedAt: string;
   // 後方互換性のため残す（旧形式）
