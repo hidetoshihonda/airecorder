@@ -125,7 +125,12 @@ export async function listRecordings(
   ];
 
   if (search) {
-    queryText += " AND CONTAINS(LOWER(c.title), LOWER(@search))";
+    queryText +=
+      " AND (" +
+      "CONTAINS(LOWER(c.title), LOWER(@search))" +
+      " OR (IS_DEFINED(c.transcript.fullText) AND CONTAINS(LOWER(c.transcript.fullText), LOWER(@search)))" +
+      " OR (IS_DEFINED(c.correctedTranscript.fullText) AND CONTAINS(LOWER(c.correctedTranscript.fullText), LOWER(@search)))" +
+      ")";
     parameters.push({ name: "@search", value: search });
   }
 

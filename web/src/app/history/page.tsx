@@ -59,9 +59,19 @@ export default function HistoryPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [movingRecordingId, setMovingRecordingId] = useState<string | null>(null);
+  // Issue #81: debounce 用 state
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const t = useTranslations("HistoryPage");
   const { locale: appLocale } = useAppLocale();
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+
+  // Issue #81: searchQuery → debouncedSearch に 400ms debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // BUG-1 fix: SAS 付き URL を取得してから再生・DL する
   const handlePlay = async (recording: Recording) => {
@@ -123,7 +133,7 @@ export default function HistoryPage() {
       const response = await recordingsApi.listRecordings(
         1,
         50,
-        searchQuery || undefined,
+        debouncedSearch || undefined,
         selectedFolderId || undefined
       );
 
@@ -142,7 +152,7 @@ export default function HistoryPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [searchQuery, selectedFolderId, isAuthenticated, authLoading]);
+  }, [debouncedSearch, selectedFolderId, isAuthenticated, authLoading]);
 
   // フォルダ一覧を取得 (Issue #83)
   useEffect(() => {
@@ -168,7 +178,7 @@ export default function HistoryPage() {
     const response = await recordingsApi.listRecordings(
       1,
       50,
-      searchQuery || undefined,
+      debouncedSearch || undefined,
       selectedFolderId || undefined
     );
 
@@ -185,7 +195,7 @@ export default function HistoryPage() {
     }
 
     setIsLoading(false);
-  }, [searchQuery, selectedFolderId, isAuthenticated]);
+  }, [debouncedSearch, selectedFolderId, isAuthenticated]);
 
   // フォルダ作成 (Issue #83)
   const handleCreateFolder = async () => {
@@ -494,6 +504,28 @@ export default function HistoryPage() {
                           ))}
                         </select>
                       </div>
+                      {/* Issue #81: 全文検索スニペット */}
+                      {debouncedSearch && (() => {
+                        const ft = recording.transcript?.fullText || "";
+                        const cft = recording.correctedTranscript?.fullText || "";
+                        const q = debouncedSearch.toLowerCase();
+                        const matchText = ft.toLowerCase().includes(q) ? ft : cft.toLowerCase().includes(q) ? cft : null;
+                        if (!matchText) return null;
+                        const idx = matchText.toLowerCase().indexOf(q);
+                        const start = Math.max(0, idx - 40);
+                        const end = Math.min(matchText.length, idx + debouncedSearch.length + 40);
+                        const prefix = start > 0 ? "..." : "";
+                        const suffix = end < matchText.length ? "..." : "";
+                        const before = matchText.slice(start, idx);
+                        const match = matchText.slice(idx, idx + debouncedSearch.length);
+                        const after = matchText.slice(idx + debouncedSearch.length, end);
+                        return (
+                          <div className="mt-2 text-xs text-gray-600 bg-yellow-50 rounded-md p-2 border border-yellow-100">
+                            <span className="text-yellow-700 font-medium mr-1">📝</span>
+                            {prefix}{before}<mark className="bg-yellow-200 rounded px-0.5">{match}</mark>{after}{suffix}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       {recording.audioUrl ? (
