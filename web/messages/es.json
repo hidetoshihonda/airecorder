@@ -148,7 +148,7 @@
   "HistoryPage": {
     "title": "Historial de grabaciones",
     "description": "Ver, reproducir y descargar grabaciones anteriores",
-    "searchPlaceholder": "Buscar grabaciones...",
+    "searchPlaceholder": "Buscar por título o contenido de transcripción...",
     "refresh": "Actualizar",
     "loading": "Cargando...",
     "fetchFailed": "Error al obtener datos",

@@ -148,7 +148,7 @@
   "HistoryPage": {
     "title": "Recording History",
     "description": "View, play, and download past recordings",
-    "searchPlaceholder": "Search recordings...",
+    "searchPlaceholder": "Search by title or transcript content...",
     "refresh": "Refresh",
     "loading": "Loading...",
     "fetchFailed": "Failed to fetch data",
