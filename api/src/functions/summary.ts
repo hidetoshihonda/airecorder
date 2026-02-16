@@ -23,17 +23,19 @@ interface SummaryResponse {
     datetime: string;
     purpose: string;
   };
-  // 2. アジェンダ一覧
+  // 2. アジェンダ一覧（= 議題・論点）
   agenda: string[];
-  // 3. 議題別の詳細
+  // 3. 主要な会話内容（時系列、論点ごと）
   topics: Array<{
     title: string;
-    background: string;
-    currentStatus: string;
-    issues: string;
-    discussion: string;
-    examples: string;
-    nextActions: string;
+    content: string;
+    // 後方互換（旧形式）
+    background?: string;
+    currentStatus?: string;
+    issues?: string;
+    discussion?: string;
+    examples?: string;
+    nextActions?: string;
   }>;
   // 4. 決定事項
   decisions: string[];
@@ -45,13 +47,17 @@ interface SummaryResponse {
     dueDate: string;
     context: string;
   }>;
-  // 6. 重要メモ
-  importantNotes: string[];
+  // 6. 質疑応答
+  qaItems: Array<{
+    question: string;
+    answer: string;
+  }>;
   // 7. 次回に向けて
   nextSteps: string[];
   // メタ情報
   generatedAt: string;
   // 後方互換性のため残す
+  importantNotes?: string[];
   overview?: string;
   keyPoints?: string[];
 }
@@ -73,81 +79,70 @@ function jsonResponse<T>(
   };
 }
 
-// ─── JSON出力フォーマット（詳細版 Issue #42 v2）───
+// ─── JSON出力フォーマット（Issue #136 v3：8セクション構成）───
 const JSON_FORMAT = `出力は必ず以下のJSON形式で返してください：
 {
-  "caution": "【注意書き】センシティブな情報（顧客名、人事評価、内部メモ等）が含まれる場合のみ記載。なければnull",
-  
+  "caution": "センシティブ情報がある場合のみ記載。なければnull",
+
   "meetingInfo": {
-    "title": "会議名（不明なら「チーム定例（仮）」等）",
-    "participants": ["参加者1", "参加者2"],
-    "datetime": "実施日時（不明なら「不明」）",
+    "title": "会議名（不明なら『チーム定例（仮）』等）",
+    "participants": ["田中（PM）", "佐藤（エンジニア）", "鈴木（お客様側）"],
+    "datetime": "実施日時（不明なら『不明』）",
     "purpose": "会議の目的・背景を1-2文で"
   },
-  
+
   "agenda": [
-    "議題1のタイトル",
-    "議題2のタイトル",
-    "議題3のタイトル"
+    "議題・論点1",
+    "議題・論点2"
   ],
-  
+
   "topics": [
     {
-      "title": "議題のタイトル",
-      "background": "背景・前提（なぜこの議題が上がったか）",
-      "currentStatus": "現状共有（事実ベースで）",
-      "issues": "課題/懸念（温度感も含める。例：「〇〇さんは強く懸念を示した」）",
-      "discussion": "議論の要点（論点→結論/未決の順）",
-      "examples": "具体例・発言で出たケース",
-      "nextActions": "次アクション候補（決定していなくても候補として明記）"
+      "title": "論点の小見出し",
+      "content": "時系列で議論の流れを記述する。発言者がわかる場合は（〇〇さん）と補足。背景→議論→結論/未決の順で書く。曖昧な箇所は（要確認）を付ける。重要な数値は**太字**にする。"
     }
   ],
-  
+
   "decisions": [
-    "決定事項1（決まったことだけ、箇条書き）",
+    "決定事項1（決まったことだけ）",
     "決定事項2"
   ],
-  
+
   "actionItems": [
     {
       "id": "1",
       "task": "具体的なToDoの内容",
-      "assignee": "担当者名（不明なら「未定」）",
-      "dueDate": "期限（YYYY-MM-DD または「未定」「次回定例まで」等）",
-      "context": "関連背景・なぜこのタスクが必要か"
+      "assignee": "担当者名（不明なら『未定』）",
+      "dueDate": "期限（YYYY-MM-DD または『未定』『次回定例まで』等）",
+      "context": "関連背景"
     }
   ],
-  
-  "importantNotes": [
-    "運用上の注意事項",
-    "共有すべきリスク",
-    "ナレッジ化ポイント",
-    "今後の再発防止策"
+
+  "qaItems": [
+    {
+      "question": "会議中に出た質問",
+      "answer": "それに対する回答（未回答なら『未回答・持ち帰り』）"
+    }
   ],
-  
+
   "nextSteps": [
     "次回の予定・アジェンダ案",
-    "確認事項やフォローアップ",
-    "今後のスケジュール・マイルストーン"
+    "フォローアップ事項",
+    "今後のスケジュール"
   ]
 }
 
 【書き方のルール】
-1. 文字起こしの内容に忠実に。推測で事実を増やさない（不明点は「不明」「推定」など明記）
-2. 読みやすさのために話題を整理して再構成してよい（会話順のままにしなくて良い）
+1. 文字起こしの内容に忠実に。推測で事実を増やさない（不明点は「不明」「（要確認）」など明記）
+2. 時系列の流れが追えるように整理しつつ、話題の転換点を明確にする
 3. 重要なニュアンス（懸念・温度感・言い回しの意図）は落とさない
-4. 固有名詞（人名/顧客名/チーム名/ツール名）や数値（件数/評価/日付/週数）を漏らさず拾う
+4. 固有名詞（人名/顧客名/チーム名/ツール名）や数値は漏らさず拾う
 5. 誰の発言かわかるものは「（〇〇さん）」のように補足
-6. 長い会話は「要旨→詳細」の順に圧縮
-7. 誤字っぽい箇所は意味が通る範囲で自然な日本語に整える
-8. 数字は可能な限り原文に忠実に
-9. 必ず有効なJSONで出力
-10. 金額、日付、数値、パーセンテージなどの重要な数値は **太字** で記載すること
-11. 発言内容が曖昧・文字起こし精度に不安がある箇所は「（要確認）」と明記すること
-12. 根拠のない推測や解釈は行わず、文字起こしに含まれる情報のみを記載すること
-13. 質疑応答がある場合は topics 内の discussion で「Q:」「A:」形式で記載すること
-14. 参加者の役割が推測できる場合は meetingInfo.participants に役割を付記すること（例: "田中（PM）"）
-15. 次回の予定・宿題・フォローアップ事項があれば nextSteps に記載すること`;
+6. 参加者の役割が推測できる場合は participants に役割を付記（例: "田中（PM）"）
+7. 重要な数値・期間・時間帯は **太字** にする
+8. 参加者名が曖昧な場合は「（発話ログ上の呼称：◯◯）」のように書く
+9. 根拠のない推測は書かない
+10. 必ず有効なJSONで出力`;
 
 // ─── プリセットテンプレートのシステムプロンプト（詳細版 Issue #42 v2）───
 const TEMPLATE_PROMPTS: Record<string, string> = {
@@ -359,7 +354,7 @@ app.http("generateSummary", {
 
       const parsedSummary = JSON.parse(content);
 
-      // 新フォーマットのレスポンスを構築
+      // 新フォーマットのレスポンスを構築（Issue #136 v3）
       const summary: SummaryResponse = {
         // 注意書き
         caution: parsedSummary.caution || undefined,
@@ -372,9 +367,10 @@ app.http("generateSummary", {
         },
         // 2. アジェンダ一覧
         agenda: parsedSummary.agenda || [],
-        // 3. 議題別の詳細
+        // 3. 主要な会話内容（新形式: content / 旧形式: background等 両対応）
         topics: (parsedSummary.topics || []).map((topic: {
           title?: string;
+          content?: string;
           background?: string;
           currentStatus?: string;
           issues?: string;
@@ -383,6 +379,8 @@ app.http("generateSummary", {
           nextActions?: string;
         }) => ({
           title: topic.title || "",
+          content: topic.content || "",
+          // 旧形式フィールドも保持（後方互換）
           background: topic.background || "",
           currentStatus: topic.currentStatus || "",
           issues: topic.issues || "",
@@ -402,13 +400,19 @@ app.http("generateSummary", {
             context: item.context || "",
           })
         ),
-        // 6. 重要メモ
-        importantNotes: parsedSummary.importantNotes || [],
+        // 6. 質疑応答
+        qaItems: (parsedSummary.qaItems || []).map(
+          (qa: { question?: string; answer?: string }) => ({
+            question: qa.question || "",
+            answer: qa.answer || "",
+          })
+        ),
         // 7. 次回に向けて
         nextSteps: parsedSummary.nextSteps || [],
         // メタ情報
         generatedAt: new Date().toISOString(),
-        // 後方互換性（旧形式のフィールドも含める、overview/keyPoints を優先）
+        // 後方互換性
+        importantNotes: parsedSummary.importantNotes || [],
         overview: parsedSummary.overview || parsedSummary.meetingInfo?.purpose || "",
         keyPoints: parsedSummary.keyPoints || parsedSummary.agenda || [],
       };
