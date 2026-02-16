@@ -3,6 +3,25 @@
 import { useState, useCallback } from "react";
 import { LiveSegment } from "@/types";
 
+// Issue #140: 旧 localStorage エントリのクリーンアップ（ワンタイム）
+if (typeof window !== "undefined") {
+  try {
+    if (!localStorage.getItem("airecorder-speaker-cleanup-v1")) {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("airecorder-speaker-")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem("airecorder-speaker-cleanup-v1", "1");
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export interface SpeakerInfo {
   /** SDK が返す話者 ID（例: "Guest-1"） */
   id: string;
@@ -18,11 +37,10 @@ interface UseSpeakerManagerReturn {
   speakers: Map<string, SpeakerInfo>;
   renameSpeaker: (id: string, label: string) => void;
   getSpeakerLabel: (id: string) => string;
+  getSpeakerLabelsMap: () => Record<string, string>;
   updateFromSegments: (segments: LiveSegment[]) => void;
   resetSpeakers: () => void;
 }
-
-const STORAGE_PREFIX = "airecorder-speaker-";
 
 export function useSpeakerManager(): UseSpeakerManagerReturn {
   const [speakers, setSpeakers] = useState<Map<string, SpeakerInfo>>(new Map());
@@ -36,12 +54,6 @@ export function useSpeakerManager(): UseSpeakerManagerReturn {
       }
       return next;
     });
-    // LocalStorage に永続化
-    try {
-      localStorage.setItem(`${STORAGE_PREFIX}${id}`, label);
-    } catch {
-      // Storage quota exceeded — ignore
-    }
   }, []);
 
   const updateFromSegments = useCallback((segments: LiveSegment[]) => {
@@ -52,15 +64,9 @@ export function useSpeakerManager(): UseSpeakerManagerReturn {
       // 新しい話者を検出
       for (const seg of segments) {
         if (seg.speaker && !next.has(seg.speaker)) {
-          let saved: string | null = null;
-          try {
-            saved = localStorage.getItem(`${STORAGE_PREFIX}${seg.speaker}`);
-          } catch {
-            // ignore
-          }
           next.set(seg.speaker, {
             id: seg.speaker,
-            label: saved || seg.speaker,
+            label: seg.speaker,
             color: next.size,
             segmentCount: 0,
           });
@@ -94,9 +100,20 @@ export function useSpeakerManager(): UseSpeakerManagerReturn {
     [speakers]
   );
 
+  // Issue #140: speakers Map からリネームされたラベルのみ抽出
+  const getSpeakerLabelsMap = useCallback((): Record<string, string> => {
+    const map: Record<string, string> = {};
+    for (const [id, info] of speakers) {
+      if (info.label !== id) {
+        map[id] = info.label;
+      }
+    }
+    return map;
+  }, [speakers]);
+
   const resetSpeakers = useCallback(() => {
     setSpeakers(new Map());
   }, []);
 
-  return { speakers, renameSpeaker, getSpeakerLabel, updateFromSegments, resetSpeakers };
+  return { speakers, renameSpeaker, getSpeakerLabel, getSpeakerLabelsMap, updateFromSegments, resetSpeakers };
 }

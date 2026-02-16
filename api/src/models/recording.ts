@@ -44,6 +44,8 @@ export interface Recording {
   correctionStatus?: "pending" | "processing" | "completed" | "failed";
   correctionError?: string;
   correctedAt?: string;
+  // 話者ラベルマッピング (Issue #140)
+  speakerLabels?: Record<string, string>;
 }
 
 // API request/response types
@@ -55,6 +57,7 @@ export interface CreateRecordingRequest {
   audioUrl?: string;
   transcript?: Transcript;
   translations?: { [languageCode: string]: Translation };
+  speakerLabels?: Record<string, string>;
 }
 
 export interface UpdateRecordingRequest {
@@ -65,6 +68,7 @@ export interface UpdateRecordingRequest {
   tags?: string[];
   folderId?: string;
   status?: Recording["status"];
+  speakerLabels?: Record<string, string>;
 }
 
 export interface ListRecordingsQuery {

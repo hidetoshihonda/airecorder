@@ -226,7 +226,7 @@ export default function HomePage() {
   const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
 
   // Speaker Manager (Issue #9: 話者ラベル管理)
-  const { speakers, renameSpeaker, getSpeakerLabel, updateFromSegments, resetSpeakers } = useSpeakerManager();
+  const { speakers, renameSpeaker, getSpeakerLabel, getSpeakerLabelsMap, updateFromSegments, resetSpeakers } = useSpeakerManager();
 
   // segments が変わったら speaker 情報を同期
   useEffect(() => {
@@ -671,7 +671,7 @@ export default function HomePage() {
         transcript: {
           segments: labeledSegments.map((seg, i) => ({
             id: seg.id,
-            speaker: seg.speakerLabel || seg.speaker,
+            speaker: seg.speaker,  // Issue #140: 元のSDK speaker IDを保持
             text: seg.text,
             startTime: seg.timestamp / 1000,
             endTime: i < labeledSegments.length - 1
@@ -680,6 +680,7 @@ export default function HomePage() {
           })),
           fullText: transcript,
         },
+        speakerLabels: getSpeakerLabelsMap(),  // Issue #140: ラベルマッピングを別フィールドで保存
         translations: displayTranslation ? {
           [targetLanguage]: {
             languageCode: targetLanguage,
