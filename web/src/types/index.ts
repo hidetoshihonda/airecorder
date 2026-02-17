@@ -59,6 +59,11 @@ export interface LiveSegment {
   timestamp: number;
   /** 発話時間（ms） */
   duration?: number;
+  // Issue #126: リアルタイムAI補正
+  /** LLM による補正後テキスト */
+  correctedText?: string;
+  /** 補正済みフラグ */
+  isCorrected?: boolean;
 }
 
 export interface Translation {
@@ -188,6 +193,7 @@ export interface UserSettings {
   enableSpeakerDiarization: boolean;
   phraseList?: string[];
   enableAICues?: boolean;
+  enableRealtimeCorrection?: boolean;  // Issue #126
 }
 
 export interface Subscription {

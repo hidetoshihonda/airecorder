@@ -6,3 +6,4 @@ export { useSpeechRecognition } from "./useSpeechRecognition";
 export { useSpeakerManager } from "./useSpeakerManager";
 export { useTranslation } from "./useTranslation";
 export { useTranslationRecognizer } from "./useTranslationRecognizer";
+export { useRealtimeCorrection } from "./useRealtimeCorrection";

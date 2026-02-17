@@ -395,6 +395,40 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Issue #126: Realtime AI Correction Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-lg">{t("enableRealtimeCorrection")}</CardTitle>
+            </div>
+            <CardDescription>
+              {t("enableRealtimeCorrectionDesc")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("enableRealtimeCorrection")}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("enableRealtimeCorrectionDesc")}
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.enableRealtimeCorrection ?? false}
+                  onChange={(e) =>
+                    handleSettingChange({ enableRealtimeCorrection: e.target.checked })
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
+              </label>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Phrase List Settings (Issue #34) */}
         <Card>
           <CardHeader>

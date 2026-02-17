@@ -27,6 +27,8 @@ interface UseSpeechRecognitionReturn {
   pauseListening: () => void;
   resumeListening: () => void;
   resetTranscript: () => void;
+  /** Issue #126: セグメントを部分更新（リアルタイム補正用） */
+  updateSegment: (segmentId: string, patch: Partial<LiveSegment>) => void;
 }
 
 export function useSpeechRecognition(
@@ -326,6 +328,13 @@ export function useSpeechRecognition(
     pausedTranscriptRef.current = "";
   }, []);
 
+  // Issue #126: セグメント部分更新（リアルタイムAI補正用）
+  const updateSegment = useCallback((segmentId: string, patch: Partial<LiveSegment>) => {
+    setSegments((prev) =>
+      prev.map((seg) => (seg.id === segmentId ? { ...seg, ...patch } : seg))
+    );
+  }, []);
+
   return {
     isListening,
     isPaused,
@@ -338,5 +347,6 @@ export function useSpeechRecognition(
     pauseListening,
     resumeListening,
     resetTranscript,
+    updateSegment,
   };
 }

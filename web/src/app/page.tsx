@@ -34,6 +34,7 @@ import { useAuthGate } from "@/hooks/useAuthGate";
 import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
 import { useSpeakerManager } from "@/hooks/useSpeakerManager";
 import { useAICues } from "@/hooks/useAICues";
+import { useRealtimeCorrection } from "@/hooks/useRealtimeCorrection";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
 import { AICuesPanel } from "@/components/AICuesPanel";
@@ -135,6 +136,7 @@ export default function HomePage() {
     pauseListening: apiPauseListening,
     resumeListening: apiResumeListening,
     resetTranscript: apiResetTranscript,
+    updateSegment: apiUpdateSegment,
   } = useSpeechRecognition({
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
@@ -159,6 +161,7 @@ export default function HomePage() {
     pauseListening: sdkPauseListening,
     resumeListening: sdkResumeListening,
     resetTranscript: sdkResetTranscript,
+    updateSegment: sdkUpdateSegment,
   } = useTranslationRecognizer({
     subscriptionKey: speechConfig.subscriptionKey,
     region: speechConfig.region,
@@ -221,8 +224,7 @@ export default function HomePage() {
     region: speechConfig.region,
   });
 
-  // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）
-  const errors = [speechError, translationError, ttsError, audioError, fsmError].filter(Boolean) as string[];
+  // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）— correctionError は後で定義されるため、ここでは除外
   const hasApiKeys = speechConfig.subscriptionKey && translatorConfig.subscriptionKey;
 
   // Speaker Manager (Issue #9: 話者ラベル管理)
@@ -235,12 +237,15 @@ export default function HomePage() {
     }
   }, [segments, enableSpeakerDiarization, updateFromSegments]);
 
-  // segments に speakerLabel を付与して TranscriptView に渡す
+  // segments に speakerLabel を付与し、補正テキストがあれば優先して TranscriptView に渡す
   const labeledSegments = useMemo(() => {
-    if (!enableSpeakerDiarization) return segments;
     return segments.map((seg) => ({
       ...seg,
-      speakerLabel: seg.speaker ? getSpeakerLabel(seg.speaker) : undefined,
+      // Issue #126: リアルタイム補正テキストがあれば表示テキストに適用
+      text: seg.correctedText || seg.text,
+      speakerLabel: enableSpeakerDiarization && seg.speaker
+        ? getSpeakerLabel(seg.speaker)
+        : undefined,
     }));
   }, [segments, enableSpeakerDiarization, getSpeakerLabel]);
 
@@ -261,6 +266,34 @@ export default function HomePage() {
     enabled: enableAICues,
     isRecording: showRecordingUI,
   });
+
+  // Issue #126: リアルタイムAI補正
+  const enableRealtimeCorrection = settings.enableRealtimeCorrection ?? false;
+  const {
+    isCorrecting,
+    correctionCount,
+    correctedSegmentCount,
+    error: correctionError,
+  } = useRealtimeCorrection({
+    segments,
+    language: sourceLanguage,
+    enabled: enableRealtimeCorrection,
+    isRecording: showRecordingUI,
+    phraseList: settings.phraseList ?? [],
+    onCorrection: useCallback((corrections: Array<{ segmentId: string; correctedText: string }>) => {
+      for (const { segmentId, correctedText } of corrections) {
+        if (translationMode === "sdk") {
+          sdkUpdateSegment(segmentId, { correctedText, isCorrected: true });
+        } else {
+          apiUpdateSegment(segmentId, { correctedText, isCorrected: true });
+        }
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [translationMode]),
+  });
+
+  // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）
+  const errors = [speechError, translationError, ttsError, audioError, fsmError, correctionError].filter(Boolean) as string[];
 
   // テンプレートアイコンマッピング
   const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
@@ -693,13 +726,14 @@ export default function HomePage() {
           segments: labeledSegments.map((seg, i) => ({
             id: seg.id,
             speaker: seg.speaker,  // Issue #140: 元のSDK speaker IDを保持
-            text: seg.text,
+            text: seg.text,        // Issue #126: correctedText があれば適用済み
             startTime: seg.timestamp / 1000,
             endTime: i < labeledSegments.length - 1
               ? labeledSegments[i + 1].timestamp / 1000
               : duration,
           })),
-          fullText: transcript,
+          // Issue #126: 補正テキストがあれば補正版で fullText を構成
+          fullText: labeledSegments.map((s) => s.text).join(" "),
         },
         speakerLabels: getSpeakerLabelsMap(),  // Issue #140: ラベルマッピングを別フィールドで保存
         translations: displayTranslation ? {
@@ -822,6 +856,12 @@ export default function HomePage() {
                   ) : (
                     <><Globe className="h-3 w-3" />{t("translationModeApi")}</>
                   )}
+                </span>
+              )}
+              {enableRealtimeCorrection && (
+                <span className="text-xs flex items-center gap-1 rounded-full px-2 py-0.5 bg-purple-50 text-purple-700">
+                  <Sparkles className="h-3 w-3" />
+                  {isCorrecting ? t("correcting") : `${t("aiCorrection")}: ${correctedSegmentCount}`}
                 </span>
               )}
             </div>

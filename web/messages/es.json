@@ -56,6 +56,8 @@
     "targetLanguage": "Idioma destino:",
     "realtimeTranslation": "Traducción en tiempo real",
     "translating": "Traduciendo...",
+    "correcting": "Corrigiendo...",
+    "aiCorrection": "Corrección IA",
     "translationModeSdk": "Traducción SDK",
     "translationModeApi": "Traducción API",
     "transcriptTab": "Transcripción",
@@ -246,7 +248,9 @@
     "noPhrases": "No hay frases registradas",
     "removePhrase": "Eliminar",
     "enableAICues": "AI Cues (Asistencia IA en grabación)",
-    "enableAICuesDesc": "La IA mostrará automáticamente definiciones, biografías y sugerencias durante la grabación"
+    "enableAICuesDesc": "La IA mostrará automáticamente definiciones, biografías y sugerencias durante la grabación",
+    "enableRealtimeCorrection": "Corrección IA en tiempo real",
+    "enableRealtimeCorrectionDesc": "La IA corregirá automáticamente el texto de transcripción durante la grabación (corrige homófonos y errores de reconocimiento)"
   },
   "AuthGateModal": {
     "title": "Inicio de sesión requerido",

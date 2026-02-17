@@ -56,6 +56,8 @@
     "targetLanguage": "翻訳先:",
     "realtimeTranslation": "リアルタイム翻訳",
     "translating": "翻訳中...",
+    "correcting": "補正中...",
+    "aiCorrection": "AI補正",
     "translationModeSdk": "SDK翻訳",
     "translationModeApi": "API翻訳",
     "transcriptTab": "文字起こし",
@@ -246,7 +248,9 @@
     "noPhrases": "フレーズが登録されていません",
     "removePhrase": "削除",
     "enableAICues": "AI Cues（録音中AI補助）",
-    "enableAICuesDesc": "録音中にAIが専門用語の解説、人物情報、回答提案を自動表示します"
+    "enableAICuesDesc": "録音中にAIが専門用語の解説、人物情報、回答提案を自動表示します",
+    "enableRealtimeCorrection": "リアルタイムAI補正",
+    "enableRealtimeCorrectionDesc": "録音中にAIが文字起こしテキストを自動補正します（同音異義語、認識エラーの修正）"
   },
   "AuthGateModal": {
     "title": "ログインが必要です",
