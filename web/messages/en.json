@@ -295,8 +295,7 @@
     "playbackSpeed": "Speed",
     "transcriptTab": "Transcript",
     "translationTab": "Translation",
-    "minutesTab": "Minutes",
-    "transcript": "Transcript",
+    "minutesTab": "Minutes",    "askAiTab": "Ask AI",    "transcript": "Transcript",
     "original": "Original",
     "aiCorrected": "AI Corrected",
     "copy": "Copy",
@@ -481,5 +480,17 @@
     "hours": "h",
     "minutes_unit": "m",
     "seconds": "s"
+  },
+  "AskAI": {
+    "welcomeTitle": "Ask about this recording",
+    "welcomeDescription": "Ask AI questions about the transcript of this recording. You can extract decisions, action items, summarize specific topics, and more.",
+    "noTranscriptAvailable": "No transcript data available for questions",
+    "inputPlaceholder": "Ask about the recording...",
+    "clearHistory": "Clear conversation",
+    "suggestDecisions": "Summarize the decisions made",
+    "suggestActionItems": "List all action items",
+    "suggestTopicSummary": "Summarize the discussion topics",
+    "suggestParticipants": "List participants and their contributions",
+    "suggestKeyPoints": "What are the key points?"
   }
 }

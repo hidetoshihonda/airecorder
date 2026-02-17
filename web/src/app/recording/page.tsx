@@ -26,6 +26,7 @@ import {
   Code,
   Lightbulb,
   LogIn,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AskAiPanel } from "@/components/AskAiPanel";
 import {
   Dialog,
   DialogContent,
@@ -842,7 +844,7 @@ function RecordingDetailContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="transcript" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="transcript" className="gap-2">
             <FileText className="h-4 w-4" />
             {t("transcriptTab")}
@@ -854,6 +856,10 @@ function RecordingDetailContent() {
           <TabsTrigger value="summary" className="gap-2">
             <Sparkles className="h-4 w-4" />
             {t("minutesTab")}
+          </TabsTrigger>
+          <TabsTrigger value="askAi" className="gap-2">
+            <MessageCircle className="h-4 w-4" />
+            {t("askAiTab")}
           </TabsTrigger>
         </TabsList>
 
@@ -1381,6 +1387,18 @@ function RecordingDetailContent() {
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ask AI Tab (Issue #85) */}
+        <TabsContent value="askAi">
+          <Card>
+            <CardContent className="p-0">
+              <AskAiPanel
+                recordingId={recording.id}
+                hasTranscript={!!(recording.transcript?.fullText || recording.correctedTranscript?.fullText)}
+              />
             </CardContent>
           </Card>
         </TabsContent>

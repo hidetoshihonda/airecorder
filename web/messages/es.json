@@ -296,6 +296,7 @@
     "transcriptTab": "Transcripción",
     "translationTab": "Traducción",
     "minutesTab": "Acta",
+    "askAiTab": "Ask AI",
     "transcript": "Transcripción",
     "original": "Original",
     "aiCorrected": "Corregido por IA",
@@ -481,5 +482,17 @@
     "hours": "h",
     "minutes_unit": "min",
     "seconds": "s"
+  },
+  "AskAI": {
+    "welcomeTitle": "Pregunta sobre esta grabación",
+    "welcomeDescription": "Haz preguntas a la IA sobre la transcripción de esta grabación. Puedes extraer decisiones, elementos de acción, resumir temas específicos y más.",
+    "noTranscriptAvailable": "No hay datos de transcripción disponibles para preguntas",
+    "inputPlaceholder": "Pregunta sobre la grabación...",
+    "clearHistory": "Borrar conversación",
+    "suggestDecisions": "Resume las decisiones tomadas",
+    "suggestActionItems": "Lista todos los elementos de acción",
+    "suggestTopicSummary": "Resume los temas discutidos",
+    "suggestParticipants": "Lista los participantes y sus contribuciones",
+    "suggestKeyPoints": "¿Cuáles son los puntos clave?"
   }
 }
