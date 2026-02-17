@@ -296,6 +296,7 @@
     "transcriptTab": "文字起こし",
     "translationTab": "翻訳",
     "minutesTab": "議事録",
+    "askAiTab": "Ask AI",
     "transcript": "文字起こし",
     "original": "オリジナル",
     "aiCorrected": "AI補正版",
@@ -481,5 +482,17 @@
     "hours": "時間",
     "minutes_unit": "分",
     "seconds": "秒"
+  },
+  "AskAI": {
+    "welcomeTitle": "録音内容について質問する",
+    "welcomeDescription": "この録音の文字起こし内容について、AIに質問できます。決定事項やアクションアイテムの抽出、特定の話題の要約など、何でも聞いてください。",
+    "noTranscriptAvailable": "文字起こしデータがないため、質問できません",
+    "inputPlaceholder": "録音内容について質問...",
+    "clearHistory": "会話をクリア",
+    "suggestDecisions": "決定事項をまとめて",
+    "suggestActionItems": "アクションアイテムを一覧にして",
+    "suggestTopicSummary": "話し合った内容を要約して",
+    "suggestParticipants": "参加者と発言内容を整理して",
+    "suggestKeyPoints": "重要なポイントを教えて"
   }
 }
