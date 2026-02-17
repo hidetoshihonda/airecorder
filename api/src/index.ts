@@ -7,3 +7,4 @@ import "./functions/settings";
 import "./functions/templates";
 import "./functions/folders";
 import "./functions/cues";
+import "./functions/askAi";
