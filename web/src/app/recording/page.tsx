@@ -523,9 +523,10 @@ function RecordingDetailContent() {
 
     setIsGeneratingSummary(true);
 
-    // Issue #38: templateId, customPrompt, languageを送信
+    // 話者ラベル付きトランスクリプトを使用（話者情報がある場合）
+    const transcriptForSummary = getTranscriptWithSpeakerLabels();
     const response = await summaryApi.generateSummary({
-      transcript: recording.transcript.fullText,
+      transcript: transcriptForSummary,
       language: languageToUse,
       templateId: templateToUse,
       ...(templateToUse.startsWith("custom-")
