@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { askAiApi, ChatMessage } from "@/services/askAiApi";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -35,8 +35,7 @@ export function useAskAi({ recordingId }: UseAskAiOptions): UseAskAiReturn {
     };
   }, []);
 
-  const sendMessage = useCallback(
-    (question: string) => {
+  const sendMessage = (question: string) => {
       const trimmed = question.trim();
       if (!trimmed || isStreaming || !user?.id) return;
 
@@ -107,21 +106,19 @@ export function useAskAi({ recordingId }: UseAskAiOptions): UseAskAiReturn {
         },
         abortControllerRef.current.signal
       );
-    },
-    [isStreaming, messages, recordingId, user?.id]
-  );
+  };
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = () => {
     abortControllerRef.current?.abort();
     setMessages([]);
     setError(null);
     setIsStreaming(false);
-  }, []);
+  };
 
-  const stopStreaming = useCallback(() => {
+  const stopStreaming = () => {
     abortControllerRef.current?.abort();
     setIsStreaming(false);
-  }, []);
+  };
 
   return {
     messages,
