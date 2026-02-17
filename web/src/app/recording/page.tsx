@@ -255,6 +255,25 @@ function RecordingDetailContent() {
     return recording?.transcript;
   }, [recording, transcriptView]);
 
+  // Issue #147: transcript segments から話者一覧を導出
+  const speakerList = useMemo(() => {
+    const segments = displayTranscript?.segments || [];
+    const speakerMap = new Map<string, { id: string; count: number }>();
+
+    for (const seg of segments) {
+      if (seg.speaker) {
+        const existing = speakerMap.get(seg.speaker);
+        if (existing) {
+          existing.count++;
+        } else {
+          speakerMap.set(seg.speaker, { id: seg.speaker, count: 1 });
+        }
+      }
+    }
+
+    return Array.from(speakerMap.values());
+  }, [displayTranscript]);
+
   // Issue #135: displayTranscript 切替時に segmentRefs をクリア
   useEffect(() => {
     segmentRefs.current.clear();
@@ -515,6 +534,26 @@ function RecordingDetailContent() {
   const handleTitleCancel = () => {
     setIsEditingTitle(false);
     setEditedTitle("");
+  };
+
+  // Issue #147: 話者ラベル編集ハンドラ
+  const handleRenameSpeaker = async (speakerId: string, currentLabel: string) => {
+    const newName = prompt(t("enterSpeakerName"), currentLabel);
+    if (!newName || !newName.trim() || newName.trim() === currentLabel) return;
+    if (!recording || !id) return;
+
+    const updatedLabels = {
+      ...recording.speakerLabels,
+      [speakerId]: newName.trim(),
+    };
+
+    const response = await recordingsApi.updateRecording(id, {
+      speakerLabels: updatedLabels,
+    });
+
+    if (response.data) {
+      setRecording(response.data);
+    }
   };
 
   const handleGenerateSummary = async (overrideTemplateId?: TemplateId, overrideLanguage?: string) => {
@@ -930,6 +969,38 @@ function RecordingDetailContent() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Issue #147: 話者一覧パネル */}
+              {speakerList.length > 0 && (
+                <div className="mb-2 flex-none rounded-md border border-gray-200 p-2">
+                  <h4 className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {t("speakerList")}
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {speakerList.map((speaker) => {
+                      const label = recording?.speakerLabels?.[speaker.id] || speaker.id;
+                      return (
+                        <div
+                          key={speaker.id}
+                          className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs bg-white"
+                        >
+                          <span className="font-bold text-gray-700">{label}</span>
+                          <span className="text-gray-400">
+                            ({t("speakerCount", { count: speaker.count })})
+                          </span>
+                          <button
+                            onClick={() => handleRenameSpeaker(speaker.id, label)}
+                            className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            title={t("renameSpeaker")}
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {displayTranscript?.fullText ? (
                 <div
                   ref={transcriptContainerRef}
@@ -977,9 +1048,17 @@ function RecordingDetailContent() {
                               {formatDuration(Math.floor(segment.startTime))}
                             </button>
                             {segment.speaker && (
-                              <span className="shrink-0 text-xs font-medium text-purple-600 mt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleRenameSpeaker(
+                                  segment.speaker!,
+                                  recording?.speakerLabels?.[segment.speaker!] || segment.speaker!
+                                )}
+                                className="shrink-0 text-xs font-medium text-purple-600 mt-0.5 hover:text-purple-800 hover:underline cursor-pointer bg-transparent border-none p-0"
+                                title={t("renameSpeaker")}
+                              >
                                 {recording?.speakerLabels?.[segment.speaker] || segment.speaker}
-                              </span>
+                              </button>
                             )}
                             <span className="text-sm text-gray-800 leading-relaxed">
                               {segment.text}
