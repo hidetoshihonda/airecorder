@@ -195,6 +195,7 @@ export interface UserSettings {
   enableSpeakerDiarization: boolean;
   phraseList?: string[];
   enableAICues?: boolean;
+  aiCueMode?: "tech_support" | "interview" | "general";  // AI Cue Pro: テクニカルQ&Aモード
   enableRealtimeCorrection?: boolean;  // Issue #126
 }
 
@@ -235,7 +236,7 @@ export interface PaginatedResponse<T> {
 
 // ─── AI Cues Types (Issue #89) ───
 
-export type CueType = "concept" | "bio" | "suggestion";
+export type CueType = "concept" | "bio" | "suggestion" | "answer";
 
 export interface BaseCue {
   id: string;
@@ -265,4 +266,20 @@ export interface SuggestionCue extends BaseCue {
   reasoning?: string;
 }
 
-export type AICue = ConceptCue | BioCue | SuggestionCue;
+export type AICue = ConceptCue | BioCue | SuggestionCue | AnswerCue;
+
+// ─── AI Cue Pro Types (Deep Answer with Citations) ───
+
+export interface Citation {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface AnswerCue extends BaseCue {
+  type: "answer";
+  question: string;
+  answer: string;           // Markdown形式の詳細回答
+  citations: Citation[];
+  mode: "tech_support" | "interview" | "general";
+}

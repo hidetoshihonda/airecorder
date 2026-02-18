@@ -73,6 +73,67 @@ class CuesApiService {
       return { error: (err as Error).message };
     }
   }
+
+  // ─── Deep Answer API (AI Cue Pro) ───
+
+  async deepAnswer(
+    input: DeepAnswerInput,
+    signal?: AbortSignal
+  ): Promise<ApiResponse<DeepAnswerApiResponse>> {
+    const url = `${this.baseUrl}/cues/deep-answer`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal,
+      });
+
+      const text = await response.text();
+      let data: Record<string, unknown> | null = null;
+
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          return { error: `JSON parse error: ${text.substring(0, 100)}` };
+        }
+      }
+
+      if (!response.ok) {
+        return {
+          error: (data?.error as string) || `HTTP error ${response.status}`,
+        };
+      }
+
+      return { data: data?.data as DeepAnswerApiResponse };
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        return { error: "REQUEST_ABORTED" };
+      }
+      return { error: (err as Error).message };
+    }
+  }
+}
+
+export interface DeepAnswerInput {
+  question: string;
+  segments: string[];
+  language: string;
+  mode: "tech_support" | "interview" | "general";
+}
+
+export interface CitationRaw {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface DeepAnswerApiResponse {
+  answer: string;
+  citations: CitationRaw[];
+  searchQuery: string;
 }
 
 export const cuesApi = new CuesApiService();

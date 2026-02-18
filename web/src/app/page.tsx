@@ -34,6 +34,7 @@ import { useAuthGate } from "@/hooks/useAuthGate";
 import { useRecordingStateMachine } from "@/hooks/useRecordingStateMachine";
 import { useSpeakerManager } from "@/hooks/useSpeakerManager";
 import { useAICues } from "@/hooks/useAICues";
+import { useDeepAnswer } from "@/hooks/useDeepAnswer";
 import { useRealtimeCorrection } from "@/hooks/useRealtimeCorrection";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
@@ -267,6 +268,23 @@ export default function HomePage() {
     isRecording: showRecordingUI,
   });
 
+  // AI Cue Pro: Deep Answer — テクニカルQ&A with Citations
+  const aiCueMode = settings.aiCueMode ?? "general";
+  const {
+    answers: deepAnswers,
+    isSearching: isDeepSearching,
+    error: deepAnswerError,
+    answerCount: deepAnswerCount,
+    triggerDeepAnswer,
+    clearAnswers: clearDeepAnswers,
+  } = useDeepAnswer({
+    segments,
+    sourceLanguage,
+    mode: aiCueMode,
+    enabled: enableAICues,
+    isRecording: showRecordingUI,
+  });
+
   // Issue #126: リアルタイムAI補正
   const enableRealtimeCorrection = settings.enableRealtimeCorrection ?? false;
   const {
@@ -457,6 +475,7 @@ export default function HomePage() {
     resetSpeakers();
     resetAudioRecording();
     clearCues();
+    clearDeepAnswers();
     
     try {
       // Start both speech recognition and audio recording
@@ -1699,7 +1718,7 @@ export default function HomePage() {
       />
      </div>
 
-      {/* AI Cues Side Panel (Issue #89) */}
+      {/* AI Cues Side Panel (Issue #89) + AI Cue Pro (Deep Answer) */}
       {enableAICues && showRecordingUI && (
         <div className="hidden flex-none lg:flex">
           <AICuesPanel
@@ -1709,6 +1728,11 @@ export default function HomePage() {
             callCount={cuesCallCount}
             isRecording={showRecordingUI}
             enabled={enableAICues}
+            answers={deepAnswers}
+            isSearching={isDeepSearching}
+            searchError={deepAnswerError}
+            answerCount={deepAnswerCount}
+            onTriggerDeepAnswer={triggerDeepAnswer}
           />
         </div>
       )}
