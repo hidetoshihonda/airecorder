@@ -9,3 +9,5 @@ import "./functions/folders";
 import "./functions/cues";
 import "./functions/askAi";
 import "./functions/mindmap";
+import "./functions/realtimeCorrection";
+import "./functions/deepAnswer";
