@@ -187,7 +187,6 @@ app.http("deepAnswer", {
             search_context_size: "medium",
           },
         ],
-        temperature: 0.3,
         max_output_tokens: 3000,
       };
 
@@ -298,7 +297,6 @@ async function fallbackChatCompletions(
           "\n\n（Web検索は利用できません。LLMの知識のみで回答してください）",
       },
     ],
-    temperature: 0.3,
     max_completion_tokens: 3000,
   });
 
