@@ -202,8 +202,8 @@ app.http("deepAnswer", {
 
       if (!responsesResp.ok) {
         const errText = await responsesResp.text();
-        // Responses API が利用不可の場合、Chat Completions にフォールバック
-        if (responsesResp.status === 404 || responsesResp.status === 400) {
+        // Responses API が利用不可 or レート制限の場合、Chat Completions にフォールバック
+        if (responsesResp.status === 404 || responsesResp.status === 400 || responsesResp.status === 429) {
           return await fallbackChatCompletions(
             endpoint,
             apiKey,
