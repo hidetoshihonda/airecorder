@@ -101,7 +101,7 @@ app.http("realtimeCorrection", {
       const deploymentName =
         process.env.AZURE_OPENAI_CORRECTION_DEPLOYMENT_NAME ||
         process.env.AZURE_OPENAI_DEPLOYMENT_NAME ||
-        "gpt-4o-mini";
+        "gpt-5-mini";
 
       if (!endpoint || !apiKey) {
         return jsonResponse(

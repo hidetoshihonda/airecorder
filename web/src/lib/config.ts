@@ -39,7 +39,7 @@ export const translatorConfig = {
 export const openaiConfig = {
   endpoint: process.env.AZURE_OPENAI_ENDPOINT || "",
   apiKey: process.env.AZURE_OPENAI_KEY || "",
-  deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4",
+  deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini",
 };
 
 // Azure Storage Configuration
