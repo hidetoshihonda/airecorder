@@ -31,6 +31,7 @@ export interface UpdateRecordingInput {
   status?: Recording["status"];
   folderId?: string | null;
   speakerLabels?: Record<string, string>;
+  mindmapMarkdown?: string;
 }
 
 class RecordingsApiService {

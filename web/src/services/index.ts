@@ -20,3 +20,5 @@ export type { CreateFolderInput, UpdateFolderInput } from "./foldersApi";
 export { cuesApi } from "./cuesApi";
 
 export { askAiApi } from "./askAiApi";
+
+export { mindmapApi } from "./mindmapApi";

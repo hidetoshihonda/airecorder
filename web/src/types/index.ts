@@ -20,6 +20,8 @@ export interface Recording {
   correctedAt?: string;
   // 話者ラベルマッピング (Issue #140)
   speakerLabels?: Record<string, string>;
+  // マインドマップ (Issue #88)
+  mindmapMarkdown?: string;
 }
 
 export interface Folder {

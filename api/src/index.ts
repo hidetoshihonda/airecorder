@@ -8,3 +8,4 @@ import "./functions/templates";
 import "./functions/folders";
 import "./functions/cues";
 import "./functions/askAi";
+import "./functions/mindmap";
