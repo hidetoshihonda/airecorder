@@ -115,7 +115,8 @@ export async function listRecordings(
   page: number = 1,
   limit: number = 20,
   search?: string,
-  folderId?: string
+  folderId?: string,
+  tag?: string
 ): Promise<PaginatedResponse<Recording>> {
   const container = await getRecordingsContainer();
 
@@ -137,6 +138,12 @@ export async function listRecordings(
   if (folderId) {
     queryText += " AND c.folderId = @folderId";
     parameters.push({ name: "@folderId", value: folderId });
+  }
+
+  // Issue #80: タグフィルタ
+  if (tag) {
+    queryText += " AND ARRAY_CONTAINS(c.tags, @tag)";
+    parameters.push({ name: "@tag", value: tag });
   }
 
   queryText += " ORDER BY c.createdAt DESC";

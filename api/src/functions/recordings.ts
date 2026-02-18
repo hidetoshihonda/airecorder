@@ -63,8 +63,9 @@ app.http("listRecordings", {
       const limit = parseInt(request.query.get("limit") || "20", 10);
       const search = request.query.get("search") || undefined;
       const folderId = request.query.get("folderId") || undefined;
+      const tag = request.query.get("tag") || undefined;
 
-      const result = await listRecordings(userId, page, limit, search, folderId);
+      const result = await listRecordings(userId, page, limit, search, folderId, tag);
       return jsonResponse<PaginatedResponse<Recording>>({
         success: true,
         data: result,

@@ -113,6 +113,7 @@ export interface ListRecordingsQuery {
   limit?: number;
   folderId?: string;
   search?: string;
+  tag?: string;
 }
 
 export interface ApiResponse<T> {

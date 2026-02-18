@@ -28,6 +28,7 @@ import {
   LogIn,
   MessageCircle,
   GitBranch,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,6 +128,10 @@ function RecordingDetailContent() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
   const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+
+  // Tag editing state (Issue #80)
+  const [newTag, setNewTag] = useState("");
+  const [isUpdatingTags, setIsUpdatingTags] = useState(false);
 
   // Template selection state (Issue #38)
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
@@ -538,6 +543,50 @@ function RecordingDetailContent() {
     setEditedTitle("");
   };
 
+  // タグ追加 (Issue #80)
+  const handleAddTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const tagValue = newTag.trim().toLowerCase();
+    if (!tagValue || !recording || !id) return;
+
+    const currentTags = recording.tags || [];
+    if (currentTags.includes(tagValue)) {
+      setNewTag("");
+      return;
+    }
+    if (currentTags.length >= 10) return;
+
+    const updatedTags = [...currentTags, tagValue];
+    setIsUpdatingTags(true);
+
+    const response = await recordingsApi.updateRecording(id, {
+      tags: updatedTags,
+    });
+
+    if (response.data) {
+      setRecording(response.data);
+    }
+    setNewTag("");
+    setIsUpdatingTags(false);
+  };
+
+  // タグ削除 (Issue #80)
+  const handleRemoveTag = async (tagToRemove: string) => {
+    if (!recording || !id) return;
+
+    const updatedTags = (recording.tags || []).filter((t) => t !== tagToRemove);
+    setIsUpdatingTags(true);
+
+    const response = await recordingsApi.updateRecording(id, {
+      tags: updatedTags,
+    });
+
+    if (response.data) {
+      setRecording(response.data);
+    }
+    setIsUpdatingTags(false);
+  };
+
   // Issue #147: 話者ラベル編集ハンドラ
   const handleRenameSpeaker = async (speakerId: string, currentLabel: string) => {
     const newName = prompt(t("enterSpeakerName"), currentLabel);
@@ -779,6 +828,38 @@ function RecordingDetailContent() {
           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">
             {langName || recording.sourceLanguage}
           </span>
+        </div>
+        {/* Tags (Issue #80) */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Tag className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          {recording.tags?.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag)}
+                className="ml-0.5 rounded-full text-blue-500 hover:text-blue-800 focus:outline-none"
+                disabled={isUpdatingTags}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <form onSubmit={handleAddTag} className="inline-flex items-center">
+            <Input
+              type="text"
+              placeholder={t("addTagPlaceholder")}
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              className="h-6 w-32 text-xs px-2"
+              maxLength={30}
+              disabled={isUpdatingTags}
+            />
+          </form>
+          {isUpdatingTags && <Spinner size="sm" />}
         </div>
       </div>
 

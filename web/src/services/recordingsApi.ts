@@ -117,7 +117,8 @@ class RecordingsApiService {
     page: number = 1,
     limit: number = 20,
     search?: string,
-    folderId?: string
+    folderId?: string,
+    tag?: string
   ): Promise<ApiResponse<PaginatedResponse<Recording>>> {
     const authError = this.requireAuth<PaginatedResponse<Recording>>();
     if (authError) return authError;
@@ -134,6 +135,11 @@ class RecordingsApiService {
 
     if (folderId) {
       params.append("folderId", folderId);
+    }
+
+    // Issue #80: タグフィルタ
+    if (tag) {
+      params.append("tag", tag);
     }
 
     return this.request<PaginatedResponse<Recording>>(

@@ -181,7 +181,8 @@
     "removeFromFolder": "フォルダから外す",
     "renameFolder": "名前変更",
     "deleteFolder": "フォルダを削除",
-    "deleteFolderConfirm": "このフォルダを削除しますか？配下の録音は未分類に移動されます。"
+    "deleteFolderConfirm": "このフォルダを削除しますか？配下の録音は未分類に移動されます。",
+    "allTags": "全タグ"
   },
   "SettingsPage": {
     "title": "設定",
@@ -308,6 +309,7 @@
     "mindmapGenerating": "生成中...",
     "mindmapNoTranscript": "文字起こしデータがないため生成できません",
     "mindmapRenderError": "マインドマップの表示に失敗しました",
+    "addTagPlaceholder": "タグを追加...",
     "transcript": "文字起こし",
     "original": "オリジナル",
     "aiCorrected": "AI補正版",
