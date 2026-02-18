@@ -175,9 +175,10 @@ app.http("deepAnswer", {
 回答中で検索結果を参照する場合は [1], [2] 等の番号で引用してください。`;
 
       const apiVersion = "2025-03-01-preview";
-      const responsesUrl = `${endpoint.replace(/\/$/, "")}/openai/deployments/${deploymentName}/responses?api-version=${apiVersion}`;
+      const responsesUrl = `${endpoint.replace(/\/$/, "")}/openai/responses?api-version=${apiVersion}`;
 
       const responsesBody = {
+        model: deploymentName,
         input: userMessage,
         instructions: systemPrompt,
         tools: [
@@ -298,7 +299,7 @@ async function fallbackChatCompletions(
       },
     ],
     temperature: 0.3,
-    max_tokens: 3000,
+    max_completion_tokens: 3000,
   });
 
   const answerContent = response.choices[0]?.message?.content;
