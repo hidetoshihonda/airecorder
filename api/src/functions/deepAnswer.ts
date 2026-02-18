@@ -164,9 +164,10 @@ app.http("deepAnswer", {
         MODE_PROMPTS[mode] + getLanguageInstruction(language);
 
       // 会話文脈
+      const segments = body.segments || [];
       const conversationContext =
-        body.segments.length > 0
-          ? `\n\n## 会話の文脈（直近の発言）\n${body.segments.slice(-10).join("\n")}`
+        segments.length > 0
+          ? `\n\n## 会話の文脈（直近の発言）\n${segments.slice(-10).join("\n")}`
           : "";
 
       const userMessage = `## 質問\n${body.question}${conversationContext}
