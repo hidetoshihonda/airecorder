@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomTemplate } from "@/types";
 import { loadCustomTemplates, addCustomTemplate, updateCustomTemplate, deleteCustomTemplate } from "@/lib/meetingTemplates";
@@ -392,6 +393,34 @@ export default function SettingsPage() {
                 <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
               </label>
             </div>
+
+            {/* AI Cue Pro Mode Selector */}
+            {settings.enableAICues && (
+              <div className="mt-4 rounded-lg border border-purple-100 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-950">
+                <p className="text-sm font-medium text-purple-800 dark:text-purple-300">
+                  {t("aiCueMode")}
+                </p>
+                <p className="mt-0.5 text-xs text-purple-600 dark:text-purple-400">
+                  {t("aiCueModeDesc")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(["general", "tech_support", "interview"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => handleSettingChange({ aiCueMode: m })}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                        settings.aiCueMode === m || (!settings.aiCueMode && m === "general")
+                          ? "bg-purple-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-purple-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-purple-900"
+                      )}
+                    >
+                      {t(`aiCueMode_${m}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

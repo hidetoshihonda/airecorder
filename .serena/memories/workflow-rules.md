@@ -119,6 +119,34 @@ npm run lint
 
 ---
 
+## Azure OpenAI モデル選定ルール
+
+### ✅ 使用するモデル: `GPT-5-mini`
+
+**理由**: 申請（registration）不要で利用可能なモデルの中で最高性能。GA、推論対応、400Kコンテキスト。
+
+| 用途 | モデル | デプロイメント名 |
+|------|--------|----------------|
+| AI Cue Pro (Deep Answer) | GPT-5-mini | `gpt-5-mini` |
+| 新規LLM機能全般 | GPT-5-mini | `gpt-5-mini` |
+| 既存AI Cues (concept/bio/suggestion) | GPT-4o-mini | `gpt-4o-mini`（既存のまま） |
+
+### ❌ 使用禁止モデル（新規機能で）
+- `GPT-4o` — GPT-5-mini の方が高性能かつ申請不要
+- `GPT-5`, `GPT-5.1`, `GPT-5.2` — 申請（registration）が必要
+
+### 環境変数テンプレート
+```bash
+AZURE_OPENAI_DEEP_ANSWER_DEPLOYMENT_NAME="gpt-5-mini"
+```
+
+### 注意事項
+- 新しいLLM機能を実装する際は、必ず `gpt-5-mini` を使用すること
+- 実装計画書・分析レビューでモデル名を記載する際も `GPT-5-mini` で統一
+- 既存機能（AI Cues等）の `GPT-4o-mini` は変更しない（軽量で十分なため）
+
+---
+
 ## チェックリスト（作業前に確認）
 
 - [ ] mainブランチが最新か
