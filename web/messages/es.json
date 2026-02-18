@@ -181,7 +181,8 @@
     "removeFromFolder": "Quitar de carpeta",
     "renameFolder": "Renombrar",
     "deleteFolder": "Eliminar carpeta",
-    "deleteFolderConfirm": "¿Eliminar esta carpeta? Las grabaciones se moverán a sin categoría."
+    "deleteFolderConfirm": "¿Eliminar esta carpeta? Las grabaciones se moverán a sin categoría.",
+    "allTags": "Todas las etiquetas"
   },
   "SettingsPage": {
     "title": "Ajustes",
@@ -308,6 +309,7 @@
     "mindmapGenerating": "Generando...",
     "mindmapNoTranscript": "No se puede generar sin datos de transcripción",
     "mindmapRenderError": "Error al renderizar el mapa mental",
+    "addTagPlaceholder": "Agregar etiqueta...",
     "transcript": "Transcripción",
     "original": "Original",
     "aiCorrected": "Corregido por IA",

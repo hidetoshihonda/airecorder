@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Plus,
   MoreVertical,
+  Tag,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ export default function HistoryPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [movingRecordingId, setMovingRecordingId] = useState<string | null>(null);
+  // Issue #80: タグフィルタ
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   // Issue #81: debounce 用 state
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const t = useTranslations("HistoryPage");
@@ -134,7 +137,8 @@ export default function HistoryPage() {
         1,
         50,
         debouncedSearch || undefined,
-        selectedFolderId || undefined
+        selectedFolderId || undefined,
+        selectedTag || undefined
       );
 
       if (response.error) {
@@ -152,7 +156,7 @@ export default function HistoryPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [debouncedSearch, selectedFolderId, isAuthenticated, authLoading]);
+  }, [debouncedSearch, selectedFolderId, selectedTag, isAuthenticated, authLoading]);
 
   // フォルダ一覧を取得 (Issue #83)
   useEffect(() => {
@@ -179,7 +183,8 @@ export default function HistoryPage() {
       1,
       50,
       debouncedSearch || undefined,
-      selectedFolderId || undefined
+      selectedFolderId || undefined,
+      selectedTag || undefined
     );
 
     if (response.error) {
@@ -195,7 +200,16 @@ export default function HistoryPage() {
     }
 
     setIsLoading(false);
-  }, [debouncedSearch, selectedFolderId, isAuthenticated]);
+  }, [debouncedSearch, selectedFolderId, selectedTag, isAuthenticated]);
+
+  // Issue #80: 全録音から使用中のタグ一覧を集計
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    recordings.forEach((r) => {
+      r.tags?.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [recordings]);
 
   // フォルダ作成 (Issue #83)
   const handleCreateFolder = async () => {
@@ -401,6 +415,36 @@ export default function HistoryPage() {
         </button>
       </div>
 
+      {/* Tag Filter (Issue #80) */}
+      {allTags.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
+          <Tag className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <button
+            onClick={() => setSelectedTag(null)}
+            className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              selectedTag === null
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {t("allTags")}
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                selectedTag === tag
+                  ? "bg-blue-600 text-white"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-6">
         <div className="relative">
@@ -486,6 +530,17 @@ export default function HistoryPage() {
                             {t("minutesCreated")}
                           </span>
                         )}
+                        {/* Tags (Issue #80) */}
+                        {recording.tags && recording.tags.length > 0 &&
+                          recording.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        }
                       </div>
                       {/* Folder move */}
                       <div className="mt-2 flex items-center gap-2">

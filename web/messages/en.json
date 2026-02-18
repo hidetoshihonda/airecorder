@@ -181,7 +181,8 @@
     "removeFromFolder": "Remove from folder",
     "renameFolder": "Rename",
     "deleteFolder": "Delete folder",
-    "deleteFolderConfirm": "Delete this folder? Recordings inside will become uncategorized."
+    "deleteFolderConfirm": "Delete this folder? Recordings inside will become uncategorized.",
+    "allTags": "All Tags"
   },
   "SettingsPage": {
     "title": "Settings",
@@ -307,6 +308,7 @@
     "mindmapGenerating": "Generating...",
     "mindmapNoTranscript": "Cannot generate without transcript data",
     "mindmapRenderError": "Failed to render mind map",
+    "addTagPlaceholder": "Add tag...",
     "transcript": "Transcript",
     "original": "Original",
     "aiCorrected": "AI Corrected",
