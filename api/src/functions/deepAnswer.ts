@@ -4,8 +4,6 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { AzureOpenAI } from "openai";
-import { searchBing, SearchResult } from "../services/bingSearch";
 
 // ─── 型定義 ───
 
@@ -28,6 +26,30 @@ interface DeepAnswerResult {
   answer: string;
   citations: Citation[];
   searchQuery: string;
+}
+
+// Responses API レスポンス型
+interface ResponsesAnnotation {
+  type: string;
+  url?: string;
+  title?: string;
+  start_index?: number;
+  end_index?: number;
+}
+
+interface ResponsesContent {
+  type: string;
+  text?: string;
+  annotations?: ResponsesAnnotation[];
+}
+
+interface ResponsesOutput {
+  type: string;
+  content?: ResponsesContent[];
+}
+
+interface ResponsesApiResult {
+  output?: ResponsesOutput[];
 }
 
 // ─── mode別システムプロンプト ───
@@ -77,22 +99,6 @@ function jsonResponse<T>(
   };
 }
 
-function getMarket(language: string): string {
-  const marketMap: Record<string, string> = {
-    "ja-JP": "ja-JP",
-    "en-US": "en-US",
-    "en-GB": "en-GB",
-    "es-ES": "es-ES",
-    "es-MX": "es-MX",
-    "zh-CN": "zh-CN",
-    "zh-TW": "zh-TW",
-    "ko-KR": "ko-KR",
-    "fr-FR": "fr-FR",
-    "de-DE": "de-DE",
-  };
-  return marketMap[language] || "en-US";
-}
-
 function getLanguageInstruction(language: string): string {
   if (language.startsWith("ja")) return "";
   const langMap: Record<string, string> = {
@@ -138,24 +144,7 @@ app.http("deepAnswer", {
       const mode = body.mode || "general";
       const language = body.language || "ja-JP";
 
-      // ─── Step 1: Bing Web Search ───
-      let searchResults: SearchResult[] = [];
-      const searchQuery = body.question;
-
-      try {
-        searchResults = await searchBing(searchQuery, {
-          count: 5,
-          market: getMarket(language),
-        });
-      } catch (searchError) {
-        // Bing検索失敗時はLLM知識のみでフォールバック
-        console.warn(
-          "Bing search failed, falling back to LLM knowledge:",
-          searchError
-        );
-      }
-
-      // ─── Step 2: Azure OpenAI GPT-5-mini (RAG) ───
+      // ─── Azure OpenAI 設定 ───
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
       const apiKey = process.env.AZURE_OPENAI_KEY;
       const deploymentName =
@@ -170,16 +159,9 @@ app.http("deepAnswer", {
         );
       }
 
-      // 検索結果をプロンプトに整形
-      const searchContext =
-        searchResults.length > 0
-          ? `\n\n## Web検索結果\n${searchResults
-              .map(
-                (r, i) =>
-                  `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`
-              )
-              .join("\n\n")}`
-          : "\n\n（Web検索結果なし — LLMの知識のみで回答してください）";
+      // ─── Responses API with web_search_preview ───
+      const systemPrompt =
+        MODE_PROMPTS[mode] + getLanguageInstruction(language);
 
       // 会話文脈
       const conversationContext =
@@ -187,31 +169,68 @@ app.http("deepAnswer", {
           ? `\n\n## 会話の文脈（直近の発言）\n${body.segments.slice(-10).join("\n")}`
           : "";
 
-      const systemPrompt =
-        MODE_PROMPTS[mode] + getLanguageInstruction(language);
+      const userMessage = `## 質問\n${body.question}${conversationContext}
 
-      const userMessage = `## 質問\n${body.question}${conversationContext}${searchContext}
-
-上記の検索結果を参考にして、質問に回答してください。
+上記の質問に対して、Web検索結果を参考にして回答してください。
 回答中で検索結果を参照する場合は [1], [2] 等の番号で引用してください。`;
 
-      const client = new AzureOpenAI({
-        endpoint,
-        apiKey,
-        apiVersion: "2024-08-01-preview",
-      });
+      const apiVersion = "2025-03-01-preview";
+      const responsesUrl = `${endpoint.replace(/\/$/, "")}/openai/deployments/${deploymentName}/responses?api-version=${apiVersion}`;
 
-      const response = await client.chat.completions.create({
-        model: deploymentName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
+      const responsesBody = {
+        input: userMessage,
+        instructions: systemPrompt,
+        tools: [
+          {
+            type: "web_search_preview" as const,
+            search_context_size: "medium",
+          },
         ],
         temperature: 0.3,
-        max_tokens: 3000,
+        max_output_tokens: 3000,
+      };
+
+      const responsesResp = await fetch(responsesUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: JSON.stringify(responsesBody),
       });
 
-      const answerContent = response.choices[0]?.message?.content;
+      if (!responsesResp.ok) {
+        const errText = await responsesResp.text();
+        // Responses API が利用不可の場合、Chat Completions にフォールバック
+        if (responsesResp.status === 404 || responsesResp.status === 400) {
+          return await fallbackChatCompletions(
+            endpoint,
+            apiKey,
+            deploymentName,
+            systemPrompt,
+            userMessage
+          );
+        }
+        return jsonResponse(
+          {
+            success: false,
+            error: `Azure OpenAI Responses API error ${responsesResp.status}: ${errText}`,
+          },
+          500
+        );
+      }
+
+      const responsesData = (await responsesResp.json()) as ResponsesApiResult;
+
+      // output からメッセージと引用を抽出
+      const messageOutput = responsesData.output?.find(
+        (o) => o.type === "message"
+      );
+      const textContent = messageOutput?.content?.find(
+        (c) => c.type === "output_text"
+      );
+
+      const answerContent = textContent?.text;
       if (!answerContent) {
         return jsonResponse(
           { success: false, error: "No response from OpenAI" },
@@ -219,19 +238,27 @@ app.http("deepAnswer", {
         );
       }
 
-      // Citations を構築（検索結果をそのまま使用）
-      const citations: Citation[] = searchResults.map((r) => ({
-        title: r.title,
-        url: r.url,
-        snippet: r.snippet,
-      }));
+      // URL引用アノテーションからCitationsを構築
+      const annotations = textContent?.annotations || [];
+      const seenUrls = new Set<string>();
+      const citations: Citation[] = [];
+      for (const ann of annotations) {
+        if (ann.type === "url_citation" && ann.url && !seenUrls.has(ann.url)) {
+          seenUrls.add(ann.url);
+          citations.push({
+            title: ann.title || new URL(ann.url).hostname,
+            url: ann.url,
+            snippet: "",
+          });
+        }
+      }
 
       return jsonResponse<DeepAnswerResult>({
         success: true,
         data: {
           answer: answerContent,
           citations,
-          searchQuery,
+          searchQuery: body.question,
         },
       });
     } catch (error) {
@@ -242,3 +269,52 @@ app.http("deepAnswer", {
     }
   },
 });
+
+// ─── フォールバック: Chat Completions API (Web検索なし) ───
+
+async function fallbackChatCompletions(
+  endpoint: string,
+  apiKey: string,
+  deploymentName: string,
+  systemPrompt: string,
+  userMessage: string
+): Promise<HttpResponseInit> {
+  const { AzureOpenAI } = await import("openai");
+  const client = new AzureOpenAI({
+    endpoint,
+    apiKey,
+    apiVersion: "2024-08-01-preview",
+  });
+
+  const response = await client.chat.completions.create({
+    model: deploymentName,
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content:
+          userMessage +
+          "\n\n（Web検索は利用できません。LLMの知識のみで回答してください）",
+      },
+    ],
+    temperature: 0.3,
+    max_tokens: 3000,
+  });
+
+  const answerContent = response.choices[0]?.message?.content;
+  if (!answerContent) {
+    return jsonResponse(
+      { success: false, error: "No response from OpenAI" },
+      500
+    );
+  }
+
+  return jsonResponse<DeepAnswerResult>({
+    success: true,
+    data: {
+      answer: answerContent,
+      citations: [],
+      searchQuery: "",
+    },
+  });
+}
