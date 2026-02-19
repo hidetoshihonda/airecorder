@@ -84,7 +84,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="min-h-0 flex-1 overflow-hidden pb-[calc(49px+env(safe-area-inset-bottom))] md:pb-0">
+            <main className="min-h-0 flex-1 overflow-y-auto pb-[calc(49px+env(safe-area-inset-bottom))] md:pb-0">
               {children}
             </main>
             <div className="hidden md:block">
