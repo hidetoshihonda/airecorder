@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import { LiveSegment, TranslatedSegment } from "@/types";
 import { SUPPORTED_LANGUAGES } from "@/lib/config";
+import { createPushStreamFromMediaStream } from "@/lib/audioStreamAdapter";
 
 interface UseTranslationRecognizerOptions {
   subscriptionKey: string;
@@ -12,6 +13,8 @@ interface UseTranslationRecognizerOptions {
   targetLanguage: string;
   /** フレーズリスト（Issue #34: 固有名詞・専門用語の認識精度向上） */
   phraseList?: string[];
+  /** Issue #167: 共有 MediaStream（指定時はこのストリームを使用） */
+  sharedStream?: MediaStream | null;
 }
 
 interface UseTranslationRecognizerReturn {
@@ -52,6 +55,7 @@ export function useTranslationRecognizer(
     sourceLanguage,
     targetLanguage,
     phraseList = [],
+    sharedStream = null,
   } = options;
 
   const [isListening, setIsListening] = useState(false);
@@ -76,6 +80,8 @@ export function useTranslationRecognizer(
   const isPausingRef = useRef(false);
   const startTimeRef = useRef<number>(0);
   const segmentIdRef = useRef(0);
+  // Issue #167: PushStream のクリーンアップ関数を保持
+  const pushStreamCleanupRef = useRef<(() => void) | null>(null);
 
   /**
    * SUPPORTED_LANGUAGES から translatorCode を取得する。
@@ -112,7 +118,15 @@ export function useTranslationRecognizer(
       const targetLangCode = getTranslatorCode(targetLanguage);
       translationConfig.addTargetLanguage(targetLangCode);
 
-      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+      let audioConfig: SpeechSDK.AudioConfig;
+      if (sharedStream) {
+        const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+        audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
+        pushStreamCleanupRef.current = cleanup;
+      } else {
+        audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      }
       const recognizer = new SpeechSDK.TranslationRecognizer(
         translationConfig,
         audioConfig
@@ -198,10 +212,16 @@ export function useTranslationRecognizer(
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`初期化エラー: ${message}`);
     }
-  }, [subscriptionKey, region, sourceLanguage, targetLanguage, getTranslatorCode, phraseList]);
+  }, [subscriptionKey, region, sourceLanguage, targetLanguage, getTranslatorCode, phraseList, sharedStream]);
 
   const stopListening = useCallback(() => {
     isPausingRef.current = false;
+
+    // Issue #167: PushStream のクリーンアップ
+    if (pushStreamCleanupRef.current) {
+      pushStreamCleanupRef.current();
+      pushStreamCleanupRef.current = null;
+    }
 
     if (recognizerRef.current) {
       recognizerRef.current.stopContinuousRecognitionAsync(

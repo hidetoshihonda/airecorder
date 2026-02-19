@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare, Zap, Globe } from "lucide-react";
+import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare, Zap, Globe, Monitor } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { useSpeakerManager } from "@/hooks/useSpeakerManager";
 import { useAICues } from "@/hooks/useAICues";
 import { useDeepAnswer } from "@/hooks/useDeepAnswer";
 import { useRealtimeCorrection } from "@/hooks/useRealtimeCorrection";
+import { useAudioSource, AudioSourceMode } from "@/hooks/useAudioSource";
 import { AuthGateModal } from "@/components/ui/AuthGateModal";
 import { TranscriptView } from "@/components/TranscriptView";
 import { AICuesPanel } from "@/components/AICuesPanel";
@@ -125,6 +126,19 @@ export default function HomePage() {
   const enableSpeakerDiarization = settings.enableSpeakerDiarization ?? false;
   const translationMode = enableSpeakerDiarization ? "api" : "sdk";
 
+  // Issue #167: 音声ソースモード（mic / system / both）
+  const [audioSourceMode, setAudioSourceMode] = useState<AudioSourceMode>(
+    settings.defaultAudioSource ?? "mic"
+  );
+  const {
+    stream: sharedStream,
+    isAcquiring: isAcquiringAudio,
+    error: audioSourceError,
+    acquireStream,
+    releaseStream,
+    isSystemAudioSupported,
+  } = useAudioSource(audioSourceMode);
+
   // Speech Recognition (API mode: SpeechRecognizer + ConversationTranscriber)
   const {
     isListening: _apiIsListening,
@@ -145,6 +159,7 @@ export default function HomePage() {
     language: sourceLanguage,
     enableSpeakerDiarization,
     phraseList: settings.phraseList ?? [],
+    sharedStream,
   });
 
   // Issue #35: SDK mode (TranslationRecognizer — recognition + translation in single pipeline)
@@ -170,6 +185,7 @@ export default function HomePage() {
     sourceLanguage,
     targetLanguage,
     phraseList: settings.phraseList ?? [],
+    sharedStream,
   });
 
   // Issue #35: Unified data sources — select active mode's data
@@ -192,7 +208,7 @@ export default function HomePage() {
     pauseRecording: pauseAudioRecording,
     resumeRecording: resumeAudioRecording,
     resetRecording: resetAudioRecording,
-  } = useAudioRecorder({ audioQuality: settings.audioQuality });
+  } = useAudioRecorder({ audioQuality: settings.audioQuality, sharedStream });
 
   // Translation (Issue #33: segment-based differential translation — API mode only)
   const {
@@ -312,7 +328,7 @@ export default function HomePage() {
   });
 
   // DESIGN-4 fix: エラーを配列で管理（全エラーを表示）
-  const errors = [speechError, translationError, ttsError, audioError, fsmError, correctionError].filter(Boolean) as string[];
+  const errors = [speechError, translationError, ttsError, audioError, fsmError, correctionError, audioSourceError].filter(Boolean) as string[];
 
   // テンプレートアイコンマッピング
   const TEMPLATE_ICONS: Record<string, React.ReactNode> = useMemo(() => ({
@@ -479,6 +495,9 @@ export default function HomePage() {
     clearDeepAnswers();
     
     try {
+      // Issue #167: まずストリームを取得（mic/system/bothに応じて）
+      await acquireStream();
+
       // Start both speech recognition and audio recording
       startListening();
       await startAudioRecording();
@@ -486,6 +505,7 @@ export default function HomePage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t("startRecordingFailed");
       dispatch({ type: "START_FAILURE", error: message });
+      releaseStream();
     }
   };
 
@@ -495,6 +515,7 @@ export default function HomePage() {
     dispatch({ type: "STOP" });
     stopListening();
     stopAudioRecording();
+    releaseStream();  // Issue #167: ストリーム解放
     dispatch({ type: "STOP_SUCCESS" });
   };
 
@@ -984,22 +1005,61 @@ export default function HomePage() {
               </span>
             </label>
 
+            {/* Issue #167: Audio Source Mode Selector */}
+            {isSystemAudioSupported && (
+              <>
+                <div className="h-6 w-px bg-gray-200" />
+                <Select
+                  value={audioSourceMode}
+                  onValueChange={(v) => setAudioSourceMode(v as AudioSourceMode)}
+                >
+                  <SelectTrigger className="h-8 w-44 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mic">
+                      <span className="flex items-center gap-1.5">
+                        <Mic className="h-3.5 w-3.5" />
+                        {t("audioSourceMic")}
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="system">
+                      <span className="flex items-center gap-1.5">
+                        <Monitor className="h-3.5 w-3.5" />
+                        {t("audioSourceSystem")}
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="both">
+                      <span className="flex items-center gap-1.5">
+                        <Mic className="h-3.5 w-3.5" />+<Monitor className="h-3.5 w-3.5" />
+                        {t("audioSourceBoth")}
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+
             {/* Divider */}
             <div className="h-6 w-px bg-gray-200" />
 
             {/* Record button (round) */}
             <button
               onClick={handleStartRecording}
-              disabled={!hasApiKeys || isTransitioning}
+              disabled={!hasApiKeys || isTransitioning || isAcquiringAudio}
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200",
-                hasApiKeys && !isTransitioning
+                hasApiKeys && !isTransitioning && !isAcquiringAudio
                   ? "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
                   : "bg-gray-400 cursor-not-allowed"
               )}
               title={t("startRecording")}
             >
-              <Mic className="h-5 w-5 text-white" />
+              {isAcquiringAudio ? (
+                <Spinner className="h-5 w-5 text-white" />
+              ) : (
+                <Mic className="h-5 w-5 text-white" />
+              )}
             </button>
           </div>
         )}

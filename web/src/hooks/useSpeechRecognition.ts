@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import { LiveSegment } from "@/types";
+import { createPushStreamFromMediaStream } from "@/lib/audioStreamAdapter";
 
 interface UseSpeechRecognitionOptions {
   subscriptionKey: string;
@@ -54,11 +55,21 @@ export function useSpeechRecognition(
   const isPausingRef = useRef(false);
   const startTimeRef = useRef<number>(0);
   const segmentIdRef = useRef(0);
+  // Issue #167: PushStream のクリーンアップ関数を保持
+  const pushStreamCleanupRef = useRef<(() => void) | null>(null);
 
   /** ConversationTranscriber を作成して開始する内部ヘルパー */
   const startConversationTranscriber = useCallback(
     (speechConfig: SpeechSDK.SpeechConfig) => {
-      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+      let audioConfig: SpeechSDK.AudioConfig;
+      if (sharedStream) {
+        const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+        audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
+        pushStreamCleanupRef.current = cleanup;
+      } else {
+        audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      }
       const transcriber = new SpeechSDK.ConversationTranscriber(speechConfig, audioConfig);
 
       // フレーズリスト適用（PhraseListGrammar で固有名詞・専門用語の認識精度向上）
@@ -128,7 +139,7 @@ export function useSpeechRecognition(
         }
       );
     },
-    [phraseList]
+    [phraseList, sharedStream]
   );
 
   const startListening = useCallback(() => {
@@ -155,7 +166,15 @@ export function useSpeechRecognition(
         startConversationTranscriber(speechConfig);
       } else {
         // ─── SpeechRecognizer モード（従来） ───
-        const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+        // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+        let audioConfig: SpeechSDK.AudioConfig;
+        if (sharedStream) {
+          const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+          audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
+          pushStreamCleanupRef.current = cleanup;
+        } else {
+          audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+        }
         const recognizer = new SpeechSDK.SpeechRecognizer(
           speechConfig,
           audioConfig
@@ -225,10 +244,16 @@ export function useSpeechRecognition(
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`初期化エラー: ${message}`);
     }
-  }, [subscriptionKey, region, language, enableSpeakerDiarization, startConversationTranscriber, phraseList]);
+  }, [subscriptionKey, region, language, enableSpeakerDiarization, startConversationTranscriber, phraseList, sharedStream]);
 
   const stopListening = useCallback(() => {
     isPausingRef.current = false;
+
+    // Issue #167: PushStream のクリーンアップ
+    if (pushStreamCleanupRef.current) {
+      pushStreamCleanupRef.current();
+      pushStreamCleanupRef.current = null;
+    }
 
     if (enableSpeakerDiarization && transcriberRef.current) {
       transcriberRef.current.stopTranscribingAsync(
