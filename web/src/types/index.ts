@@ -242,7 +242,7 @@ export interface PaginatedResponse<T> {
 
 // ─── AI Cues Types (Issue #89) ───
 
-export type CueType = "concept" | "bio" | "suggestion" | "answer";
+export type CueType = "question" | "answer";
 
 export interface BaseCue {
   id: string;
@@ -251,28 +251,38 @@ export interface BaseCue {
   segmentIndex: number;
 }
 
+export interface QuestionCue extends BaseCue {
+  type: "question";
+  question: string;
+  answer: string;
+  confidence: "high" | "medium";
+}
+
+/** @deprecated Use QuestionCue instead */
 export interface ConceptCue extends BaseCue {
-  type: "concept";
+  type: "question";
   term: string;
   definition: string;
   context?: string;
 }
 
+/** @deprecated Use QuestionCue instead */
 export interface BioCue extends BaseCue {
-  type: "bio";
+  type: "question";
   name: string;
   description: string;
   role?: string;
 }
 
+/** @deprecated Use QuestionCue instead */
 export interface SuggestionCue extends BaseCue {
-  type: "suggestion";
+  type: "question";
   question: string;
   suggestion: string;
   reasoning?: string;
 }
 
-export type AICue = ConceptCue | BioCue | SuggestionCue | AnswerCue;
+export type AICue = QuestionCue | AnswerCue;
 
 // ─── AI Cue Pro Types (Deep Answer with Citations) ───
 
