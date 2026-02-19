@@ -13,19 +13,11 @@ interface CuesRequest {
 }
 
 interface CueItem {
-  type: "concept" | "bio" | "suggestion";
-  // concept
-  term?: string;
-  definition?: string;
-  context?: string;
-  // bio
-  name?: string;
-  description?: string;
-  role?: string;
-  // suggestion
-  question?: string;
-  suggestion?: string;
-  reasoning?: string;
+  type: "question";
+  // question — 質問検知＋回答
+  question: string;
+  answer: string;
+  confidence: "high" | "medium";
 }
 
 interface CuesResponse {
@@ -48,41 +40,39 @@ function jsonResponse<T>(
   };
 }
 
-const CUES_SYSTEM_PROMPT = `あなたは会議中のリアルタイムアシスタントです。
-与えられた会話テキスト（直近の発言セグメント）を分析し、以下の3種類の「AI Cue」を抽出してください。
+const CUES_SYSTEM_PROMPT = `あなたは会議中のリアルタイム質問検知アシスタントです。
+与えられた会話テキスト（直近の発言セグメント）を分析し、会話の中で出てきた「質問」や「疑問」「確認したいこと」を検知してください。
+検知した質問に対して、あなたの知識を使って具体的で実用的な回答を提供してください。
+
+## 検知する質問の例
+- 「〇〇って何ですか？」「〇〇とは？」
+- 「〇〇はどうなっていますか？」
+- 「〇〇の違いは？」「〇〇と△△の差は？」
+- 「〇〇はどうすればいいですか？」
+- 「なぜ〇〇なのですか？」
+- 「〇〇はいくらですか？」「〇〇の期限は？」
+- 疑問形でなくても「〇〇について調べたい」「〇〇が分からない」等の暗黙の疑問
 
 ## 出力形式（JSON）
 {
   "cues": [
     {
-      "type": "concept",
-      "term": "専門用語・略語",
-      "definition": "簡潔な解説（1-2文）",
-      "context": "会話中での使われ方"
-    },
-    {
-      "type": "bio",
-      "name": "人物名・組織名",
-      "description": "簡潔なプロフィール（1-2文）",
-      "role": "会話中での関係性・役職"
-    },
-    {
-      "type": "suggestion",
-      "question": "相手の質問・論点",
-      "suggestion": "回答案・フォローアップ提案",
-      "reasoning": "提案の根拠（1文）"
+      "type": "question",
+      "question": "検知した質問（原文に忠実に、ただし簡潔に整理）",
+      "answer": "具体的で実用的な回答（3-5文程度。数値・事実を含めて具体的に）",
+      "confidence": "high または medium"
     }
   ]
 }
 
 ## ルール
-1. 一般的な単語は concept にしない（専門用語・業界用語・略語のみ）
-2. 明確に言及された人物・組織のみ bio にする（推測で追加しない）
-3. suggestion は相手の質問や検討事項に対する具体的で実用的な回答案を出す
-4. cues が何もなければ空配列 [] を返す
-5. 各 type は最大3件まで
+1. 会話中に質問・疑問がない場合は空配列 [] を返す（無理に生成しない）
+2. 挨拶や雑談の質問（「元気ですか？」等）は無視する
+3. 回答はあなたの知識に基づき、具体的な事実・数値・手順を含めて実用的に書く
+4. 確信度が高い回答は "high"、推測を含む場合は "medium" とする
+5. 最大3件まで（重要度順）
 6. 必ず有効なJSONで出力
-7. 解説は簡潔に（各フィールド50文字以内推奨）`;
+7. 回答は150文字以内を目安に簡潔にまとめる`;
 
 function getLanguageInstruction(language: string): string {
   if (language.startsWith("ja")) return "";

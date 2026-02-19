@@ -11,16 +11,10 @@ export interface GenerateCuesInput {
 }
 
 interface CueRaw {
-  type: "concept" | "bio" | "suggestion";
-  term?: string;
-  definition?: string;
-  context?: string;
-  name?: string;
-  description?: string;
-  role?: string;
-  question?: string;
-  suggestion?: string;
-  reasoning?: string;
+  type: "question";
+  question: string;
+  answer: string;
+  confidence?: "high" | "medium";
 }
 
 export interface CuesApiResponse {

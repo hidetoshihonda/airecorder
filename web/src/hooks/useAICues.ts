@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AICue, LiveSegment } from "@/types";
+import { AICue, QuestionCue, LiveSegment } from "@/types";
 import { cuesApi } from "@/services/cuesApi";
 
 // ─── 設定定数 ───
@@ -107,48 +107,15 @@ export function useAICues({
 
         if (response.data?.cues && response.data.cues.length > 0) {
           const now = Date.now();
-          const newCues: AICue[] = response.data.cues.map((raw) => {
-            const id = `cue-${++cueIdCounterRef.current}`;
-            const base = {
-              id,
-              timestamp: now,
-              segmentIndex: segmentsRef.current.length - 1,
-            };
-
-            switch (raw.type) {
-              case "concept":
-                return {
-                  ...base,
-                  type: "concept" as const,
-                  term: raw.term || "",
-                  definition: raw.definition || "",
-                  context: raw.context,
-                };
-              case "bio":
-                return {
-                  ...base,
-                  type: "bio" as const,
-                  name: raw.name || "",
-                  description: raw.description || "",
-                  role: raw.role,
-                };
-              case "suggestion":
-                return {
-                  ...base,
-                  type: "suggestion" as const,
-                  question: raw.question || "",
-                  suggestion: raw.suggestion || "",
-                  reasoning: raw.reasoning,
-                };
-              default:
-                return {
-                  ...base,
-                  type: "concept" as const,
-                  term: "Unknown",
-                  definition: "",
-                };
-            }
-          });
+          const newCues: QuestionCue[] = response.data.cues.map((raw) => ({
+            id: `cue-${++cueIdCounterRef.current}`,
+            timestamp: now,
+            segmentIndex: segmentsRef.current.length - 1,
+            type: "question" as const,
+            question: raw.question || "",
+            answer: raw.answer || "",
+            confidence: raw.confidence || "medium",
+          }));
 
           setCues((prev) => [...prev, ...newCues]);
         }

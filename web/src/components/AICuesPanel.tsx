@@ -2,100 +2,67 @@
 
 import { memo, useRef, useEffect, useState } from "react";
 import {
-  Lightbulb,
-  User,
-  MessageSquare,
+  Search,
   ChevronRight,
   ChevronLeft,
   Sparkles,
   X,
   ExternalLink,
-  Search,
   Copy,
   Check,
+  HelpCircle,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { AICue, ConceptCue, BioCue, SuggestionCue, AnswerCue } from "@/types";
+import { AICue, QuestionCue, AnswerCue } from "@/types";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 // ─── CueCard コンポーネント ───
 
-const ConceptCard = memo(function ConceptCard({ cue }: { cue: ConceptCue }) {
-  const t = useTranslations("AICues");
-  return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
-      <div className="mb-1 flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-          {t("concept")}
-        </span>
-      </div>
-      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-        {cue.term}
-      </p>
-      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-        {cue.definition}
-      </p>
-      {cue.context && (
-        <p className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
-          💬 {cue.context}
-        </p>
-      )}
-    </div>
-  );
-});
+// ─── QuestionCue Card ───
 
-const BioCard = memo(function BioCard({ cue }: { cue: BioCue }) {
+const QuestionCard = memo(function QuestionCard({ cue }: { cue: QuestionCue }) {
   const t = useTranslations("AICues");
-  return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
-      <div className="mb-1 flex items-center gap-2">
-        <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <span className="text-xs font-bold text-blue-800 dark:text-blue-300">
-          {t("bio")}
-        </span>
-      </div>
-      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-        {cue.name}
-      </p>
-      {cue.role && (
-        <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-400">
-          {cue.role}
-        </p>
-      )}
-      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-        {cue.description}
-      </p>
-    </div>
-  );
-});
+  const [copied, setCopied] = useState(false);
 
-const SuggestionCard = memo(function SuggestionCard({
-  cue,
-}: {
-  cue: SuggestionCue;
-}) {
-  const t = useTranslations("AICues");
+  const handleCopy = () => {
+    navigator.clipboard.writeText(`Q: ${cue.question}\nA: ${cue.answer}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-      <div className="mb-1 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-green-600 dark:text-green-400" />
-        <span className="text-xs font-bold text-green-800 dark:text-green-300">
-          {t("suggestion")}
-        </span>
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950">
+      <div className="mb-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+            {t("questionDetected")}
+          </span>
+          {cue.confidence === "medium" && (
+            <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+              {t("estimated")}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleCopy}
+          className="rounded p-1 text-gray-400 transition-colors hover:bg-emerald-100 hover:text-emerald-600 dark:hover:bg-emerald-900"
+          title={t("copyAnswer")}
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-green-500" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </button>
       </div>
-      <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mb-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
         ❓ {cue.question}
       </p>
-      <p className="text-sm text-gray-800 dark:text-gray-200">
-        {cue.suggestion}
+      <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+        {cue.answer}
       </p>
-      {cue.reasoning && (
-        <p className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
-          📎 {cue.reasoning}
-        </p>
-      )}
     </div>
   );
 });
@@ -212,12 +179,8 @@ const AnswerCard = memo(function AnswerCard({ cue }: { cue: AnswerCue }) {
 
 function CueCard({ cue }: { cue: AICue }) {
   switch (cue.type) {
-    case "concept":
-      return <ConceptCard cue={cue} />;
-    case "bio":
-      return <BioCard cue={cue} />;
-    case "suggestion":
-      return <SuggestionCard cue={cue} />;
+    case "question":
+      return <QuestionCard cue={cue} />;
     case "answer":
       return <AnswerCard cue={cue} />;
   }
