@@ -25,6 +25,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.34.2",
     "lucide-react": "^0.563.0",
     "markmap-common": "^0.18.9",
     "markmap-lib": "^0.18.12",

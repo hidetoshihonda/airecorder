@@ -801,7 +801,11 @@ export default function HomePage() {
 
   return (
     <div className={cn(
-      "mx-auto flex h-[calc(100dvh-56px)] overflow-hidden px-4 py-2 sm:px-6 lg:px-8",
+      "mx-auto flex overflow-hidden px-4 py-2 sm:px-6 lg:px-8",
+      // モバイル: NavBar(44px) + SafeAreaTop + BottomNav(49px) + SafeAreaBottom
+      "h-[calc(100dvh-44px-env(safe-area-inset-top)-49px-env(safe-area-inset-bottom))]",
+      // デスクトップ: 従来の56px Header
+      "md:h-[calc(100dvh-56px)]",
       enableAICues && showRecordingUI
         ? "max-w-7xl flex-row gap-4"
         : "max-w-5xl flex-col"

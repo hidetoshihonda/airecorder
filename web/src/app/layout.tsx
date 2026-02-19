@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -28,6 +29,15 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "AI Voice Recorder Team" }],
   creator: "AI Voice Recorder",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AI Recorder",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   openGraph: {
     type: "website",
     locale: "ja_JP",
@@ -53,6 +63,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
@@ -62,12 +77,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" suppressHydrationWarning>
+      <head>
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-            <Footer />
+            <main className="min-h-0 flex-1 overflow-hidden pb-[calc(49px+env(safe-area-inset-bottom))] md:pb-0">
+              {children}
+            </main>
+            <div className="hidden md:block">
+              <Footer />
+            </div>
+            <BottomNav />
           </div>
         </Providers>
       </body>
