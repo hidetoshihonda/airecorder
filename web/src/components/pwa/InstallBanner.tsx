@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { X, Share, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -10,54 +10,62 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// --- standalone state via useSyncExternalStore ---
+function subscribeStandalone(callback: () => void) {
+  const mq = window.matchMedia("(display-mode: standalone)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+function getStandaloneSnapshot() {
+  const mq = window.matchMedia("(display-mode: standalone)");
+  return mq.matches || ("standalone" in window.navigator && (window.navigator as unknown as { standalone: boolean }).standalone === true);
+}
+function getServerStandaloneSnapshot() { return true; } // server: assume standalone → hide banner
+
+// --- dismissed state via useSyncExternalStore ---
+function subscribeDismissed(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+function getDismissedSnapshot() {
+  const dismissedAt = localStorage.getItem("pwa-install-dismissed");
+  if (!dismissedAt) return false;
+  const diff = Date.now() - parseInt(dismissedAt);
+  return diff < 7 * 24 * 60 * 60 * 1000;
+}
+function getServerDismissedSnapshot() { return false; }
+
 /**
  * PWAホーム画面追加促進バナー
- * - Android: beforeinstallpromptイベントを使用
- * - iOS: Safari のA2HS手順をガイド表示
  */
 export function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(true);
+
+  const isStandalone = useSyncExternalStore(subscribeStandalone, getStandaloneSnapshot, getServerStandaloneSnapshot);
+  const dismissed = useSyncExternalStore(subscribeDismissed, getDismissedSnapshot, getServerDismissedSnapshot);
 
   useEffect(() => {
-    // 既にインストール済みなら非表示
-    const mq = window.matchMedia("(display-mode: standalone)");
-    const isIosStandalone = ("standalone" in window.navigator && (window.navigator as unknown as { standalone: boolean }).standalone === true);
-    setIsStandalone(mq.matches || isIosStandalone);
-
-    // 過去に非表示にした場合はスキップ
-    const dismissedAt = localStorage.getItem("pwa-install-dismissed");
-    if (dismissedAt) {
-      const diff = Date.now() - parseInt(dismissedAt);
-      // 7日以内は再表示しない
-      if (diff < 7 * 24 * 60 * 60 * 1000) {
-        setDismissed(true);
-      }
-    }
-
-    // Android Chrome
+    // Android Chrome: beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // iOS Safari 判定
+    // iOS Safari: 3秒後にガイド表示
     const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
     const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-    if (isIOS && isSafari && !isIosStandalone) {
-      // 3秒後に表示
-      const timer = setTimeout(() => setShowIOSGuide(true), 3000);
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener("beforeinstallprompt", handler);
-      };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (isIOS && isSafari && !isStandalone) {
+      timer = setTimeout(() => setShowIOSGuide(true), 3000);
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      if (timer) clearTimeout(timer);
+    };
+  }, [isStandalone]);
 
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) return;
@@ -69,10 +77,11 @@ export function InstallBanner() {
   }, [deferredPrompt]);
 
   const handleDismiss = useCallback(() => {
-    setDismissed(true);
     setShowIOSGuide(false);
     setDeferredPrompt(null);
     localStorage.setItem("pwa-install-dismissed", Date.now().toString());
+    // Trigger storage event for useSyncExternalStore
+    window.dispatchEvent(new Event("storage"));
   }, []);
 
   // 非表示条件

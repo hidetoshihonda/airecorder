@@ -6,29 +6,39 @@ export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        console.log("[SW] Registered:", reg.scope);
+    const register = () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          // 更新検知
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
 
-        // 更新検知
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-
-          newWorker.addEventListener("statechange", () => {
-            if (
-              newWorker.state === "activated" &&
-              navigator.serviceWorker.controller
-            ) {
-              // 新バージョンが利用可能
-              // ユーザーに通知（静かに。confirm は避ける）
-              console.log("[SW] New version available");
-            }
+            newWorker.addEventListener("statechange", () => {
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                // 新しいバージョンが利用可能
+                if (
+                  window.confirm(
+                    "新しいバージョンが利用可能です。更新しますか？"
+                  )
+                ) {
+                  window.location.reload();
+                }
+              }
+            });
           });
+        })
+        .catch(() => {
+          // SW registration failed silently
         });
-      })
-      .catch((err) => console.error("[SW] Registration failed:", err));
+    };
+
+    window.addEventListener("load", register);
+    return () => window.removeEventListener("load", register);
   }, []);
 
   return null;

@@ -1,29 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+function subscribeOnlineStatus(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return !navigator.onLine;
+}
+
+function getServerSnapshot() {
+  return false;
+}
 
 /**
  * オフライン時にバナーを表示するコンポーネント
  */
 export function OfflineIndicator() {
-  const [isOffline, setIsOffline] = useState(false);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    setIsOffline(!navigator.onLine);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  const isOffline = useSyncExternalStore(subscribeOnlineStatus, getOnlineSnapshot, getServerSnapshot);
 
   return (
     <AnimatePresence>

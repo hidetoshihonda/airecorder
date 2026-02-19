@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic, History, Settings, Menu, X, User, LogOut, Globe, ChevronLeft } from "lucide-react";
+import { Mic, History, Settings, User, LogOut, Globe, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
