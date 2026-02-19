@@ -38,8 +38,6 @@ body {
     /* テキスト選択を防止（アプリ感） */
     -webkit-user-select: none;
     user-select: none;
-    /* プルダウンリフレッシュ防止 */
-    overflow: hidden;
   }
 
   /* テキスト入力欄では選択を許可 */
