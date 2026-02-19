@@ -1147,7 +1147,12 @@ function RecordingDetailContent() {
                                 {recording?.speakerLabels?.[segment.speaker] || segment.speaker}
                               </button>
                             )}
-                            <span className="text-sm text-gray-800 leading-relaxed">
+                            <span className={cn(
+                              "text-sm leading-relaxed",
+                              transcriptView === "corrected" && recording?.correctedTranscript
+                                ? "text-gray-900"
+                                : "text-gray-800"
+                            )}>
                               {segment.text}
                             </span>
                           </div>
