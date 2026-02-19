@@ -146,6 +146,7 @@ export interface UserSettings {
   noiseSuppression: boolean;
   enableSpeakerDiarization: boolean;
   phraseList?: string[];
+  defaultAudioSource?: "mic" | "system" | "both";  // Issue #167
 }
 
 export interface UserSettingsDocument {

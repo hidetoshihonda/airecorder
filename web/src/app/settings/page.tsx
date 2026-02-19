@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Mic, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check, List, X, Sparkles } from "lucide-react";
+import { Globe, Mic, Monitor, Palette, Users, Plus, Pencil, Trash2, FileText, LogIn, Check, List, X, Sparkles } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale, AppLocale } from "@/contexts/I18nContext";
@@ -359,6 +359,54 @@ export default function SettingsPage() {
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Audio Source Settings (Issue #167) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-indigo-600" />
+              <CardTitle className="text-lg">{t("defaultAudioSource")}</CardTitle>
+            </div>
+            <CardDescription>
+              {t("defaultAudioSourceDesc")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Select
+              value={settings.defaultAudioSource ?? "mic"}
+              onValueChange={(v) =>
+                handleSettingChange({ defaultAudioSource: v as "mic" | "system" | "both" })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mic">
+                  <span className="flex items-center gap-2">
+                    <Mic className="h-4 w-4" />
+                    {t("audioSourceMic")}
+                  </span>
+                </SelectItem>
+                <SelectItem value="system">
+                  <span className="flex items-center gap-2">
+                    <Monitor className="h-4 w-4" />
+                    {t("audioSourceSystem")}
+                  </span>
+                </SelectItem>
+                <SelectItem value="both">
+                  <span className="flex items-center gap-2">
+                    <Mic className="h-4 w-4" />+<Monitor className="h-4 w-4" />
+                    {t("audioSourceBoth")}
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+              <p>💡 {t("audioSourceNote")}</p>
+            </div>
           </CardContent>
         </Card>
 

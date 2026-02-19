@@ -202,6 +202,7 @@ export interface UserSettings {
   enableAICues?: boolean;
   aiCueMode?: "tech_support" | "interview" | "general";  // AI Cue Pro: テクニカルQ&Aモード
   enableRealtimeCorrection?: boolean;  // Issue #126
+  defaultAudioSource?: "mic" | "system" | "both";  // Issue #167: デフォルト音声ソース
 }
 
 export interface Subscription {
