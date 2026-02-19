@@ -124,6 +124,9 @@ function RecordingDetailContent() {
   // LLM 補正版表示切り替え (Issue #70)
   const [transcriptView, setTranscriptView] = useState<"original" | "corrected">("corrected");
   
+  // 翻訳AI補正版表示切り替え (Issue #125)
+  const [translationView, setTranslationView] = useState<"original" | "corrected">("corrected");
+  
   // Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
@@ -230,10 +233,14 @@ function RecordingDetailContent() {
     fetchData();
   }, [id, isAuthenticated, authLoading]);
 
-  // LLM 補正中の場合、定期的に再取得 (Issue #70)
+  // LLM 補正中の場合、定期的に再取得 (Issue #70 + Issue #125)
   useEffect(() => {
     if (!id || !recording) return;
-    if (recording.correctionStatus !== "pending" && recording.correctionStatus !== "processing") {
+
+    const transcriptPending = recording.correctionStatus === "pending" || recording.correctionStatus === "processing";
+    const translationPending = recording.translationCorrectionStatus === "pending" || recording.translationCorrectionStatus === "processing";
+
+    if (!transcriptPending && !translationPending) {
       return;
     }
 
@@ -242,17 +249,16 @@ function RecordingDetailContent() {
       if (response.data) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setRecording(response.data);
-        if (
-          response.data.correctionStatus === "completed" ||
-          response.data.correctionStatus === "failed"
-        ) {
+        const tDone = response.data.correctionStatus === "completed" || response.data.correctionStatus === "failed" || !response.data.correctionStatus;
+        const trDone = response.data.translationCorrectionStatus === "completed" || response.data.translationCorrectionStatus === "failed" || !response.data.translationCorrectionStatus;
+        if (tDone && trDone) {
           clearInterval(interval);
         }
       }
     }, 3000); // 3秒ごとにチェック
 
     return () => clearInterval(interval);
-  }, [id, recording?.correctionStatus]);
+  }, [id, recording?.correctionStatus, recording?.translationCorrectionStatus]);
 
   // 表示する文字起こしを決定 (Issue #70)
   const displayTranscript = useMemo(() => {
@@ -261,6 +267,14 @@ function RecordingDetailContent() {
     }
     return recording?.transcript;
   }, [recording, transcriptView]);
+
+  // 表示する翻訳を決定 (Issue #125)
+  const displayTranslations = useMemo(() => {
+    if (translationView === "corrected" && recording?.correctedTranslations && Object.keys(recording.correctedTranslations).length > 0) {
+      return recording.correctedTranslations;
+    }
+    return recording?.translations;
+  }, [recording, translationView]);
 
   // Issue #147: transcript segments から話者一覧を導出
   const speakerList = useMemo(() => {
@@ -312,6 +326,9 @@ function RecordingDetailContent() {
 
   // 補正リトライ (Issue #103)
   const [isRetryingCorrection, setIsRetryingCorrection] = useState(false);
+  
+  // 翻訳補正リトライ (Issue #125)
+  const [isRetryingTranslationCorrection, setIsRetryingTranslationCorrection] = useState(false);
 
   const handleRetryCorrection = async () => {
     if (!id || isRetryingCorrection) return;
@@ -360,6 +377,54 @@ function RecordingDetailContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording?.correctionStatus, isRetryingCorrection, t]);
+
+  // 翻訳補正リトライハンドラ (Issue #125)
+  const handleRetryTranslationCorrection = async () => {
+    if (!id || isRetryingTranslationCorrection) return;
+    setIsRetryingTranslationCorrection(true);
+    try {
+      const response = await recordingsApi.retryTranslationCorrection(id);
+      if (response.error) {
+        console.error("[TranslationCorrection] Retry failed:", response.error);
+      } else {
+        setRecording((prev) => prev ? { ...prev, translationCorrectionStatus: "pending", translationCorrectionError: undefined } : prev);
+      }
+    } catch (err) {
+      console.error("[TranslationCorrection] Retry error:", err);
+    } finally {
+      setIsRetryingTranslationCorrection(false);
+    }
+  };
+
+  // 翻訳補正ステータスバッジ (Issue #125)
+  const translationCorrectionStatusBadge = useMemo(() => {
+    switch (recording?.translationCorrectionStatus) {
+      case "pending":
+      case "processing":
+        return <span className="text-xs text-blue-600 animate-pulse">{t("translationCorrectionPending")}</span>;
+      case "completed":
+        return <span className="text-xs text-green-600">{t("translationCorrectionCompleted")}</span>;
+      case "failed":
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-xs text-red-600">{t("translationCorrectionFailed")}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRetryTranslationCorrection}
+              disabled={isRetryingTranslationCorrection}
+              className="h-5 px-1.5 text-xs text-red-600 hover:text-red-700"
+            >
+              <RefreshCw className={cn("h-3 w-3", isRetryingTranslationCorrection && "animate-spin")} />
+              {t("retryTranslationCorrection")}
+            </Button>
+          </span>
+        );
+      default:
+        return null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording?.translationCorrectionStatus, isRetryingTranslationCorrection, t]);
 
   const handleCopy = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -1188,14 +1253,38 @@ function RecordingDetailContent() {
         {/* Translation Tab */}
         <TabsContent value="translation">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{t("translation")}</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg">{t("translation")}</CardTitle>
+                {translationCorrectionStatusBadge}
+              </div>
+              {recording.correctedTranslations && Object.keys(recording.correctedTranslations).length > 0 && (
+                <div className="flex items-center gap-1 rounded-md bg-gray-100 p-0.5">
+                  <Button
+                    variant={translationView === "corrected" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setTranslationView("corrected")}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    AI
+                  </Button>
+                  <Button
+                    variant={translationView === "original" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setTranslationView("original")}
+                  >
+                    Original
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              {recording.translations &&
-              Object.keys(recording.translations).length > 0 ? (
+              {displayTranslations &&
+              Object.keys(displayTranslations).length > 0 ? (
                 <div className="max-h-[60vh] overflow-y-auto space-y-4">
-                  {Object.entries(recording.translations).map(
+                  {Object.entries(displayTranslations).map(
                     ([langCode, translation]) => {
                       const lang = SUPPORTED_LANGUAGES.find(
                         (l) => l.code === langCode || l.translatorCode === langCode

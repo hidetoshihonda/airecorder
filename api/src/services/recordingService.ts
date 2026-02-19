@@ -6,6 +6,7 @@ import {
   generateSasUrl,
 } from "./blobService";
 import { processTranscriptCorrection } from "./transcriptCorrectionService";
+import { processTranslationCorrection } from "./translationCorrectionService";
 import {
   Recording,
   CreateRecordingRequest,
@@ -30,6 +31,9 @@ export async function createRecording(
     translations: request.translations,
     // LLM 補正ステータス (Issue #70)
     correctionStatus: request.transcript?.fullText ? "pending" : undefined,
+    // 翻訳AI補正ステータス (Issue #125)
+    translationCorrectionStatus: (request.translations && Object.keys(request.translations).length > 0)
+      ? "pending" : undefined,
     createdAt: now,
     updatedAt: now,
     status: "completed",
@@ -38,10 +42,22 @@ export async function createRecording(
   const { resource } = await container.items.create(recording);
   const result = resource as Recording;
 
-  // 非同期で補正処理をキック (Issue #70)
+  // 非同期で補正処理をキック (Issue #70 + Issue #125)
   if (request.transcript?.fullText) {
-    processTranscriptCorrection(result.id, result.userId).catch((err) => {
-      console.error(`[Correction] Failed to start for ${result.id}:`, err);
+    processTranscriptCorrection(result.id, result.userId)
+      .then(() => {
+        // transcript 補正完了後に翻訳補正を開始（レート制限対策: 順次実行）
+        if (request.translations && Object.keys(request.translations).length > 0) {
+          return processTranslationCorrection(result.id, result.userId);
+        }
+      })
+      .catch((err) => {
+        console.error(`[Correction] Failed for ${result.id}:`, err);
+      });
+  } else if (request.translations && Object.keys(request.translations).length > 0) {
+    // transcript がなくても翻訳がある場合は翻訳補正のみ実行
+    processTranslationCorrection(result.id, result.userId).catch((err) => {
+      console.error(`[TranslationCorrection] Failed to start for ${result.id}:`, err);
     });
   }
 
@@ -205,6 +221,9 @@ export async function saveRecordingWithAudio(
     audioBlobName: blobName,
     // LLM 補正ステータス (Issue #70)
     correctionStatus: request.transcript?.fullText ? "pending" : undefined,
+    // 翻訳AI補正ステータス (Issue #125)
+    translationCorrectionStatus: (request.translations && Object.keys(request.translations).length > 0)
+      ? "pending" : undefined,
     createdAt: now,
     updatedAt: now,
     status: "completed",
@@ -214,10 +233,20 @@ export async function saveRecordingWithAudio(
   const result = resource as Recording;
   result.audioUrl = await generateSasUrl(blobName);
 
-  // 非同期で補正処理をキック (Issue #70)
+  // 非同期で補正処理をキック (Issue #70 + Issue #125)
   if (request.transcript?.fullText) {
-    processTranscriptCorrection(result.id, result.userId).catch((err) => {
-      console.error(`[Correction] Failed to start for ${result.id}:`, err);
+    processTranscriptCorrection(result.id, result.userId)
+      .then(() => {
+        if (request.translations && Object.keys(request.translations).length > 0) {
+          return processTranslationCorrection(result.id, result.userId);
+        }
+      })
+      .catch((err) => {
+        console.error(`[Correction] Failed for ${result.id}:`, err);
+      });
+  } else if (request.translations && Object.keys(request.translations).length > 0) {
+    processTranslationCorrection(result.id, result.userId).catch((err) => {
+      console.error(`[TranslationCorrection] Failed to start for ${result.id}:`, err);
     });
   }
 

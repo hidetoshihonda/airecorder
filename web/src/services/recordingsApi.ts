@@ -210,6 +210,20 @@ class RecordingsApiService {
     );
   }
 
+  /**
+   * 翻訳補正を手動で再実行 (Issue #125)
+   */
+  async retryTranslationCorrection(id: string): Promise<ApiResponse<{ message: string }>> {
+    const authError = this.requireAuth<{ message: string }>();
+    if (authError) return authError;
+
+    const params = new URLSearchParams({ userId: this.userId! });
+    return this.request<{ message: string }>(
+      `/recordings/${id}/correct-translation?${params.toString()}`,
+      { method: "POST" }
+    );
+  }
+
   async healthCheck(): Promise<ApiResponse<{ status: string }>> {
     return this.request<{ status: string }>("/health");
   }

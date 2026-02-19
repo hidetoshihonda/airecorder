@@ -18,6 +18,11 @@ export interface Recording {
   correctionStatus?: "pending" | "processing" | "completed" | "failed";
   correctionError?: string;
   correctedAt?: string;
+  // 翻訳AI補正 (Issue #125)
+  correctedTranslations?: Record<string, Translation>;
+  translationCorrectionStatus?: "pending" | "processing" | "completed" | "failed";
+  translationCorrectionError?: string;
+  translationCorrectedAt?: string;
   // 話者ラベルマッピング (Issue #140)
   speakerLabels?: Record<string, string>;
   // マインドマップ (Issue #88)
