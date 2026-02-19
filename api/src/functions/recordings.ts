@@ -12,6 +12,7 @@ import {
   listRecordings,
 } from "../services/recordingService";
 import { processTranscriptCorrection } from "../services/transcriptCorrectionService";
+import { processTranslationCorrection } from "../services/translationCorrectionService";
 import {
   ApiResponse,
   Recording,
@@ -267,6 +268,70 @@ app.http("correctRecording", {
       return jsonResponse({
         success: true,
         data: { message: "Correction started" },
+      });
+    } catch (error) {
+      return jsonResponse(
+        { success: false, error: (error as Error).message },
+        500
+      );
+    }
+  },
+});
+
+// POST /api/recordings/{id}/correct-translation - 翻訳補正を手動で再実行 (Issue #125)
+app.http("correctTranslation", {
+  methods: ["POST", "OPTIONS"],
+  authLevel: "anonymous",
+  route: "recordings/{id}/correct-translation",
+  handler: async (
+    request: HttpRequest,
+    _context: InvocationContext
+  ): Promise<HttpResponseInit> => {
+    if (request.method === "OPTIONS") {
+      return jsonResponse({ success: true });
+    }
+
+    const id = request.params.id;
+    const userId = request.query.get("userId");
+
+    if (!userId) {
+      return jsonResponse(
+        { success: false, error: "userId is required" },
+        400
+      );
+    }
+
+    try {
+      const recording = await getRecording(id!, userId);
+      if (!recording) {
+        return jsonResponse(
+          { success: false, error: "Recording not found" },
+          404
+        );
+      }
+
+      if (recording.translationCorrectionStatus === "processing") {
+        return jsonResponse(
+          { success: false, error: "Translation correction already in progress" },
+          409
+        );
+      }
+
+      if (!recording.translations || Object.keys(recording.translations).length === 0) {
+        return jsonResponse(
+          { success: false, error: "No translations to correct" },
+          400
+        );
+      }
+
+      // 翻訳補正処理を非同期でキック
+      processTranslationCorrection(id!, userId).catch((err) => {
+        console.error(`[TranslationCorrection] Manual correction failed for ${id}:`, err);
+      });
+
+      return jsonResponse({
+        success: true,
+        data: { message: "Translation correction started" },
       });
     } catch (error) {
       return jsonResponse(
