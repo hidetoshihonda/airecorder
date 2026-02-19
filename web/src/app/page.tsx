@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import { Mic, Square, Languages, FileText, Copy, Check, AlertCircle, Save, Sparkles, Pause, Play, Volume2, VolumeX, ArrowDown, ChevronDown, Users, Lightbulb, CalendarCheck, Code, Handshake, PenSquare, Zap, Globe } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLocale as useAppLocale } from "@/contexts/I18nContext";
@@ -877,11 +878,16 @@ export default function HomePage() {
                   )}
                 </span>
               )}
-              {enableRealtimeCorrection && (
+              {enableRealtimeCorrection ? (
                 <span className="text-xs flex items-center gap-1 rounded-full px-2 py-0.5 bg-purple-50 text-purple-700">
                   <Sparkles className="h-3 w-3" />
                   {isCorrecting ? t("correcting") : `${t("aiCorrection")}: ${correctedSegmentCount}`}
                 </span>
+              ) : (
+                <Link href="/settings" className="text-xs flex items-center gap-1 rounded-full px-2 py-0.5 bg-gray-50 text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors" title={t("enableRealtimeCorrectionHint")}>
+                  <Sparkles className="h-3 w-3" />
+                  {t("aiCorrectionOff")}
+                </Link>
               )}
             </div>
 

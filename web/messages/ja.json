@@ -58,6 +58,8 @@
     "translating": "翻訳中...",
     "correcting": "補正中...",
     "aiCorrection": "AI補正",
+    "aiCorrectionOff": "AI補正OFF",
+    "enableRealtimeCorrectionHint": "設定画面でリアルタイムAI補正を有効にできます",
     "translationModeSdk": "SDK翻訳",
     "translationModeApi": "API翻訳",
     "transcriptTab": "文字起こし",

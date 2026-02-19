@@ -1,5 +1,6 @@
 // Recording data model
 export interface TranscriptSegment {
+  id?: string;
   speaker?: string;
   text: string;
   startTime: number;

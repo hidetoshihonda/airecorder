@@ -236,6 +236,29 @@ app.http("correctRecording", {
     }
 
     try {
+      // 並行実行ガード: processing 中はリトライを拒否 (Issue #103 堅牢性強化)
+      const recording = await getRecording(id!, userId);
+      if (!recording) {
+        return jsonResponse(
+          { success: false, error: "Recording not found" },
+          404
+        );
+      }
+
+      if (recording.correctionStatus === "processing") {
+        return jsonResponse(
+          { success: false, error: "Correction already in progress" },
+          409
+        );
+      }
+
+      if (!recording.transcript?.fullText) {
+        return jsonResponse(
+          { success: false, error: "No transcript to correct" },
+          400
+        );
+      }
+
       // 補正処理を非同期でキック
       processTranscriptCorrection(id!, userId).catch((err) => {
         console.error(`[Correction] Manual correction failed for ${id}:`, err);

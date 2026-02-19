@@ -58,6 +58,8 @@
     "translating": "Traduciendo...",
     "correcting": "Corrigiendo...",
     "aiCorrection": "Corrección IA",
+    "aiCorrectionOff": "Corrección IA OFF",
+    "enableRealtimeCorrectionHint": "Habilita la corrección IA en tiempo real en Configuración",
     "translationModeSdk": "Traducción SDK",
     "translationModeApi": "Traducción API",
     "transcriptTab": "Transcripción",
