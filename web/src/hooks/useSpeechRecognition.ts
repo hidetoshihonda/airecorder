@@ -23,7 +23,7 @@ interface UseSpeechRecognitionReturn {
   segments: LiveSegment[];
   interimTranscript: string;
   error: string | null;
-  startListening: () => void;
+  startListening: (streamOverride?: MediaStream | null) => void;
   stopListening: () => void;
   pauseListening: () => void;
   resumeListening: () => void;
@@ -60,11 +60,12 @@ export function useSpeechRecognition(
 
   /** ConversationTranscriber を作成して開始する内部ヘルパー */
   const startConversationTranscriber = useCallback(
-    (speechConfig: SpeechSDK.SpeechConfig) => {
-      // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+    (speechConfig: SpeechSDK.SpeechConfig, activeStream?: MediaStream | null) => {
+      // Issue #172: activeStream > sharedStream > defaultMic の優先順位
+      const streamToUse = activeStream ?? sharedStream;
       let audioConfig: SpeechSDK.AudioConfig;
-      if (sharedStream) {
-        const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+      if (streamToUse) {
+        const { pushStream, cleanup } = createPushStreamFromMediaStream(streamToUse);
         audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
         pushStreamCleanupRef.current = cleanup;
       } else {
@@ -142,7 +143,7 @@ export function useSpeechRecognition(
     [phraseList, sharedStream]
   );
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((streamOverride?: MediaStream | null) => {
     if (!subscriptionKey || !region) {
       setError("Speech Services の設定がありません");
       return;
@@ -155,6 +156,9 @@ export function useSpeechRecognition(
       setInterimTranscript("");
       startTimeRef.current = Date.now();
 
+      // Issue #172: streamOverride > sharedStream > defaultMic の優先順位
+      const activeStream = streamOverride ?? sharedStream;
+
       const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
         subscriptionKey,
         region
@@ -163,13 +167,13 @@ export function useSpeechRecognition(
 
       if (enableSpeakerDiarization) {
         // ─── ConversationTranscriber モード ───
-        startConversationTranscriber(speechConfig);
+        startConversationTranscriber(speechConfig, activeStream);
       } else {
         // ─── SpeechRecognizer モード（従来） ───
-        // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+        // Issue #172: activeStream が渡された場合は fromStreamInput を使用
         let audioConfig: SpeechSDK.AudioConfig;
-        if (sharedStream) {
-          const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+        if (activeStream) {
+          const { pushStream, cleanup } = createPushStreamFromMediaStream(activeStream);
           audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
           pushStreamCleanupRef.current = cleanup;
         } else {

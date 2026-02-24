@@ -495,12 +495,12 @@ export default function HomePage() {
     clearDeepAnswers();
     
     try {
-      // Issue #167: まずストリームを取得（mic/system/bothに応じて）
-      await acquireStream();
+      // Issue #172: ストリームを取得し、直接各フックに渡す（React state のレースコンディション回避）
+      const stream = await acquireStream();
 
       // Start both speech recognition and audio recording
-      startListening();
-      await startAudioRecording();
+      startListening(stream);
+      await startAudioRecording(stream);
       dispatch({ type: "START_SUCCESS" });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("startRecordingFailed");

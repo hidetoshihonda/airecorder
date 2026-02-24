@@ -27,7 +27,7 @@ interface UseTranslationRecognizerReturn {
   interimTranslation: string;
   translatedFullText: string;
   error: string | null;
-  startListening: () => void;
+  startListening: (streamOverride?: MediaStream | null) => void;
   stopListening: () => void;
   pauseListening: () => void;
   resumeListening: () => void;
@@ -93,7 +93,7 @@ export function useTranslationRecognizer(
     return langConfig?.translatorCode || langCode.split("-")[0];
   }, []);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((streamOverride?: MediaStream | null) => {
     if (!subscriptionKey || !region) {
       setError("Speech Services の設定がありません");
       return;
@@ -108,6 +108,9 @@ export function useTranslationRecognizer(
       setInterimTranslation("");
       startTimeRef.current = Date.now();
 
+      // Issue #172: streamOverride > sharedStream > defaultMic の優先順位
+      const activeStream = streamOverride ?? sharedStream;
+
       const translationConfig = SpeechSDK.SpeechTranslationConfig.fromSubscription(
         subscriptionKey,
         region
@@ -118,10 +121,10 @@ export function useTranslationRecognizer(
       const targetLangCode = getTranslatorCode(targetLanguage);
       translationConfig.addTargetLanguage(targetLangCode);
 
-      // Issue #167: sharedStream が渡された場合は fromStreamInput を使用
+      // Issue #172: activeStream が渡された場合は fromStreamInput を使用
       let audioConfig: SpeechSDK.AudioConfig;
-      if (sharedStream) {
-        const { pushStream, cleanup } = createPushStreamFromMediaStream(sharedStream);
+      if (activeStream) {
+        const { pushStream, cleanup } = createPushStreamFromMediaStream(activeStream);
         audioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
         pushStreamCleanupRef.current = cleanup;
       } else {
