@@ -61,13 +61,12 @@ export function useAudioSource(mode: AudioSourceMode): UseAudioSourceReturn {
   /** システム音声ストリームを取得 */
   const getSystemStream = useCallback(async (): Promise<MediaStream> => {
     const displayStream: MediaStream = await navigator.mediaDevices.getDisplayMedia({
-      video: false,
+      video: true,       // getDisplayMedia は video: true が必須（spec準拠）
       audio: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       systemAudio: "include",
-    } as any);
+    } as DisplayMediaStreamOptions & { systemAudio?: string });
 
-    // video トラックは不要なので削除
+    // video トラックは不要なので即座に停止
     displayStream.getVideoTracks().forEach((track) => track.stop());
 
     // audio トラックがない場合（ユーザーが「システム音声を共有」をチェックしなかった）

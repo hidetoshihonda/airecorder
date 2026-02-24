@@ -375,7 +375,13 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Select
-              value={settings.defaultAudioSource ?? "mic"}
+              value={
+                // Issue #172: 非対応ブラウザで system/both が保存されている場合は mic にフォールバック
+                (settings.defaultAudioSource === "system" || settings.defaultAudioSource === "both")
+                && !(typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices)
+                  ? "mic"
+                  : (settings.defaultAudioSource ?? "mic")
+              }
               onValueChange={(v) =>
                 handleSettingChange({ defaultAudioSource: v as "mic" | "system" | "both" })
               }
@@ -390,18 +396,22 @@ export default function SettingsPage() {
                     {t("audioSourceMic")}
                   </span>
                 </SelectItem>
-                <SelectItem value="system">
-                  <span className="flex items-center gap-2">
-                    <Monitor className="h-4 w-4" />
-                    {t("audioSourceSystem")}
-                  </span>
-                </SelectItem>
-                <SelectItem value="both">
-                  <span className="flex items-center gap-2">
-                    <Mic className="h-4 w-4" />+<Monitor className="h-4 w-4" />
-                    {t("audioSourceBoth")}
-                  </span>
-                </SelectItem>
+                {typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && (
+                  <SelectItem value="system">
+                    <span className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4" />
+                      {t("audioSourceSystem")}
+                    </span>
+                  </SelectItem>
+                )}
+                {typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && (
+                  <SelectItem value="both">
+                    <span className="flex items-center gap-2">
+                      <Mic className="h-4 w-4" />+<Monitor className="h-4 w-4" />
+                      {t("audioSourceBoth")}
+                    </span>
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
             <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
