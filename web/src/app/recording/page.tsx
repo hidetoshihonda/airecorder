@@ -135,6 +135,9 @@ function RecordingDetailContent() {
   // Tag editing state (Issue #80)
   const [newTag, setNewTag] = useState("");
   const [isUpdatingTags, setIsUpdatingTags] = useState(false);
+  // Tag suggestion state (Issue #171)
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   // Template selection state (Issue #38)
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("general");
@@ -189,6 +192,25 @@ function RecordingDetailContent() {
     technical: t("templateTechReviewDesc"),
     brainstorm: t("templateBrainstormDesc"),
   }), [t]);
+
+  // Issue #171: ユーザーの全タグ一覧を取得
+  useEffect(() => {
+    const fetchUserTags = async () => {
+      const response = await recordingsApi.listUserTags();
+      if (response.data) {
+        setAvailableTags(response.data);
+      }
+    };
+    fetchUserTags();
+  }, []);
+
+  // Issue #171: タグサジェスト候補（既に付いているタグを除外＆入力値でフィルタ）
+  const filteredTagSuggestions = useMemo(() => {
+    const currentTags = recording?.tags || [];
+    return availableTags
+      .filter((tag) => !currentTags.includes(tag))
+      .filter((tag) => !newTag || tag.includes(newTag.toLowerCase()));
+  }, [availableTags, newTag, recording?.tags]);
 
   useEffect(() => {
     // 認証チェック中または未認証の場合はデータ取得しない（Issue #57 セキュリティ修正）
@@ -631,7 +653,33 @@ function RecordingDetailContent() {
     if (response.data) {
       setRecording(response.data);
     }
+    // Issue #171: 新規タグをサジェスト候補に追加
+    if (!availableTags.includes(tagValue)) {
+      setAvailableTags((prev) => [...prev, tagValue].sort());
+    }
     setNewTag("");
+    setShowTagSuggestions(false);
+    setIsUpdatingTags(false);
+  };
+
+  // Issue #171: サジェストからタグを選択
+  const handleSelectTagSuggestion = async (tag: string) => {
+    if (!recording || !id) return;
+    const currentTags = recording.tags || [];
+    if (currentTags.includes(tag) || currentTags.length >= 10) return;
+
+    const updatedTags = [...currentTags, tag];
+    setIsUpdatingTags(true);
+    setShowTagSuggestions(false);
+    setNewTag("");
+
+    const response = await recordingsApi.updateRecording(id, {
+      tags: updatedTags,
+    });
+
+    if (response.data) {
+      setRecording(response.data);
+    }
     setIsUpdatingTags(false);
   };
 
@@ -913,16 +961,37 @@ function RecordingDetailContent() {
               </button>
             </span>
           ))}
-          <form onSubmit={handleAddTag} className="inline-flex items-center">
+          <form onSubmit={handleAddTag} className="relative inline-flex items-center">
             <Input
               type="text"
               placeholder={t("addTagPlaceholder")}
               value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
+              onChange={(e) => {
+                setNewTag(e.target.value);
+                setShowTagSuggestions(true);
+              }}
+              onFocus={() => setShowTagSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
               className="h-6 w-32 text-xs px-2"
               maxLength={30}
               disabled={isUpdatingTags}
             />
+            {/* Issue #171: タグサジェストドロップダウン */}
+            {showTagSuggestions && filteredTagSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 z-50 mt-1 w-48 rounded-md border bg-white shadow-lg max-h-40 overflow-y-auto">
+                {filteredTagSuggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectTagSuggestion(tag)}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </form>
           {isUpdatingTags && <Spinner size="sm" />}
         </div>
