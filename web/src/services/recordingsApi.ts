@@ -147,6 +147,19 @@ class RecordingsApiService {
     );
   }
 
+  /**
+   * ユーザーの全タグ一覧を取得 (Issue #171)
+   */
+  async listUserTags(): Promise<ApiResponse<string[]>> {
+    const authError = this.requireAuth<string[]>();
+    if (authError) return authError;
+
+    const params = new URLSearchParams({ userId: this.userId! });
+    return this.request<string[]>(
+      `/recordings/tags?${params.toString()}`
+    );
+  }
+
   async getRecording(id: string): Promise<ApiResponse<Recording>> {
     const authError = this.requireAuth<Recording>();
     if (authError) return authError;

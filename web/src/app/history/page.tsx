@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -62,6 +62,8 @@ export default function HistoryPage() {
   const [movingRecordingId, setMovingRecordingId] = useState<string | null>(null);
   // Issue #80: タグフィルタ
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  // Issue #171: 全タグ一覧（API取得）
+  const [allTags, setAllTags] = useState<string[]>([]);
   // Issue #81: debounce 用 state
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const t = useTranslations("HistoryPage");
@@ -202,14 +204,17 @@ export default function HistoryPage() {
     setIsLoading(false);
   }, [debouncedSearch, selectedFolderId, selectedTag, isAuthenticated]);
 
-  // Issue #80: 全録音から使用中のタグ一覧を集計
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    recordings.forEach((r) => {
-      r.tags?.forEach((tag) => tagSet.add(tag));
-    });
-    return Array.from(tagSet).sort();
-  }, [recordings]);
+  // Issue #171: 全タグ一覧をAPI経由で取得
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchTags = async () => {
+      const response = await recordingsApi.listUserTags();
+      if (response.data) {
+        setAllTags(response.data);
+      }
+    };
+    fetchTags();
+  }, [isAuthenticated]);
 
   // フォルダ作成 (Issue #83)
   const handleCreateFolder = async () => {

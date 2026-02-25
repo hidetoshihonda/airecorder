@@ -252,3 +252,20 @@ export async function saveRecordingWithAudio(
 
   return result;
 }
+
+/**
+ * ユーザーが使用している全タグの一覧を取得 (Issue #171)
+ */
+export async function getUserTags(userId: string): Promise<string[]> {
+  const container = await getRecordingsContainer();
+
+  const { resources } = await container.items
+    .query<string>({
+      query:
+        "SELECT DISTINCT VALUE tag FROM c JOIN tag IN c.tags WHERE c.userId = @userId",
+      parameters: [{ name: "@userId", value: userId }],
+    })
+    .fetchAll();
+
+  return resources.sort();
+}

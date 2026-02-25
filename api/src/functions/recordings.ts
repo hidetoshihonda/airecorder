@@ -10,6 +10,7 @@ import {
   updateRecording,
   deleteRecording,
   listRecordings,
+  getUserTags,
 } from "../services/recordingService";
 import { processTranscriptCorrection } from "../services/transcriptCorrectionService";
 import { processTranslationCorrection } from "../services/translationCorrectionService";
@@ -70,6 +71,42 @@ app.http("listRecordings", {
       return jsonResponse<PaginatedResponse<Recording>>({
         success: true,
         data: result,
+      });
+    } catch (error) {
+      return jsonResponse(
+        { success: false, error: (error as Error).message },
+        500
+      );
+    }
+  },
+});
+
+// List user tags (Issue #171)
+app.http("listUserTags", {
+  methods: ["GET", "OPTIONS"],
+  authLevel: "anonymous",
+  route: "recordings/tags",
+  handler: async (
+    request: HttpRequest,
+    _context: InvocationContext
+  ): Promise<HttpResponseInit> => {
+    if (request.method === "OPTIONS") {
+      return jsonResponse({ success: true });
+    }
+
+    try {
+      const userId = request.query.get("userId");
+      if (!userId) {
+        return jsonResponse(
+          { success: false, error: "userId is required" },
+          400
+        );
+      }
+
+      const tags = await getUserTags(userId);
+      return jsonResponse<string[]>({
+        success: true,
+        data: tags,
       });
     } catch (error) {
       return jsonResponse(
