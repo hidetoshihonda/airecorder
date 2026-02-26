@@ -269,3 +269,35 @@ export async function getUserTags(userId: string): Promise<string[]> {
 
   return resources.sort();
 }
+
+/**
+ * 複数録音を一括取得 (Issue #90: クロスミーティング集計分析)
+ * Cosmos DB の IN クエリでバッチ取得（最大20件）
+ */
+export async function getMultipleRecordings(
+  ids: string[],
+  userId: string
+): Promise<Recording[]> {
+  if (ids.length === 0) return [];
+  if (ids.length > 20) {
+    throw new Error("Maximum 20 recordings can be selected for cross-analysis");
+  }
+
+  const container = await getRecordingsContainer();
+
+  // IN クエリ用のパラメータを動的に構築
+  const placeholders = ids.map((_, i) => `@id${i}`).join(", ");
+  const parameters: Array<{ name: string; value: string }> = [
+    { name: "@userId", value: userId },
+    ...ids.map((id, i) => ({ name: `@id${i}`, value: id })),
+  ];
+
+  const { resources } = await container.items
+    .query<Recording>({
+      query: `SELECT * FROM c WHERE c.userId = @userId AND c.id IN (${placeholders}) ORDER BY c.createdAt ASC`,
+      parameters,
+    })
+    .fetchAll();
+
+  return resources;
+}

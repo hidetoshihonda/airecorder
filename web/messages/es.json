@@ -187,7 +187,15 @@
     "renameFolder": "Renombrar",
     "deleteFolder": "Eliminar carpeta",
     "deleteFolderConfirm": "¿Eliminar esta carpeta? Las grabaciones se moverán a sin categoría.",
-    "allTags": "Todas las etiquetas"
+    "allTags": "Todas las etiquetas",
+    "selectAndAnalyze": "Seleccionar y analizar",
+    "cancelSelection": "Cancelar selección",
+    "selectedCount": "{count} seleccionados",
+    "startCrossAnalysis": "Iniciar análisis cruzado",
+    "maxSelectionReached": "Se pueden seleccionar hasta 20 grabaciones",
+    "minSelectionRequired": "Seleccione al menos 2 grabaciones",
+    "selectAll": "Seleccionar todo",
+    "clearSelection": "Borrar selección"
   },
   "SettingsPage": {
     "title": "Ajustes",
@@ -534,5 +542,31 @@
     "suggestTopicSummary": "Resume los temas discutidos",
     "suggestParticipants": "Lista los participantes y sus contribuciones",
     "suggestKeyPoints": "¿Cuáles son los puntos clave?"
+  },
+  "CrossAnalysisPage": {
+    "title": "Análisis cruzado de reuniones",
+    "description": "Analizar múltiples grabaciones de forma transversal",
+    "analyzing": "Analizando...",
+    "analyzingDescription": "Analizando múltiples grabaciones de forma transversal. Por favor, espere.",
+    "error": "Error de análisis",
+    "retry": "Reanalizar",
+    "noRecordingsSelected": "No hay grabaciones seleccionadas",
+    "goToHistory": "Ir al historial",
+    "summary": "Resumen",
+    "overallSummary": "Resumen general",
+    "commonThemes": "Temas comunes",
+    "actionTracking": "Seguimiento de acciones",
+    "decisionEvolution": "Evolución de decisiones",
+    "trends": "Análisis de tendencias",
+    "analyzedRecordings": "Grabaciones analizadas",
+    "recordingCount": "{count} grabaciones",
+    "exportMarkdown": "Exportar como Markdown",
+    "status": "Estado",
+    "completed": "Completado",
+    "inProgress": "En progreso",
+    "notStarted": "No iniciado",
+    "mentionedIn": "Mencionado en",
+    "frequency": "Frecuencia",
+    "recurringIssues": "Problemas recurrentes"
   }
 }
