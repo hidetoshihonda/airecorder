@@ -567,6 +567,7 @@
     "notStarted": "未着手",
     "mentionedIn": "言及された録音",
     "frequency": "頻度",
-    "recurringIssues": "繰り返し発生する課題"
+    "recurringIssues": "繰り返し発生する課題",
+    "generatedAt": "生成日時: {date}"
   }
 }

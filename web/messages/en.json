@@ -566,6 +566,7 @@
     "notStarted": "Not Started",
     "mentionedIn": "Mentioned in",
     "frequency": "Frequency",
-    "recurringIssues": "Recurring Issues"
+    "recurringIssues": "Recurring Issues",
+    "generatedAt": "Generated at: {date}"
   }
 }

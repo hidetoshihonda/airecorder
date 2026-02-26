@@ -567,6 +567,7 @@
     "notStarted": "No iniciado",
     "mentionedIn": "Mencionado en",
     "frequency": "Frecuencia",
-    "recurringIssues": "Problemas recurrentes"
+    "recurringIssues": "Problemas recurrentes",
+    "generatedAt": "Generado el: {date}"
   }
 }

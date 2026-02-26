@@ -39,6 +39,7 @@ export default function CrossAnalysisPage() {
     if (stored) {
       try {
         const ids = JSON.parse(stored) as string[];
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: one-time init from sessionStorage
         setRecordingIds(ids);
       } catch {
         setError(t("error"));
@@ -75,6 +76,7 @@ export default function CrossAnalysisPage() {
   // 初回自動実行
   useEffect(() => {
     if (recordingIds.length >= 2 && isAuthenticated && !result && !isAnalyzing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: auto-trigger analysis on mount
       runAnalysis();
     }
   }, [recordingIds, isAuthenticated, result, isAnalyzing, runAnalysis]);
