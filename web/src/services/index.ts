@@ -22,3 +22,6 @@ export { cuesApi } from "./cuesApi";
 export { askAiApi } from "./askAiApi";
 
 export { mindmapApi } from "./mindmapApi";
+
+export { crossAnalysisApi } from "./crossAnalysisApi";
+export type { CrossAnalysisInput } from "./crossAnalysisApi";

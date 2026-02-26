@@ -299,3 +299,47 @@ export interface AnswerCue extends BaseCue {
   citations: Citation[];
   mode: "tech_support" | "interview" | "general";
 }
+
+// === Cross Analysis Types (Issue #90) ===
+
+export interface CrossAnalysisResult {
+  overallSummary: string;
+  commonThemes: Array<{
+    theme: string;
+    description: string;
+    mentionedIn: string[];
+    frequency: number;
+  }>;
+  actionItemTracking: Array<{
+    task: string;
+    assignee: string;
+    firstMentioned: string;
+    lastMentioned: string;
+    status: "new" | "in-progress" | "completed" | "stalled" | "dropped";
+    history: Array<{
+      recordingTitle: string;
+      date: string;
+      update: string;
+    }>;
+  }>;
+  decisionEvolution: Array<{
+    topic: string;
+    decisions: Array<{
+      recordingTitle: string;
+      date: string;
+      decision: string;
+    }>;
+  }>;
+  trends: {
+    topicFrequency: Record<string, number>;
+    sentimentTrend?: string;
+    recurringIssues: string[];
+  };
+  analyzedRecordings: Array<{
+    id: string;
+    title: string;
+    date: string;
+    duration: number;
+  }>;
+  generatedAt: string;
+}

@@ -187,7 +187,15 @@
     "renameFolder": "名前変更",
     "deleteFolder": "フォルダを削除",
     "deleteFolderConfirm": "このフォルダを削除しますか？配下の録音は未分類に移動されます。",
-    "allTags": "全タグ"
+    "allTags": "全タグ",
+    "selectAndAnalyze": "選択して分析",
+    "cancelSelection": "選択解除",
+    "selectedCount": "{count}件選択中",
+    "startCrossAnalysis": "クロス分析を実行",
+    "maxSelectionReached": "最大20件まで選択できます",
+    "minSelectionRequired": "2件以上選択してください",
+    "selectAll": "すべて選択",
+    "clearSelection": "選択をクリア"
   },
   "SettingsPage": {
     "title": "設定",
@@ -534,5 +542,32 @@
     "suggestTopicSummary": "話し合った内容を要約して",
     "suggestParticipants": "参加者と発言内容を整理して",
     "suggestKeyPoints": "重要なポイントを教えて"
+  },
+  "CrossAnalysisPage": {
+    "title": "クロスミーティング分析",
+    "description": "複数の録音を横断的に分析",
+    "analyzing": "分析中...",
+    "analyzingDescription": "複数の録音を横断的に分析しています。しばらくお待ちください。",
+    "error": "分析エラー",
+    "retry": "再分析",
+    "noRecordingsSelected": "録音が選択されていません",
+    "goToHistory": "録音履歴へ",
+    "summary": "概要",
+    "overallSummary": "全体サマリー",
+    "commonThemes": "共通テーマ",
+    "actionTracking": "アクション追跡",
+    "decisionEvolution": "意思決定の推移",
+    "trends": "傾向分析",
+    "analyzedRecordings": "分析対象の録音",
+    "recordingCount": "{count}件の録音",
+    "exportMarkdown": "Markdownエクスポート",
+    "status": "ステータス",
+    "completed": "完了",
+    "inProgress": "進行中",
+    "notStarted": "未着手",
+    "mentionedIn": "言及された録音",
+    "frequency": "頻度",
+    "recurringIssues": "繰り返し発生する課題",
+    "generatedAt": "生成日時: {date}"
   }
 }

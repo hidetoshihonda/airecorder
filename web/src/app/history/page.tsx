@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Play,
@@ -16,6 +17,10 @@ import {
   Plus,
   MoreVertical,
   Tag,
+  BarChart3,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +31,7 @@ import { useLocale as useAppLocale } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Recording, Folder } from "@/types";
 import { recordingsApi, blobApi, foldersApi } from "@/services";
+import { useRecordingSelection } from "@/hooks/useRecordingSelection";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -69,6 +75,28 @@ export default function HistoryPage() {
   const t = useTranslations("HistoryPage");
   const { locale: appLocale } = useAppLocale();
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const router = useRouter();
+  // Issue #90: クロスミーティング集計分析 — 複数選択
+  const {
+    selectedIds,
+    isSelectionMode,
+    selectedCount,
+    canAnalyze,
+    isMaxReached,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    enterSelectionMode,
+    exitSelectionMode,
+  } = useRecordingSelection();
+
+  const handleStartCrossAnalysis = useCallback(() => {
+    sessionStorage.setItem(
+      "crossAnalysisRecordingIds",
+      JSON.stringify(Array.from(selectedIds))
+    );
+    router.push("/cross-analysis");
+  }, [selectedIds, router]);
 
   // Issue #81: searchQuery → debouncedSearch に 400ms debounce
   useEffect(() => {
@@ -355,18 +383,81 @@ export default function HistoryPage() {
             {t("description")}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchRecordings}
-          disabled={isLoading}
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-          />
-          {t("refresh")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isSelectionMode ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={enterSelectionMode}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              {t("selectAndAnalyze")}
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitSelectionMode}
+            >
+              <X className="mr-2 h-4 w-4" />
+              {t("cancelSelection")}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchRecordings}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+            {t("refresh")}
+          </Button>
+        </div>
       </div>
+
+      {/* Issue #90: Selection Mode Floating Bar */}
+      {isSelectionMode && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-800">
+              {t("selectedCount", { count: selectedCount })}
+            </span>
+            {isMaxReached && (
+              <span className="text-xs text-orange-600">
+                {t("maxSelectionReached")}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => selectAll(recordings.map((r) => r.id))}
+              className="text-blue-700"
+            >
+              {t("selectAll")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              className="text-blue-700"
+            >
+              {t("clearSelection")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleStartCrossAnalysis}
+              disabled={!canAnalyze}
+            >
+              <BarChart3 className="mr-1 h-4 w-4" />
+              {t("startCrossAnalysis")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Folder Tabs */}
       <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
@@ -494,14 +585,44 @@ export default function HistoryPage() {
             recordings.map((recording) => (
               <Card
                 key={recording.id}
-                className="transition-shadow hover:shadow-md"
+                className={`transition-shadow hover:shadow-md ${
+                  isSelectionMode && selectedIds.has(recording.id)
+                    ? "ring-2 ring-blue-500 bg-blue-50/50"
+                    : ""
+                }`}
+                onClick={
+                  isSelectionMode
+                    ? () => toggleSelection(recording.id)
+                    : undefined
+                }
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
+                    {/* Issue #90: Checkbox in selection mode */}
+                    {isSelectionMode && (
+                      <button
+                        className="mr-3 mt-1 flex-shrink-0 text-blue-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection(recording.id);
+                        }}
+                      >
+                        {selectedIds.has(recording.id) ? (
+                          <CheckSquare className="h-5 w-5" />
+                        ) : (
+                          <Square className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    )}
                     <div className="flex-1">
                       <Link
                         href={`/recording?id=${recording.id}`}
                         className="text-lg font-medium text-gray-900 hover:text-blue-600"
+                        onClick={(e) => {
+                          if (isSelectionMode) {
+                            e.preventDefault();
+                          }
+                        }}
                       >
                         {recording.title}
                       </Link>

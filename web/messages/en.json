@@ -187,7 +187,15 @@
     "renameFolder": "Rename",
     "deleteFolder": "Delete folder",
     "deleteFolderConfirm": "Delete this folder? Recordings inside will become uncategorized.",
-    "allTags": "All Tags"
+    "allTags": "All Tags",
+    "selectAndAnalyze": "Select & Analyze",
+    "cancelSelection": "Cancel Selection",
+    "selectedCount": "{count} selected",
+    "startCrossAnalysis": "Start Cross Analysis",
+    "maxSelectionReached": "Maximum 20 recordings can be selected",
+    "minSelectionRequired": "Select at least 2 recordings",
+    "selectAll": "Select All",
+    "clearSelection": "Clear Selection"
   },
   "SettingsPage": {
     "title": "Settings",
@@ -533,5 +541,32 @@
     "suggestTopicSummary": "Summarize the discussion topics",
     "suggestParticipants": "List participants and their contributions",
     "suggestKeyPoints": "What are the key points?"
+  },
+  "CrossAnalysisPage": {
+    "title": "Cross-Meeting Analysis",
+    "description": "Analyze across multiple recordings",
+    "analyzing": "Analyzing...",
+    "analyzingDescription": "Analyzing across multiple recordings. Please wait.",
+    "error": "Analysis Error",
+    "retry": "Re-analyze",
+    "noRecordingsSelected": "No recordings selected",
+    "goToHistory": "Go to History",
+    "summary": "Summary",
+    "overallSummary": "Overall Summary",
+    "commonThemes": "Common Themes",
+    "actionTracking": "Action Tracking",
+    "decisionEvolution": "Decision Evolution",
+    "trends": "Trend Analysis",
+    "analyzedRecordings": "Analyzed Recordings",
+    "recordingCount": "{count} recordings",
+    "exportMarkdown": "Export as Markdown",
+    "status": "Status",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "notStarted": "Not Started",
+    "mentionedIn": "Mentioned in",
+    "frequency": "Frequency",
+    "recurringIssues": "Recurring Issues",
+    "generatedAt": "Generated at: {date}"
   }
 }
